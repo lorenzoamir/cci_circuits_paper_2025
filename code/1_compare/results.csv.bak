@@ -1,0 +1,4 @@
+Name,Tumor_n_modules,Normal_n_modules,Tumor_n_genes,Normal_n_genes,Tumor_total_gene_pairs,Normal_total_gene_pairs,Tumor_gene_pairs_same_module,Normal_gene_pairs_same_module,Tumor_total_LR_pairs,Normal_total_LR_pairs,Tumor_LR_pairs_same_module,Normal_LR_pairs_same_module,Tumor_LR_pairs_Z_score,Normal_LR_pairs_Z_score,Tumor_same_module,Normal_same_module,Tumor_total,Normal_total
+uterine_carcinosarcoma,,,,,,,,,,,,,,,253,106,1850,1625
+kidney_papillary_cell_carcinoma,,,,,,,,,,,,,,,184,142,1586,1714
+kidney_chromophobe,,,,,,,,,,,,,,,173,142,1522,1714
