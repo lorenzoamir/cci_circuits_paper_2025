@@ -1,0 +1,51 @@
+normal file: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/normal/WGCNA_liver.p
+tumor file: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma/WGCNA_liver_hepatocellular_carcinoma.p
+Using resource file: /projects/bioinformatics/DB/CellCellCommunication/LianaResources/consensus.csv
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma
+Normal directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/normal
+Tumor figures will be saved to: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma/figures
+Normal figures will be saved to: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/normal/figures
+Comparison file: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma/comparison.txt
+===== Normal =====
+
+Reading WGCNA ojbects
+[1m[94mReading WGCNA_liver WGCNA done![0m
+Generating heatmap
+Done: normal heatmap
+Generating ROC curve: all gene pairs vs LR interactions
+Total number of gene pairs:  82876375
+Number of LR interactions:  1508
+Done: normal ROC curve vs all gene pairs
+Generating ROC curve: LR combinations
+Done: normal ROC curve vs LR pairs
+Performing rank sum test vs all gene pairs
+Writing result to comparison.txt
+Done: normal rank sum test vs all gene pairs
+Performing rank sum test vs LR pairs
+Writing result to comparison.txt
+Done: normal rank sum test vs LR combinations
+
+===== Tumor =====
+
+Reading WGCNA ojbects
+[1m[94mReading WGCNA_liver_hepatocellular_carcinoma WGCNA done![0m
+Generating heatmap
+Done: tumor heatmap
+Generating ROC curve: all gene pairs vs LR interactions
+Total number of gene pairs:  83366328
+Number of LR interactions:  1430
+Done: tumor ROC curve vs all gene pairs
+Generating ROC curve: LR combinations
+Done: tumor ROC curve vs LR pairs
+Performing rank sum test vs all gene pairs
+Writing result to comparison.txt
+Done: tumor rank sum test vs all gene pairs
+Performing rank sum test vs LR pairs
+Writing result to comparison.txt
+Done: tumor rank sum test vs LR combinations
+
+Calculating Jaccard similarity
+Jaccard Similarity:
+All LR pairs: 0.7739025856885148
+Same module: 0.10401891252955082
+Done: all

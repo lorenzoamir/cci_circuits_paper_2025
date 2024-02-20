@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N compare_all
-#PBS -l select=1:ncpus=16:mem=64gb
+#PBS -l select=1:ncpus=8:mem=16gb
 #PBS -q q02anacreon
 
 # Annotate all interactions

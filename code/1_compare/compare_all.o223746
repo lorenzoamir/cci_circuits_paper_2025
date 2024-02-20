@@ -1,0 +1,496 @@
+Backing up /home/lnemati/pathway_crosstalk/code/1_compare/results.csv to /home/lnemati/pathway_crosstalk/code/1_compare/results.csv.bak
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/tumor/uterine_carcinosarcoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/tumor/uterine_carcinosarcoma/compare.sh
+Submitting job for uterine_carcinosarcoma
+223747.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/tumor/uterine_carcinosarcoma/general_info.txt
+n_modules: 101
+n_genes: 14242
+total_gene_pairs: 101410161
+gene_pairs_same_module: 5766400
+total_LR_pairs: 1850
+LR_pairs_same_module: 253
+LR_pairs_Z_score: 14.838981151384958
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/normal/general_info.txt
+n_modules: 66
+n_genes: 13646
+total_gene_pairs: 93099835
+gene_pairs_same_module: 7375479
+total_LR_pairs: 1625
+LR_pairs_same_module: 106
+LR_pairs_Z_score: -2.0881365733723993
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_papillary_cell_carcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_papillary_cell_carcinoma/compare.sh
+Submitting job for kidney_papillary_cell_carcinoma
+223748.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_papillary_cell_carcinoma/general_info.txt
+n_modules: 34
+n_genes: 13760
+total_gene_pairs: 94661920
+gene_pairs_same_module: 7499613
+total_LR_pairs: 1586
+LR_pairs_same_module: 184
+LR_pairs_Z_score: 5.424649398847005
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/normal/general_info.txt
+n_modules: 43
+n_genes: 14033
+total_gene_pairs: 98455528
+gene_pairs_same_module: 7693709
+total_LR_pairs: 1714
+LR_pairs_same_module: 142
+LR_pairs_Z_score: 0.7254606340683081
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_chromophobe
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_chromophobe/compare.sh
+Submitting job for kidney_chromophobe
+223749.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_chromophobe/general_info.txt
+n_modules: 53
+n_genes: 13474
+total_gene_pairs: 90767601
+gene_pairs_same_module: 5651149
+total_LR_pairs: 1522
+LR_pairs_same_module: 173
+LR_pairs_Z_score: 8.300087788572347
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/normal/general_info.txt
+n_modules: 43
+n_genes: 14033
+total_gene_pairs: 98455528
+gene_pairs_same_module: 7693709
+total_LR_pairs: 1714
+LR_pairs_same_module: 142
+LR_pairs_Z_score: 0.7254606340683081
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_clear_cell_carcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_clear_cell_carcinoma/compare.sh
+Submitting job for kidney_clear_cell_carcinoma
+223750.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_clear_cell_carcinoma/general_info.txt
+n_modules: 29
+n_genes: 14169
+total_gene_pairs: 100373196
+gene_pairs_same_module: 10906295
+total_LR_pairs: 1843
+LR_pairs_same_module: 259
+LR_pairs_Z_score: 4.396946865960117
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/normal/general_info.txt
+n_modules: 43
+n_genes: 14033
+total_gene_pairs: 98455528
+gene_pairs_same_module: 7693709
+total_LR_pairs: 1714
+LR_pairs_same_module: 142
+LR_pairs_Z_score: 0.7254606340683081
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/brain_lower_grade_glioma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/brain_lower_grade_glioma/compare.sh
+Submitting job for brain_lower_grade_glioma
+223751.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/brain_lower_grade_glioma/general_info.txt
+n_modules: 22
+n_genes: 14400
+total_gene_pairs: 103672800
+gene_pairs_same_module: 11562747
+total_LR_pairs: 1836
+LR_pairs_same_module: 334
+LR_pairs_Z_score: 9.580844227795097
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/general_info.txt
+n_modules: 15
+n_genes: 13961
+total_gene_pairs: 97447780
+gene_pairs_same_module: 18061438
+total_LR_pairs: 1655
+LR_pairs_same_module: 269
+LR_pairs_Z_score: -2.3877589384577638
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/glioblastoma_multiforme
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/glioblastoma_multiforme/compare.sh
+Submitting job for glioblastoma_multiforme
+223752.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/glioblastoma_multiforme/general_info.txt
+n_modules: 26
+n_genes: 14269
+total_gene_pairs: 101795046
+gene_pairs_same_module: 12420136
+total_LR_pairs: 1811
+LR_pairs_same_module: 292
+LR_pairs_Z_score: 5.100178745238793
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/general_info.txt
+n_modules: 15
+n_genes: 13961
+total_gene_pairs: 97447780
+gene_pairs_same_module: 18061438
+total_LR_pairs: 1655
+LR_pairs_same_module: 269
+LR_pairs_Z_score: -2.3877589384577638
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/tumor/adrenocortical_cancer
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/tumor/adrenocortical_cancer/compare.sh
+Submitting job for adrenocortical_cancer
+223753.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/tumor/adrenocortical_cancer/general_info.txt
+n_modules: 46
+n_genes: 12945
+total_gene_pairs: 83780040
+gene_pairs_same_module: 5638982
+total_LR_pairs: 1218
+LR_pairs_same_module: 214
+LR_pairs_Z_score: 15.097914043224687
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/normal/general_info.txt
+n_modules: 25
+n_genes: 13582
+total_gene_pairs: 92228571
+gene_pairs_same_module: 14535513
+total_LR_pairs: 1540
+LR_pairs_same_module: 248
+LR_pairs_Z_score: 0.3700404882957001
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/tumor/testicular_germ_cell_tumor
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/tumor/testicular_germ_cell_tumor/compare.sh
+Submitting job for testicular_germ_cell_tumor
+223754.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/tumor/testicular_germ_cell_tumor/general_info.txt
+n_modules: 18
+n_genes: 14532
+total_gene_pairs: 105582246
+gene_pairs_same_module: 13322308
+total_LR_pairs: 2009
+LR_pairs_same_module: 559
+LR_pairs_Z_score: 20.52691445313285
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/normal/general_info.txt
+n_modules: 6
+n_genes: 16389
+total_gene_pairs: 134291466
+gene_pairs_same_module: 38746179
+total_LR_pairs: 2218
+LR_pairs_same_module: 800
+LR_pairs_Z_score: 7.501021057222605
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma/compare.sh
+Submitting job for liver_hepatocellular_carcinoma
+223755.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma/general_info.txt
+n_modules: 33
+n_genes: 12913
+total_gene_pairs: 83366328
+gene_pairs_same_module: 9551897
+total_LR_pairs: 1437
+LR_pairs_same_module: 293
+LR_pairs_Z_score: 10.630419825894446
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/normal/general_info.txt
+n_modules: 25
+n_genes: 12875
+total_gene_pairs: 82876375
+gene_pairs_same_module: 11933549
+total_LR_pairs: 1513
+LR_pairs_same_module: 174
+LR_pairs_Z_score: -3.211754642149393
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/tumor/prostate_adenocarcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/tumor/prostate_adenocarcinoma/compare.sh
+Submitting job for prostate_adenocarcinoma
+223756.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/tumor/prostate_adenocarcinoma/general_info.txt
+n_modules: 18
+n_genes: 14261
+total_gene_pairs: 101680930
+gene_pairs_same_module: 19868124
+total_LR_pairs: 1827
+LR_pairs_same_module: 432
+LR_pairs_Z_score: 4.425894392870062
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/normal/general_info.txt
+n_modules: 43
+n_genes: 14251
+total_gene_pairs: 101538375
+gene_pairs_same_module: 9135668
+total_LR_pairs: 1897
+LR_pairs_same_module: 253
+LR_pairs_Z_score: 6.605416279607534
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_squamous_cell_carcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_squamous_cell_carcinoma/compare.sh
+Submitting job for lung_squamous_cell_carcinoma
+223757.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_squamous_cell_carcinoma/general_info.txt
+n_modules: 49
+n_genes: 14215
+total_gene_pairs: 101026005
+gene_pairs_same_module: 6305795
+total_LR_pairs: 1980
+LR_pairs_same_module: 459
+LR_pairs_Z_score: 31.159434597683568
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/normal/general_info.txt
+n_modules: 34
+n_genes: 14200
+total_gene_pairs: 100812900
+gene_pairs_same_module: 11353525
+total_LR_pairs: 2091
+LR_pairs_same_module: 268
+LR_pairs_Z_score: 2.2490829374225894
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_adenocarcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_adenocarcinoma/compare.sh
+Submitting job for lung_adenocarcinoma
+223758.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_adenocarcinoma/general_info.txt
+n_modules: 54
+n_genes: 14098
+total_gene_pairs: 99369753
+gene_pairs_same_module: 5380219
+total_LR_pairs: 1961
+LR_pairs_same_module: 311
+LR_pairs_Z_score: 20.438927282232466
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/normal/general_info.txt
+n_modules: 34
+n_genes: 14200
+total_gene_pairs: 100812900
+gene_pairs_same_module: 11353525
+total_LR_pairs: 2091
+LR_pairs_same_module: 268
+LR_pairs_Z_score: 2.2490829374225894
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/tumor/breast_invasive_carcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/tumor/breast_invasive_carcinoma/compare.sh
+Submitting job for breast_invasive_carcinoma
+223759.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/tumor/breast_invasive_carcinoma/general_info.txt
+n_modules: 39
+n_genes: 14135
+total_gene_pairs: 99892045
+gene_pairs_same_module: 8269152
+total_LR_pairs: 1855
+LR_pairs_same_module: 350
+LR_pairs_Z_score: 16.552347845662524
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/normal/general_info.txt
+n_modules: 26
+n_genes: 13796
+total_gene_pairs: 95157910
+gene_pairs_same_module: 15129746
+total_LR_pairs: 1723
+LR_pairs_same_module: 344
+LR_pairs_Z_score: 4.614985645558488
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/tumor/ovarian_serous_cystadenocarcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/tumor/ovarian_serous_cystadenocarcinoma/compare.sh
+Submitting job for ovarian_serous_cystadenocarcinoma
+223760.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/tumor/ovarian_serous_cystadenocarcinoma/general_info.txt
+n_modules: 75
+n_genes: 14319
+total_gene_pairs: 102509721
+gene_pairs_same_module: 8883603
+total_LR_pairs: 1883
+LR_pairs_same_module: 479
+LR_pairs_Z_score: 25.869174806452985
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/normal/general_info.txt
+n_modules: 49
+n_genes: 13444
+total_gene_pairs: 90363846
+gene_pairs_same_module: 6873628
+total_LR_pairs: 1529
+LR_pairs_same_module: 253
+LR_pairs_Z_score: 13.18658772874545
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/tumor/skin_cutaneous_melanoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/tumor/skin_cutaneous_melanoma/compare.sh
+Submitting job for skin_cutaneous_melanoma
+223761.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/tumor/skin_cutaneous_melanoma/general_info.txt
+n_modules: 33
+n_genes: 13326
+total_gene_pairs: 88784475
+gene_pairs_same_module: 21348814
+total_LR_pairs: 1608
+LR_pairs_same_module: 335
+LR_pairs_Z_score: -3.0141733355674947
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/normal/general_info.txt
+n_modules: 63
+n_genes: 14069
+total_gene_pairs: 98961346
+gene_pairs_same_module: 4932002
+total_LR_pairs: 1741
+LR_pairs_same_module: 205
+LR_pairs_Z_score: 13.021476819759119
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/tumor/pancreatic_adenocarcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/tumor/pancreatic_adenocarcinoma/compare.sh
+Submitting job for pancreatic_adenocarcinoma
+223762.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/tumor/pancreatic_adenocarcinoma/general_info.txt
+n_modules: 33
+n_genes: 14639
+total_gene_pairs: 107142841
+gene_pairs_same_module: 8461632
+total_LR_pairs: 2072
+LR_pairs_same_module: 246
+LR_pairs_Z_score: 6.708998509035297
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/normal/general_info.txt
+n_modules: 60
+n_genes: 13445
+total_gene_pairs: 90377290
+gene_pairs_same_module: 3526380
+total_LR_pairs: 1519
+LR_pairs_same_module: 108
+LR_pairs_Z_score: 6.457048484091495
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/tumor/colon_adenocarcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/tumor/colon_adenocarcinoma/compare.sh
+Submitting job for colon_adenocarcinoma
+223763.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/tumor/colon_adenocarcinoma/general_info.txt
+n_modules: 23
+n_genes: 13658
+total_gene_pairs: 93263653
+gene_pairs_same_module: 11286455
+total_LR_pairs: 1677
+LR_pairs_same_module: 621
+LR_pairs_Z_score: 31.300702078315876
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/normal/general_info.txt
+n_modules: 12
+n_genes: 13680
+total_gene_pairs: 93564360
+gene_pairs_same_module: 23952466
+total_LR_pairs: 1710
+LR_pairs_same_module: 438
+LR_pairs_Z_score: 0.013308915778440709
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/tumor/esophageal_carcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/tumor/esophageal_carcinoma/compare.sh
+Submitting job for esophageal_carcinoma
+223764.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/tumor/esophageal_carcinoma/general_info.txt
+n_modules: 63
+n_genes: 14192
+total_gene_pairs: 100699336
+gene_pairs_same_module: 10921721
+total_LR_pairs: 1856
+LR_pairs_same_module: 391
+LR_pairs_Z_score: 14.160441495107221
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/general_info.txt
+n_modules: 10
+n_genes: 13310
+total_gene_pairs: 88571395
+gene_pairs_same_module: 32613640
+total_LR_pairs: 1601
+LR_pairs_same_module: 605
+LR_pairs_Z_score: 0.8022194794065488
+
+-------------------------
+Tumor directory: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/tumor/stomach_adenocarcinoma
+Creating job script: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/tumor/stomach_adenocarcinoma/compare.sh
+Submitting job for stomach_adenocarcinoma
+223765.pbs01
+
+Reading tumor general_info file
+Tumor General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/tumor/stomach_adenocarcinoma/general_info.txt
+n_modules: 15
+n_genes: 14202
+total_gene_pairs: 100841301
+gene_pairs_same_module: 16414892
+total_LR_pairs: 1926
+LR_pairs_same_module: 594
+LR_pairs_Z_score: 17.31268815909234
+
+Reading normal general_info file
+Normal General Info File: /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/normal/general_info.txt
+n_modules: 12
+n_genes: 13623
+total_gene_pairs: 92786253
+gene_pairs_same_module: 33150310
+total_LR_pairs: 1681
+LR_pairs_same_module: 723
+LR_pairs_Z_score: 6.230894011852735
+
+-------------------------
+Done
