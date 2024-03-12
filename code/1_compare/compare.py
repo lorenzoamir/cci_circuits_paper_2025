@@ -18,9 +18,19 @@ args = parser.parse_args()
 print("normal file:", args.normal)
 print("tumor file:", args.tumor)
 
-resource_path = "/projects/bioinformatics/DB/CellCellCommunication/LianaResources/consensus.csv"
+# read general_info.txt in the tumor directory
+info_dir = args.tumor.split("/")[0:-1]
+info_file = os.path.join("/".join(info_dir), "general_info.txt")
+print("Trying to read: " + info_file)
+
+with open(info_file, "r") as f:
+    for line in f:
+        if "LR_resource" in line:
+            resource_path = line.split(": ")[1].strip()
+            break
+
 print("Using resource file: " + resource_path)
-resource = pd.read_csv("/projects/bioinformatics/DB/CellCellCommunication/LianaResources/consensus.csv")
+resource = pd.read_csv(resource_path)
 lr_genes = set(resource["ligand"]).union(resource["receptor"])
 
 tumor_dir = os.path.dirname(args.tumor)
@@ -51,15 +61,20 @@ roc_fig_vs_all, roc_ax_vs_all = plt.subplots(1, 1, figsize=(10,10))
 roc_fig_vs_lr, roc_ax_vs_lr = plt.subplots(1, 1, figsize=(10,10))
 
 for condition in ["normal", "tumor"]:
+
     if condition == "tumor":
         print("===== Tumor =====\n")
         print("Reading WGCNA ojbects")
         WGCNA = PyWGCNA.readWGCNA(args.tumor)
+        # make dict with all genes in each module
+        modules_t = {i: WGCNA.datExpr.var.loc[WGCNA.datExpr.var["moduleLabels"] == i].index for i in WGCNA.datExpr.var["moduleLabels"].unique()}
     else:
         print("===== Normal =====\n") 
         print("Reading WGCNA ojbects")
         WGCNA = PyWGCNA.readWGCNA(args.normal)
-   
+        # make dict with all genes in each module
+        modules_n = {i: WGCNA.datExpr.var.loc[WGCNA.datExpr.var["moduleLabels"] == i].index for i in WGCNA.datExpr.var["moduleLabels"].unique()}
+
     # ----------- Heatmap ------------
     print("Generating heatmap")
 
@@ -108,8 +123,17 @@ for condition in ["normal", "tumor"]:
                 k=-1
             ),
             np.nan
-        ).stack(dropna=True, sort=True), columns=["TOM"]
+        ).stack(dropna=True), columns=["TOM"]
     )
+    
+    #all_gene_pairs = pd.DataFrame(
+    #    WGCNA.TOM.where(
+    #        np.tri(
+    #            WGCNA.TOM.shape[0], dtype=bool, k=-1
+    #        ),
+    #        np.nan
+    #    ).stack(dropna=True).reset_index(name="TOM")
+    #)
 
     allgenes = set(all_gene_pairs.index.get_level_values(0))
 
@@ -292,4 +316,26 @@ print(f"Same module: {js_same_module}")
 with open(comparison_file, "a") as f:
     f.write("jaccard_all_lr_pairs: " + str(js_all) + "\n")
     f.write("jaccard_same_module: " + str(js_same_module) + "\n")
+
+# ----- Module Similarity -----
+print("Calculating module similarity")
+
+# For each pair of one Normal and one Tumor module, calculate the Jaccard similarity
+# Save in a dataframe with the module names as index and columns
+module_similarity = pd.DataFrame(index=modules_n.keys(), columns=modules_t.keys())
+
+for n in modules_n.keys():
+    for t in modules_t.keys():
+        js = jaccard_similarity(set(modules_n[n]), set(modules_t[t]))
+        module_similarity.loc[n, t] = js
+
+# Prepend N to the row names 
+module_similarity.index = "N" + module_similarity.index.astype(str)
+# Prepend T to the column names
+module_similarity.columns = "T" + module_similarity.columns.astype(str)
+
+# Save the result in the tumor directory
+print("Saving module similarity to: " + os.path.join(tumor_dir, "module_similarity.csv"))
+module_similarity.to_csv(os.path.join(tumor_dir, "module_similarity.csv"))
+
 print("Done: all")

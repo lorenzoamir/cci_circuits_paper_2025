@@ -5,10 +5,9 @@
 
 # Annotate all interactions
 
-ncpus=16
-memory=64gb
-queue=q07anacreon
-#queue=q02anacreon
+ncpus=20
+memory=40gb
+queue=q02anacreon
 
 cd "/home/lnemati/pathway_crosstalk/code/1_compare/"
 
