@@ -3,14 +3,31 @@
 #PBS -l select=1:ncpus=32:mem=64gb
 #PBS -q q02anacreon
 
-# Sections of the script
 SEPARATE=0
-WGCNA=1
+
+DESEQ=0
+DESEQ_QUEUE="q02gaia"
+DESEQ_NCPUS=8
+DESEQ_MEMORY=16gb
+
+WGCNA=0
+WGCNA_QUEUE="q02anacreon"
+WGCNA_NCPUS=8
+WGCNA_MEMORY=20gb
+
 CCC=0
+CCC_QUEUE="q02anacreon"
+CCC_NCPUS=1
+CCC_MEMORY=20gb
+
+ENRICHMENT=1
+ENRICHMENT_QUEUE="q02gaia"
+ENRICHMENT_NCPUS=2
+ENRICHMENT_MEMORY=8gb
 
 # get ncpus from NCPUS environment variable
-ncpus=20
-memory=25gb
+ncpus=8
+memory=20gb
 queue="q02anacreon"
 
 lr_resource="/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/consensus.csv"
@@ -31,7 +48,7 @@ if [ $SEPARATE -eq 1 ]; then
     echo ""
 fi
 
-# ----- WGCNA & CCC -----
+# ----- Analysis -----
 
 # find all .h5ad files in the data directory and its subdirectories
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
@@ -42,23 +59,56 @@ conda activate WGCNA
  
 for file in "${files[@]}"; do
     echo "$(dirname "$file")"
+    waiting_list=""
     # clean job name
     job_name=$(basename "$file" | sed 's/.h5ad//g')
-    
-    # ----- WGCNA -----
+    # create scripts directory in the same directory as the input file
+    mkdir -p $(dirname "$file")/scripts
+   
+    # ----- DESEQ2 ----- 
+    if [ $DESEQ -eq 1 ]; then
+        echo "DESEQ2"
 
+        # Create job script
+        deseq_name=deseq_"$job_name"
+        deseq_script=$(dirname "$file")/scripts/$deseq_name.sh
+
+        echo "Creating job script for $deseq_script"
+        touch "$deseq_script"
+
+        echo "#!/bin/bash" > "$deseq_script"
+        echo "#PBS -l select=1:ncpus=$DESEQ_NCPUS:mem=$DESEQ_MEMORY" >> "$deseq_script"
+        echo "#PBS -q $DESEQ_QUEUE" >> "$deseq_script"
+        echo "#PBS -N $deseq_name" >> "$deseq_script"
+        echo "" >> "$deseq_script"
+        echo 'eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"' >> "$deseq_script"
+        echo "conda activate WGCNA" >> "$deseq_script"
+        echo "python /home/lnemati/pathway_crosstalk/code/0_WGCNA_CCC/deseq_norm.py --input "${file} --ncpus $DESEQ_NCPUS"" >> "$deseq_script"
+        echo "exit 0" >> "$deseq_script"
+
+        # submit job
+        echo "Submitting job for $deseq_script"
+        deseq_id=$(qsub "$deseq_script")
+
+        # add deseq_id to waiting list
+        waiting_list="$waiting_list:$deseq_id"
+        echo "Waiting list: $waiting_list"
+        echo ""
+    fi
+
+    # ----- WGCNA -----
     if [ $WGCNA -eq 1 ]; then
         echo "WGCNA"
 
         # Create job script
         wgcna_name=wgcna_"$job_name"
-        wgcna_script=$(dirname "$file")/$wgcna_name.sh
+        wgcna_script=$(dirname "$file")/scripts/$wgcna_name.sh
         echo "Creating job script for $wgcna_script"
         touch "$wgcna_script"
 
         echo "#!/bin/bash" > "$wgcna_script"
-        echo "#PBS -l select=1:ncpus=$ncpus:mem=$memory" >> "$wgcna_script"
-        echo "#PBS -q $queue" >> "$wgcna_script"
+        echo "#PBS -l select=1:ncpus=$WGCNA_NCPUS:mem=$WGCNA_MEMORY" >> "$wgcna_script"
+        echo "#PBS -q $WGCNA_QUEUE" >> "$wgcna_script"
         echo "#PBS -N $wgcna_name" >> "$wgcna_script"
         echo "" >> "$wgcna_script"
         echo 'eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"' >> "$wgcna_script"
@@ -68,24 +118,30 @@ for file in "${files[@]}"; do
 
         # submit job
         echo "Submitting job for $wgcna_script"
-        wgcna_id=$(qsub "$wgcna_script")
+        if [ -n "$waiting_list" ]; then
+            wgcna_id=$(qsub -W depend=afterok$waiting_list "$wgcna_script")
+        else
+            wgcna_id=$(qsub "$wgcna_script")
+        fi
+        # add wgcna_id to waiting list
+        waiting_list="$waiting_list:$wgcna_id"
+        echo "Waiting list: $waiting_list"
         echo ""
     fi
 
     # ----- CCC -----
-    echo "CCC"
-
     if [ $CCC -eq 1 ]; then
+        echo "CCC"
 
         # Create job script
         ccc_name=ccc_"$job_name"
-        ccc_script=$(dirname "$file")/$ccc_name.sh
+        ccc_script=$(dirname "$file")/scripts/$ccc_name.sh
         echo "Creating job script for $ccc_script"
         touch "$ccc_script"
 
         echo "#!/bin/bash" > "$ccc_script"
-        echo "#PBS -l select=1:ncpus=1:mem=$memory" >> "$ccc_script"
-        echo "#PBS -q $queue" >> "$ccc_script"
+        echo "#PBS -l select=1:ncpus=$CCC_NCPUS:mem=$CCC_MEMORY" >> "$ccc_script"
+        echo "#PBS -q $CCC_QUEUE" >> "$ccc_script"
         echo "#PBS -N $ccc_name" >> "$ccc_script"
         echo "" >> "$ccc_script"
         echo 'eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"' >> "$ccc_script"
@@ -95,16 +151,50 @@ for file in "${files[@]}"; do
 
         # submit job
         echo "Submitting job for $ccc_script"
-        if [ $WGNA -eq 1 ]; then
-            qsub -W depend=afterok:$wgcna_id "$ccc_script"
+        if [ -n "$waiting_list" ]; then
+            qsub -W depend=afterok$waiting_list "$ccc_script"
         else
             qsub "$ccc_script"
         fi
         echo ""
     fi
+
+    # ----- Enrichment analysis -----
+    if [ $ENRICHMENT -eq 1 ]; then
+        echo "ENRICHMENT"
+        # input file is the wgcna output file
+        wgcnafile=$(dirname "$file")/WGCNA_"$job_name".p
+        echo "Input file for enrichment: $wgcnafile"
+
+        # Create job script
+        enrichment_name=enrichment_"$job_name"
+        enrichment_script=$(dirname "$file")/scripts/$enrichment_name.sh
+        echo "Creating job script for $enrichment_script"
+        touch "$enrichment_script"
+
+        echo "#!/bin/bash" > "$enrichment_script"
+        echo "#PBS -l select=1:ncpus=$ENRICHMENT_NCPUS:mem=$ENRICHMENT_MEMORY" >> "$enrichment_script"
+        echo "#PBS -q $ENRICHMENT_QUEUE" >> "$enrichment_script"
+        echo "#PBS -N $enrichment_name" >> "$enrichment_script"
+        echo "" >> "$enrichment_script"
+        echo 'eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"' >> "$enrichment_script"
+        echo "conda activate WGCNA" >> "$enrichment_script" 
+        echo "python /home/lnemati/pathway_crosstalk/code/0_WGCNA_CCC/enrichment.py --input "${wgcnafile}"" >> "${enrichment_script}" 
+        echo "exit 0" >> "$enrichment_script"
+
+        # submit job
+        echo "Submitting job for $enrichment_script"
+        if [ -n "$waiting_list" ]; then
+            echo "qsub -W depend=afterok$waiting_list $enrichment_script"
+            qsub -W depend=afterok$waiting_list "$enrichment_script"
+        else
+            qsub "$enrichment_script"
+        fi
+        echo ""
+    fi
 done
 
-echo "Done"
+echo "Done: all jobs submitted"
 
 exit 0
 

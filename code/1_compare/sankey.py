@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 import PyWGCNA
+import gseapy as gp
 import argparse
 import plotly.graph_objects as go
 
@@ -29,7 +30,6 @@ with open(info_file, "r") as f:
 
 print("Using resource file: " + resource_path)
 resource = pd.read_csv(resource_path)
-lr_genes = set(resource["ligand"]).union(resource["receptor"])
 
 tumor_dir = os.path.dirname(args.tumor)
 normal_dir = os.path.dirname(args.normal)
@@ -54,7 +54,11 @@ print("Normal figures will be saved to: " + normal_fig_dir)
 print("Reading LR_interactions tables")
 nlr = pd.read_csv(args.normal)
 tlr = pd.read_csv(args.tumor)
-   
+
+# Subset to lr pairs that appear in both normal and tumor
+nlr = nlr[nlr["ligand"].isin(tlr["ligand"]) & nlr["receptor"].isin(tlr["receptor"])]
+tlr = tlr[tlr["ligand"].isin(nlr["ligand"]) & tlr["receptor"].isin(nlr["receptor"])]
+
 same_module = nlr["same_module"]
 nlr["consensus_module"] = "_different"
 nlr.loc[same_module, "consensus_module"] = nlr.loc[same_module, "L_module"]
@@ -70,6 +74,53 @@ consensus_df = pd.merge(
     on=["ligand", "receptor"],
     suffixes=("_normal", "_tumor")
 )[["ligand", "receptor", "consensus_module_normal", "consensus_module_tumor"]]
+
+# Get pairs that have different modules in normal but the same in tumor
+t_same_n_diff = consensus_df[
+    (consensus_df["consensus_module_normal"] == "_different") & (consensus_df["consensus_module_tumor"] != "_different")
+]
+
+print('Saving interactions to file: ' + os.path.join(tumor_dir, "t_same_n_diff.csv"))
+t_same_n_diff = t_same_n_diff[["ligand", "receptor"]]
+t_same_n_diff.to_csv(os.path.join(tumor_dir, "t_same_n_diff.csv"), index=False)
+
+print('Running enrichment analysis')
+# Run enrichment analysis
+enr = gp.enrichr(
+    gene_list=t_same_n_diff["ligand"].tolist() + t_same_n_diff["receptor"].tolist(),
+    gene_sets="Reactome_2022",
+    background=[nlr["ligand"].tolist() + nlr["receptor"].tolist()],
+    outdir=None,
+)
+
+enr= enr.results
+enr = enr[enr["Adjusted P-value"] < 0.05]
+
+enr.to_csv(os.path.join(tumor_dir, 't_same_n_diff_enrichment.csv'), index=False)
+
+# Get pairs that have different modules in tumor but the same in normal
+print("Getting pairs that have different modules in tumor but the same in normal")
+n_same_t_diff = consensus_df[
+    (consensus_df["consensus_module_tumor"] == "_different") & (consensus_df["consensus_module_normal"] != "_different")
+]
+
+print('Saving interactions to file: ' + os.path.join(tumor_dir, "n_same_t_diff.csv"))
+n_same_t_diff = n_same_t_diff[["ligand", "receptor"]]
+n_same_t_diff.to_csv(os.path.join(tumor_dir, "n_same_t_diff.csv"), index=False)
+
+print('Running enrichment analysis')
+# Run enrichment analysis
+enr = gp.enrichr(
+    gene_list=n_same_t_diff["ligand"].tolist() + n_same_t_diff["receptor"].tolist(),
+    gene_sets="Reactome_2022",
+    background=[nlr["ligand"].tolist() + nlr["receptor"].tolist()],
+    outdir=None,
+)
+
+enr= enr.results
+enr = enr[enr["Adjusted P-value"] < 0.05]
+
+enr.to_csv(os.path.join(tumor_dir, 'n_same_t_diff_enrichment.csv'), index=False)
 
 print("Getting module changes")
 module_changes = pd.DataFrame(
@@ -113,13 +164,12 @@ t_color = (255, 0, 0) + (opacity,)  # Red
 n_color = (0, 0, 255) + (opacity,)  # Blue
 nan_color = (100, 100, 100) + (opacity,) # Gray
 
-
 colors = []
 
 for norm, row in module_changes.iterrows():
     for tum, val in row.iteritems():
         if val > 0:
-            if (norm in module_similarity.index) & (tum in module_similarity.columns):
+            if (norm != "N_different") & (tum != "T_different"): # TODO: check this condition
                 r, g, b, a = nan_color
                 colors.append(f"rgba({r},{g},{b},{a})")
             else:
@@ -138,27 +188,7 @@ tc = f"rgba({r},{g},{b},{a})"
 r, g, b, a = n_color
 nc = f"rgba({r},{g},{b},{a})"
 node_colors = [nc] * module_changes.shape[0] + [tc] * module_changes.shape[1]
-
-# As a workaround, first generate a random plot with plotly and save it as a pdf
-print("Generating dummy plot")
-dummy_fig = go.Figure(data=[go.Sankey(
-    node = dict(
-      pad = 15,
-      thickness = 20,
-      line = dict(color = "black", width = 0.5),
-      label = ["A1", "A2", "B1", "B2", "C1", "C2"],
-      color = "blue"
-    ),
-    link = dict(
-      source = [0, 1, 0, 2, 3, 3], # indices correspond to labels, eg A1, A2, A1, B1, ...
-      target = [2, 3, 3, 4, 4, 5],
-      value = [8, 4, 2, 8, 4, 2]
-  ))])
-
-dummy_fig.update_layout(title_text="Basic Sankey Diagram", font_size=10)
-dummy_fig.write_image(os.path.join(tumor_fig_dir, "sankey.pdf"))
-
-print("Generating real plot")
+print("Generating sankey plot")
 
 INVERT = True
 
@@ -176,14 +206,14 @@ fig = go.Figure(
             thickness = 20,
             #line = dict(color = "black", width = 0.5),
             label = labels,
-            color = color,
+            color = node_colors,
             align="right",
         ),
         link = dict(
             source = source,
             target = target,
             value =  value,
-            color =  colors
+            color = colors 
         )
     )
 )

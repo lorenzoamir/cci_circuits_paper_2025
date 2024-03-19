@@ -5,7 +5,6 @@ import PyWGCNA
 import pandas as pd
 import os
 import argparse
-from pydeseq2.dds import DeseqDataSet
 
 # read filename from command line
 #filename = os.environ.get("WGCNA_FILE_PATH")
@@ -63,53 +62,6 @@ if "/tumor/" in filename:
         normal_tissue_files = None
 
 print("Done: Checking corresponding normal tissue")
-
-# --------- DeSeq2 -----------
-
-print("Starting DeSeq2 normalization")
-
-adata.X = adata.layers["raw_counts"].todense()
-
-design_factors = "condition" if len(adata.obs["condition"].unique()) > 1 else None
-
-if design_factors is None:
-    print("Cannot run Deseq2 on a single condition, creating dummy design factors")
-    # Create dummy design factors that alternate between A and B
-    adata.obs["dummy_deseq2_condition"] = ["A" if i % 2 == 0 else "B" for i in range(len(adata.obs))]
-    design_factors = "dummy_deseq2_condition"
-
-print("Initializing Deseq2")
-# Initialize DeseqDataSet
-dds = DeseqDataSet(
-    counts=pd.DataFrame(data=adata.X.astype(int), index=adata.obs_names, columns=adata.var_names),
-    metadata=adata.obs,
-    design_factors=design_factors,  # compare samples based on the "condition"
-    refit_cooks=True,
-    #n_cpus = n_cpus
-)
-
-print("Running Deseq2 normalization")
-# Run DESeq2 normalization
-dds.fit_size_factors()
-
-print("Variance stabilizing transformation")
-# Perform variance stabilizing transformation
-dds.vst(use_design=False)
-
-# Remove dummy design factors
-if design_factors == "dummy_deseq2_condition": 
-    adata.obs.drop(columns=design_factors, inplace=True)
-
-# Get results back to adata object
-adata.X = dds.layers["vst_counts"].copy()
-adata.layers["deseq2_vst_counts"] = dds.layers["vst_counts"].copy()
-adata.layers["deseq2_norm_counts"] = dds.layers["normed_counts"].copy()
-
-# Overwrite adata object
-print("Overwriting adata object")
-adata.write(args.input, compression="gzip")
-
-print("Done: DeSeq2")
 
 # --------- WGCNA ------------
 
@@ -182,15 +134,16 @@ n_same_module = same_module.sum()
 genes = WGCNA.datExpr.var
 
 print("Annotating genes")
-
 # Drop interactions in which the ligand or the receptor is missing from the WGCNA data
 resource = resource[resource["ligand"].isin(genes.index) & resource["receptor"].isin(genes.index)]
 print("Only keeping interactions with both ligand and receptor in WGCNA data: {} interactions".format(resource.shape[0]))
 
-# For each ligand-receptor check whether the ligand and receptor are in the same WGCNA module
 resource["same_module"] = False
 resource["L_module"] = None
 resource["R_module"] = None
+resource["TOM"] = None
+resource["adjacency"] = None
+
 for i, row in resource.iterrows():
     ligand_module = genes.loc[row["ligand"], "moduleLabels"]
     receptor_module = genes.loc[row["receptor"], "moduleLabels"]
@@ -199,20 +152,9 @@ for i, row in resource.iterrows():
     resource.loc[i, "R_module"] = receptor_module
     if ligand_module == receptor_module:
         resource.loc[i, "same_module"] = True
-
-# Add TOM to LR interactions
-print("Adding TOM to LR interactions")
-tom = WGCNA.TOM
-tom["gene"] = tom.index
-merged_df = pd.merge(resource, tom, left_on='ligand', right_on='gene').drop('gene', axis=1)
-resource['TOM'] = merged_df.apply(lambda row: tom.loc[row['receptor'], row['ligand']], axis=1)
-
-# Add adjacency to LR interactions
-print("Adding adjacency to LR interactions")
-adj = WGCNA.adjacency
-adj["gene"] = adj.index
-merged_df = pd.merge(resource, adj, left_on='ligand', right_on='gene').drop('gene', axis=1)
-resource['adjacency'] = merged_df.apply(lambda row: adj.loc[row['receptor'], row['ligand']], axis=1)
+    # Add TOM and adjacency to LR interactions
+    resource.loc[i, "TOM"] = WGCNA.TOM.loc[row["ligand"], row["receptor"]]
+    resource.loc[i, "adjacency"] = WGCNA.adjacency.loc[row["ligand"], row["receptor"]]
 
 print("Showing the first 10 interactions")
 print(resource.head(10))
@@ -222,7 +164,30 @@ print(resource.head(10))
 print("Saving interactions to {}".format(os.path.join(output_path, "LR_interactions.csv")))
 resource.to_csv(os.path.join(output_path, "LR_interactions.csv"), index=False)
 
+# ----- Module info ------
+
+# rank modules by size and save number of LR_interactions in each module
+print("Ranking modules by size and saving number of LR interactions in each module")
+# make dataframe with module sizes
+module_sizes = WGCNA.datExpr.var["moduleLabels"].value_counts().to_dict()
+module_df = pd.DataFrame(data=module_sizes.items(), columns=["module", "size"])
+# sort by size, bigger first
+module_df = module_df.sort_values(by="size", ascending=False)
+module_df["rank"] = range(1, module_df.shape[0] + 1)
+# add number of LR interactions in each module
+module_df["n_LR_interactions"] = None
+module_df["frac_of_tot_LR_interactions"] = None
+
+for i, row in module_df.iterrows():
+    n_LR_interactions = resource[resource["L_module"] == row["module"]]["same_module"].sum()
+    module_df.loc[i, "n_LR_interactions"] = n_LR_interactions
+    module_df.loc[i, "frac_of_tot_LR_interactions"] = n_LR_interactions / resource.shape[0]
+    
+module_df.to_csv(os.path.join(output_path, "module_info.csv"), index=False)
+
 print("Done: LR Pairs")
+
+# ----- Z-score ------
 
 # Z-score number of LR pairs in the same module using a binomial
 # with n = total_LR_pairs and p = n_same_module / total_pairs

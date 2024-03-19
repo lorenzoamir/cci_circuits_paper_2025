@@ -1,13 +1,13 @@
 #!/bin/bash
 #PBS -N sankey_master 
-#PBS -l select=1:ncpus=8:mem=16gb
-#PBS -q q02anacreon
+#PBS -l select=1:ncpus=2:mem=8gb
+#PBS -q q02gaia
 
 # Annotate all interactions
 
 ncpus=4
 memory=8gb
-queue=q02anacreon
+queue=q02gaia
 
 cd "/home/lnemati/pathway_crosstalk/code/1_compare/"
 
