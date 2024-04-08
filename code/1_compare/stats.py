@@ -30,8 +30,15 @@ with open(info_file, "r") as f:
             break
 
 print("Using resource file: " + resource_path)
-resource = pd.read_csv(resource_path)
-lr_genes = set(resource["ligand"]).union(resource["receptor"])
+cpdb = pd.read_csv(resource_path)
+
+# Extract genes for complex A and B for each row
+complex_a_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+complex_b_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+interactions_all_genes = complex_a_genes + complex_b_genes
+
+all_cpdb_genes = set([gene for genes in interactions_all_genes for gene in genes])
+print("Number of genes in CPDB: ", len(all_cpdb_genes))
 
 tumor_dir = os.path.dirname(args.tumor)
 normal_dir = os.path.dirname(args.normal)
@@ -60,6 +67,9 @@ cmap='viridis'
 roc_fig_vs_all, roc_ax_vs_all = plt.subplots(1, 1, figsize=(10,10))
 roc_fig_vs_lr, roc_ax_vs_lr = plt.subplots(1, 1, figsize=(10,10))
 
+# Function that generates and saves the ROC curve
+def generate_roc_curve(
+
 for condition in ["normal", "tumor"]:
 
     if condition == "tumor":
@@ -75,36 +85,43 @@ for condition in ["normal", "tumor"]:
         # make dict with all genes in each module
         modules_n = {i: WGCNA.datExpr.var.loc[WGCNA.datExpr.var["moduleLabels"] == i].index for i in WGCNA.datExpr.var["moduleLabels"].unique()}
 
+    genes = WGCNA.datExpr.var
+
+    # Only keep interactions where all genes are in the WGCNA data
+    print(f'Number of interactions before filtering: {len(cpdb)}')
+    cpdb = cpdb[interactions_all_genes.apply(lambda x: all([gene in genes.index for gene in x]))] 
+        print("Keeping interactions with all genes present: ", len(cpdb))
+
     # ----------- Heatmap ------------
     print("Generating heatmap")
 
     ordered = WGCNA.datExpr.var.sort_values(by="moduleLabels").index
     tom_all = WGCNA.TOM.loc[ordered, ordered]
     
-    lr_ordered = ordered[ordered.isin(lr_genes)]
-    tom_lr = WGCNA.TOM.loc[lr_ordered, lr_ordered]
+    #lr_ordered = ordered[ordered.isin(lr_genes)]
+    cpdb_ordered = oredered[ordered.isin(all_cpdb_genes)]
+    tom_cpdb = WGCNA.TOM.loc[cpdb_ordered, cpdb_ordered]
     
     fig, ax = plt.subplots(1,2, figsize=(20,10))
     
     fig.suptitle(WGCNA.name, fontsize=fs)
     
-    vmax = np.percentile(tom_lr, 99)
+    vmax = np.percentile(tom_cpdb, 99)
     vmin = 0
     cax = ax[0].imshow(tom_all, cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
     ax[0].set_title("All genes", fontsize=fs)
-    cax = ax[1].imshow(tom_lr, cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
-    ax[1].set_title("Ligands & receptors", fontsize=fs)
+    cax = ax[1].imshow(tom_cpdb, cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
+    ax[1].set_title("CellPhoneDB genes", fontsize=fs)
     
     plt.tight_layout()
 
     # save figure to the figure folder of the tumor or normal WGCNA
-
     if condition == "tumor":
         # get the directory of the tumor WGCNA
-        output_path = os.path.join(tumor_fig_dir, "heatmap_all_genes_vs_lr.pdf")
+        output_path = os.path.join(tumor_fig_dir, "heatmap_all_genes_vs_cpdb.pdf")
     else:
         # get the directory of the normal WGCNA
-        output_path = os.path.join(normal_fig_dir, "heatmap_all_genes_vs_lr.pdf")
+        output_path = os.path.join(normal_fig_dir, "heatmap_all_genes_vs_cpdb.pdf")
 
     plt.savefig(output_path)
 
@@ -125,44 +142,40 @@ for condition in ["normal", "tumor"]:
             np.nan
         ).stack(dropna=True), columns=["TOM"]
     )
-    
-    #all_gene_pairs = pd.DataFrame(
-    #    WGCNA.TOM.where(
-    #        np.tri(
-    #            WGCNA.TOM.shape[0], dtype=bool, k=-1
-    #        ),
-    #        np.nan
-    #    ).stack(dropna=True).reset_index(name="TOM")
-    #)
 
-    allgenes = set(all_gene_pairs.index.get_level_values(0))
-
-    all_gene_pairs["LR Pair"] = False
+    all_gene_pairs["interaction_same_complex"] = False
+    all_gene_pairs["interaction_diff_complex"] = False
+    all_gene_pairs["interaction_all"] = False
 
     print("Total number of gene pairs: ", len(all_gene_pairs))
+   
+    # Complex A interactions
+    for genes in complex_a_genes:
+        for gene_pair in combinations(genes, 2):
+            all_gene_pairs.loc[gene_pair, "interaction_all"] = True
+            all_gene_pairs.loc[gene_pair, "interaction_same_complex"] = True
+
+    # Complex B interactions
+    for genes in complex_b_genes:
+        for gene_pair in combinations(genes, 2):
+            all_gene_pairs.loc[gene_pair, "interaction_all"] = True
+            all_gene_pairs.loc[gene_pair, "interaction_same_complex"] = True
     
-    # Identify rows where both ligand and receptor are present in allgenes
-    valid_rows = resource[(resource['ligand'].isin(allgenes)) & (resource['receptor'].isin(allgenes))]
-
-    # Set "LR Pair" to True for LR interaction pairs
-    # There's no risk of duplicates because all_gene_pairs does not contain duplicates
-
-    zip_lr = pd.Series(zip(valid_rows['ligand'], valid_rows['receptor']))
-    zip_lr = zip_lr[zip_lr.isin(all_gene_pairs.index)]
-    all_gene_pairs.loc[zip_lr, "LR Pair"] = True
-
-    zip_rl = pd.Series(zip(valid_rows['receptor'], valid_rows['ligand']))
-    zip_rl = zip_rl[zip_rl.isin(all_gene_pairs.index)]
-    all_gene_pairs.loc[zip_rl, "LR Pair"] = True
+    # Combinations of genes from complex A and B
+    # Only if one gene is in complex A and the other in complex B, not both in the same complex
+    for genes_a, genes_b in product(complex_a_genes, complex_b_genes):
+        for gene_pair in product(genes_a, genes_b):
+            all_gene_pairs.loc[gene_pair, "interaction_all"] = True
+            all_gene_pairs.loc[gene_pair, "interaction_diff_complex"] = True
     
     # Number of LR interactions:
-    print("Number of LR interactions: ", all_gene_pairs["LR Pair"].sum())
+    print("Number of LR interactions: ", all_gene_pairs["interaction_pair"].sum())
 
-    # X is the feature (TOM) and y is the target variable (LR Pair)
+    # X is the feature (TOM) and y is the target variable (interaction_pair)
 
     # ROC curve using all gene pairs
-    fpr_vs_all, tpr_vs_all, _ = roc_curve(all_gene_pairs['LR Pair'], all_gene_pairs['TOM'])
-    roc_auc_vs_all = roc_auc_score(all_gene_pairs['LR Pair'], all_gene_pairs['TOM'])
+    fpr_vs_all, tpr_vs_all, _ = roc_curve(all_gene_pairs['interaction_pair'], all_gene_pairs['TOM'])
+    roc_auc_vs_all = roc_auc_score(all_gene_pairs['interaction_pair'], all_gene_pairs['TOM'])
     
     if condition == "tumor":
         with open(comparison_file, "a") as f:
@@ -203,12 +216,12 @@ for condition in ["normal", "tumor"]:
     ]
 
     fpr_vs_lr, tpr_vs_lr, _ = roc_curve(
-        all_lr_combinations['LR Pair'],
+        all_lr_combinations['interaction_pair'],
         all_lr_combinations['TOM']
     )
 
     roc_auc_vs_lr = roc_auc_score(
-        all_lr_combinations['LR Pair'],
+        all_lr_combinations['interaction_pair'],
         all_lr_combinations['TOM']
     )
 
@@ -244,13 +257,13 @@ for condition in ["normal", "tumor"]:
     # ------ Rank Sum Test VS All -------
     print("Performing rank sum test vs all gene pairs")
 
-    all_gene_pairs.loc[all_gene_pairs["LR Pair"] == False, "TOM"]
-    lr_tom = all_gene_pairs.loc[all_gene_pairs["LR Pair"] == True, "TOM"]
+    all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == False, "TOM"]
+    lr_tom = all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == True, "TOM"]
     
     # Perform rank sum test: do LR pairs have higher TOM than non-LR pairs?
     U_vs_all, p_vs_all = ranksums(
-        all_gene_pairs.loc[all_gene_pairs["LR Pair"] == True, "TOM"],
-        all_gene_pairs.loc[all_gene_pairs["LR Pair"] == False, "TOM"],
+        all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == True, "TOM"],
+        all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == False, "TOM"],
         alternative="greater"
     )
 
@@ -267,8 +280,8 @@ for condition in ["normal", "tumor"]:
     print("Performing rank sum test vs LR pairs")
     # Rank sum ov LR interactions vs all ligand and receptors
     U_vs_lr, p_vs_lr = ranksums(
-        all_lr_combinations.loc[all_lr_combinations["LR Pair"] == True, "TOM"],
-        all_lr_combinations.loc[all_lr_combinations["LR Pair"] == False, "TOM"],
+        all_lr_combinations.loc[all_lr_combinations["interaction_pair"] == True, "TOM"],
+        all_lr_combinations.loc[all_lr_combinations["interaction_pair"] == False, "TOM"],
         alternative="greater"
     )
     

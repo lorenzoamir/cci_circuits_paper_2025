@@ -24,7 +24,7 @@ conda activate WGCNA
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
 mapfile -t files < <(find "$data_dir" -name "corresponding_normal_file.txt" -type f)
 	
-results_file="/home/lnemati/pathway_crosstalk/code/1_compare/results.csv"
+results_file="/home/lnemati/pathway_crosstalk/results/comparison_results.csv"
 
 # if results_file exists, copy it to results_file.bak and delete results_file
 if [ -f "$results_file" ]; then
