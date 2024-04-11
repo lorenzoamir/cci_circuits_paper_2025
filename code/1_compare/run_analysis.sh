@@ -5,12 +5,12 @@
 
 COMPARE=0
 
-STATS=0
+STATS=1
 STATS_QUEUE='q02anacreon'
-STATS_NCPUS=4
-STATS_MEMORY=16gb
+STATS_NCPUS=8
+STATS_MEMORY=32gb
 
-SANKEY=1
+SANKEY=0
 SANKEY_QUEUE='q02gaia'
 SANKEY_NCPUS=4
 SANKEY_MEMORY=4gb
@@ -42,7 +42,8 @@ for file in "${files[@]}"; do
 
     directory=$(dirname "$file")
     echo "Tumor directory: $directory"
-    # tumor file is the .p file in the same directory as the corresponding_normal_wgcna.txt, with the name starting with WGCNA_ tumor_wgcna=$(find "$directory" -name "WGCNA_*.p" -type f)
+    # tumor file is the .p file in the same directory as the corresponding_normal_wgcna.txt, with the name starting with WGCNA_ 
+    tumor_wgcna=$(find "$directory" -name "WGCNA_*.p" -type f)
     tumor_interactions=$(find "$directory" -name "LR_interactions.csv" -type f)
 
     # read normal file location from corresponding_normal_wgcna.txt

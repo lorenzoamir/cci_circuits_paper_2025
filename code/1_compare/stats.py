@@ -5,6 +5,7 @@ import numpy as np
 import PyWGCNA
 from sklearn.metrics import roc_curve, roc_auc_score
 from scipy.stats import ranksums
+from itertools import combinations, product
 import argparse
 
 # Parse arguments
@@ -23,22 +24,7 @@ info_dir = args.tumor.split("/")[0:-1]
 info_file = os.path.join("/".join(info_dir), "general_info.txt")
 print("Trying to read: " + info_file)
 
-with open(info_file, "r") as f:
-    for line in f:
-        if "LR_resource" in line:
-            resource_path = line.split(": ")[1].strip()
-            break
-
-print("Using resource file: " + resource_path)
-cpdb = pd.read_csv(resource_path)
-
-# Extract genes for complex A and B for each row
-complex_a_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
-complex_b_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
-interactions_all_genes = complex_a_genes + complex_b_genes
-
-all_cpdb_genes = set([gene for genes in interactions_all_genes for gene in genes])
-print("Number of genes in CPDB: ", len(all_cpdb_genes))
+# read interactions
 
 tumor_dir = os.path.dirname(args.tumor)
 normal_dir = os.path.dirname(args.normal)
@@ -64,11 +50,88 @@ fs = 18
 cmap='viridis'
 
 # Create figures for the ROC curves
-roc_fig_vs_all, roc_ax_vs_all = plt.subplots(1, 1, figsize=(10,10))
-roc_fig_vs_lr, roc_ax_vs_lr = plt.subplots(1, 1, figsize=(10,10))
+roc_fig, roc_ax = plt.subplots(1, 1, figsize=(10,10))
 
 # Function that generates and saves the ROC curve
 def generate_roc_curve(
+    data,
+    target_col,
+    feature_col,
+    condition,
+    comparison_file,
+    ax,
+    name=None,
+):
+    # ROC curve using all gene pairs
+    fpr, tpr, _ = roc_curve(data[target_col], data[feature_col])
+    auroc = roc_auc_score(data[target_col], data[feature_col])
+    
+    if condition.lower() == "tumor":
+        with open(comparison_file, "a") as f:
+            f.write(f"auroc_tumor_{target_col}: " + str(auroc) + "\n")
+    elif condition.lower() == "normal":
+        with open(comparison_file, "a") as f:
+            f.write(f"auroc_normal_{target_col}: " + str(auroc) + "\n")
+
+    if condition == "tumor":
+        color = 'C1' 
+        label = f'TCGA {target_col} (AUC = {auroc:.2f})'
+    elif condition == "normal":
+        color = 'C0'
+        label = f'GTEx {target_col} (AUC = {auroc:.2f})'
+
+    if target_col == "interaction_all":
+        # solid
+        linestyle = '-'
+    elif target_col == "interaction_same_complex":
+        # dashed
+        linestyle = '--'
+    elif target_col == "interaction_diff_complex":
+        # dotted
+        linestyle = ':'
+
+    # add title to the plot if name is provided
+    if name:
+        ax.set_title(name + " ROC curve", fontsize=fs)
+    ax.plot([0, 1], [0, 1], color='k', linestyle='--', lw=2)
+    ax.plot(fpr, tpr, color=color, lw=2, label=label, linestyle=linestyle)
+    ax.set_xlabel('False Positive Rate')
+    ax.set_ylabel('True Positive Rate')
+    ax.legend()
+    
+    return
+
+def update_same_complex(
+    all_pairs,
+    genes_series,
+):
+    for genes in genes_series:
+        for pair in combinations(genes, 2):
+            gene_a, gene_b = pair
+            if pair in all_pairs.index:
+                all_pairs.loc[pair, "interaction_all"] = 1
+                all_pairs.loc[pair, "interaction_same_complex"] = 1
+            elif (gene_b, gene_a) in all_pairs.index:
+                all_pairs.loc[(gene_b, gene_a), "interaction_all"] = 1
+                all_pairs.loc[(gene_b, gene_a), "interaction_same_complex"] = 1
+        return
+
+def update_diff_complex(
+    all_pairs,
+    genes_series_a,
+    genes_series_b
+):
+    for genes_a, genes_b in zip(genes_series_a, genes_series_b):
+        for pair in product(genes_a, genes_b):
+            gene_a, gene_b = pair
+            if pair in all_pairs.index:
+                all_pairs.loc[pair, "interaction_all"] = 1
+                all_pairs.loc[pair, "interaction_diff_complex"] = 1
+            elif (gene_b, gene_a) in all_pairs.index:
+                all_pairs.loc[(gene_b, gene_a), "interaction_all"] = 1
+                all_pairs.loc[(gene_b, gene_a), "interaction_diff_complex"] = 1
+    return
+
 
 for condition in ["normal", "tumor"]:
 
@@ -76,239 +139,161 @@ for condition in ["normal", "tumor"]:
         print("===== Tumor =====\n")
         print("Reading WGCNA ojbects")
         WGCNA = PyWGCNA.readWGCNA(args.tumor)
+        # read interactions.csv in the tumor directory
+        interactions = pd.read_csv(os.path.join(tumor_dir, "interactions.csv"))
         # make dict with all genes in each module
         modules_t = {i: WGCNA.datExpr.var.loc[WGCNA.datExpr.var["moduleLabels"] == i].index for i in WGCNA.datExpr.var["moduleLabels"].unique()}
     else:
         print("===== Normal =====\n") 
         print("Reading WGCNA ojbects")
         WGCNA = PyWGCNA.readWGCNA(args.normal)
+        # read interactions.csv in the normal directory
+        interactions = pd.read_csv(os.path.join(normal_dir, "interactions.csv"))
         # make dict with all genes in each module
         modules_n = {i: WGCNA.datExpr.var.loc[WGCNA.datExpr.var["moduleLabels"] == i].index for i in WGCNA.datExpr.var["moduleLabels"].unique()}
 
     genes = WGCNA.datExpr.var
 
-    # Only keep interactions where all genes are in the WGCNA data
-    print(f'Number of interactions before filtering: {len(cpdb)}')
-    cpdb = cpdb[interactions_all_genes.apply(lambda x: all([gene in genes.index for gene in x]))] 
-        print("Keeping interactions with all genes present: ", len(cpdb))
+    # Extract genes for complex A and B for each row
+    complex_a_genes = interactions.apply(lambda row: list(set([row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])])), axis=1)
+    complex_b_genes = interactions.apply(lambda row: list(set([row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])])), axis=1)
+    interactions_all_genes = complex_a_genes + complex_b_genes
 
-    # ----------- Heatmap ------------
-    print("Generating heatmap")
+    # print first 5 elements of each series
+    print("Complex A genes:")
+    print(complex_a_genes.head())
+    print("Complex B genes:")
+    print(complex_b_genes.head())
+    print("Interactions all genes:")
+    print(interactions_all_genes.head())
 
-    ordered = WGCNA.datExpr.var.sort_values(by="moduleLabels").index
-    tom_all = WGCNA.TOM.loc[ordered, ordered]
-    
-    #lr_ordered = ordered[ordered.isin(lr_genes)]
-    cpdb_ordered = oredered[ordered.isin(all_cpdb_genes)]
-    tom_cpdb = WGCNA.TOM.loc[cpdb_ordered, cpdb_ordered]
-    
-    fig, ax = plt.subplots(1,2, figsize=(20,10))
-    
-    fig.suptitle(WGCNA.name, fontsize=fs)
-    
-    vmax = np.percentile(tom_cpdb, 99)
-    vmin = 0
-    cax = ax[0].imshow(tom_all, cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
-    ax[0].set_title("All genes", fontsize=fs)
-    cax = ax[1].imshow(tom_cpdb, cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
-    ax[1].set_title("CellPhoneDB genes", fontsize=fs)
-    
-    plt.tight_layout()
-
-    # save figure to the figure folder of the tumor or normal WGCNA
-    if condition == "tumor":
-        # get the directory of the tumor WGCNA
-        output_path = os.path.join(tumor_fig_dir, "heatmap_all_genes_vs_cpdb.pdf")
-    else:
-        # get the directory of the normal WGCNA
-        output_path = os.path.join(normal_fig_dir, "heatmap_all_genes_vs_cpdb.pdf")
-
-    plt.savefig(output_path)
-
-    print("Done: " + condition + " heatmap")
+    # make all_interacting_genes a list containing all unique genes in the interactions
+    all_interacting_genes = list(set().union(*interactions_all_genes))
+    print("Number of genes in CPDB: ", len(all_interacting_genes))
     
     # ----- ROC all gene pairs -----
     
-    print("Generating ROC curve: all gene pairs vs LR interactions")
+    print("Generating ROC curves")
+    
+    # subset to all_interacting_genes
+    tom = WGCNA.TOM
+    #print("Subsetting to all interacting genes")
+    #tom = WGCNA.TOM.loc[all_interacting_genes, all_interacting_genes]
+    print("TOM has shape: ", tom.shape)
+    print(tom.head())
+
+    # print number of nan values
+    print("Number of nans in TOM: ", tom.isna().sum().sum())
 
     # flatten TOM matrix, remove diagonal and duplicated values
-    all_gene_pairs = pd.DataFrame(
-        WGCNA.TOM.where(
+    print("Flattening TOM matrix")
+    all_pairs = pd.DataFrame(
+        tom.where(
             np.tri(
-                WGCNA.TOM.shape[0],
+                tom.shape[0],
                 dtype=bool,
                 k=-1
             ),
             np.nan
         ).stack(dropna=True), columns=["TOM"]
     )
+    print("all_pairs has now shape: ", all_pairs.shape)
+    print(all_pairs.head())
 
-    all_gene_pairs["interaction_same_complex"] = False
-    all_gene_pairs["interaction_diff_complex"] = False
-    all_gene_pairs["interaction_all"] = False
+    all_pairs["interaction_same_complex"] = 0
+    all_pairs["interaction_diff_complex"] = 0
+    all_pairs["interaction_all"] = 0
 
-    print("Total number of gene pairs: ", len(all_gene_pairs))
-   
-    # Complex A interactions
-    for genes in complex_a_genes:
-        for gene_pair in combinations(genes, 2):
-            all_gene_pairs.loc[gene_pair, "interaction_all"] = True
-            all_gene_pairs.loc[gene_pair, "interaction_same_complex"] = True
+    update_same_complex(all_pairs, complex_a_genes)
+    update_same_complex(all_pairs, complex_b_genes)
+    update_diff_complex(all_pairs, complex_a_genes, complex_b_genes)
+  
+    print("all_pairs has now shape: ", all_pairs.shape)
+    print("Total number of interacting pairs: ", all_pairs["interaction_all"].sum())
+    print("Number of same complex pairs: ", all_pairs["interaction_same_complex"].sum())
+    print("Number of diff complex pairs: ", all_pairs["interaction_diff_complex"].sum())
+ 
+    print(all_pairs.head())
 
-    # Complex B interactions
-    for genes in complex_b_genes:
-        for gene_pair in combinations(genes, 2):
-            all_gene_pairs.loc[gene_pair, "interaction_all"] = True
-            all_gene_pairs.loc[gene_pair, "interaction_same_complex"] = True
-    
-    # Combinations of genes from complex A and B
-    # Only if one gene is in complex A and the other in complex B, not both in the same complex
-    for genes_a, genes_b in product(complex_a_genes, complex_b_genes):
-        for gene_pair in product(genes_a, genes_b):
-            all_gene_pairs.loc[gene_pair, "interaction_all"] = True
-            all_gene_pairs.loc[gene_pair, "interaction_diff_complex"] = True
-    
-    # Number of LR interactions:
-    print("Number of LR interactions: ", all_gene_pairs["interaction_pair"].sum())
+    # find nans in all_pairs
+    print("Number of nans in all_pairs: ", all_pairs.isna().sum())
+    # print nan rows
+    print(all_pairs[all_pairs.isna().any(axis=1)])
 
-    # X is the feature (TOM) and y is the target variable (interaction_pair)
 
-    # ROC curve using all gene pairs
-    fpr_vs_all, tpr_vs_all, _ = roc_curve(all_gene_pairs['interaction_pair'], all_gene_pairs['TOM'])
-    roc_auc_vs_all = roc_auc_score(all_gene_pairs['interaction_pair'], all_gene_pairs['TOM'])
-    
     if condition == "tumor":
-        with open(comparison_file, "a") as f:
-            f.write("roc_auc_tumor_vs_all: " + str(roc_auc_vs_all) + "\n")
-    elif condition == "normal":
-        with open(comparison_file, "a") as f:
-            f.write("roc_auc_normal_vs_all: " + str(roc_auc_vs_all) + "\n")
+        name = WGCNA.name
+    else:
+        name = None
 
-    # Plot ROC curve and include AUC in the legend
-    if condition == "tumor":
-        color = 'C1' 
-        label = f'TCGA {WGCNA.name} (AUC = {roc_auc_vs_all:.2f})'
-
-    elif condition == "normal":
-        color = 'C0'
-        label = f'GTEx {WGCNA.name} (AUC = {roc_auc_vs_all:.2f})'
-
-    roc_ax_vs_all.plot([0, 1], [0, 1], color='k', linestyle='--', lw=2)
-    roc_ax_vs_all.plot(fpr_vs_all, tpr_vs_all, color=color, lw=2, label=label)
-    roc_ax_vs_all.set_xlabel('False Positive Rate')
-    roc_ax_vs_all.set_ylabel('True Positive Rate')
-    roc_ax_vs_all.set_title(WGCNA.name + " LR interactions vs all gene pairs", fontsize=fs)
-    roc_ax_vs_all.legend()
-
-    # save roc figure to the figure folder of the tumor WGCNA
-    output_path = os.path.join(tumor_fig_dir, "roc_vs_all.pdf")
-    roc_fig_vs_all.savefig(output_path)
-
-    print("Done: " + condition + " ROC curve vs all gene pairs")
-
-    # ----- ROC LR -----
-
-    print("Generating ROC curve: LR combinations")
-    
-    all_lr_combinations = all_gene_pairs.loc[
-        all_gene_pairs.index.get_level_values(0).isin(lr_genes) & \
-        all_gene_pairs.index.get_level_values(1).isin(lr_genes) \
-    ]
-
-    fpr_vs_lr, tpr_vs_lr, _ = roc_curve(
-        all_lr_combinations['interaction_pair'],
-        all_lr_combinations['TOM']
+    # All interactions
+    generate_roc_curve(
+        data=all_pairs,
+        target_col="interaction_all",
+        feature_col="TOM",
+        condition=condition,
+        comparison_file=comparison_file,
+        ax=roc_ax,
+        name=name
     )
+    print("Done: " + condition + " ROC all interactions")
 
-    roc_auc_vs_lr = roc_auc_score(
-        all_lr_combinations['interaction_pair'],
-        all_lr_combinations['TOM']
+    # Same complex interactions
+    generate_roc_curve(
+        data=all_pairs,
+        target_col="interaction_same_complex",
+        feature_col="TOM",
+        condition=condition,
+        comparison_file=comparison_file,
+        ax=roc_ax,
+        name=name
     )
+    print("Done: " + condition + " ROC same complex interactions")
 
-    if condition == "tumor":
-        with open(comparison_file, "a") as f:
-            f.write("roc_auc_tumor_vs_lr: " + str(roc_auc_vs_lr) + "\n")
-    elif condition == "normal":
-        with open(comparison_file, "a") as f:
-            f.write("roc_auc_normal_vs_lr: " + str(roc_auc_vs_lr) + "\n")
-
-    # Plot ROC curve and include AUC in the legend
-    if condition == "tumor":
-        color = 'C1' 
-        label = f'TCGA {WGCNA.name} (AUC = {roc_auc_vs_lr:.2f})'
-
-    elif condition == "normal":
-        color = 'C0'
-        label = f'GTEx {WGCNA.name} (AUC = {roc_auc_vs_lr:.2f})'
-
-    roc_ax_vs_lr.plot([0, 1], [0, 1], color='k', linestyle='--', lw=2)
-    roc_ax_vs_lr.plot(fpr_vs_lr, tpr_vs_lr, color=color, lw=2, label=label)
-    roc_ax_vs_lr.set_xlabel('False Positive Rate')
-    roc_ax_vs_lr.set_ylabel('True Positive Rate')
-    roc_ax_vs_lr.set_title(WGCNA.name + " LR combinations", fontsize=fs)
-    roc_ax_vs_lr.legend()
-    
-    # save roc figure to the figure folder of the tumor WGCNA
-    output_path = os.path.join(tumor_fig_dir, "roc_vs_lr.pdf")
-    roc_fig_vs_lr.savefig(output_path)
-
-    print("Done: " + condition + " ROC curve vs LR pairs")
+    # Diff complex interactions
+    generate_roc_curve(
+        data=all_pairs,
+        target_col="interaction_diff_complex",
+        feature_col="TOM",
+        condition=condition,
+        comparison_file=comparison_file,
+        ax=roc_ax,
+        name=name
+    )
+    print("Done: " + condition + " ROC diff complex interactions")
     
     # ------ Rank Sum Test VS All -------
-    print("Performing rank sum test vs all gene pairs")
-
-    all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == False, "TOM"]
-    lr_tom = all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == True, "TOM"]
+    print("Performing rank sum test")
     
     # Perform rank sum test: do LR pairs have higher TOM than non-LR pairs?
-    U_vs_all, p_vs_all = ranksums(
-        all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == True, "TOM"],
-        all_gene_pairs.loc[all_gene_pairs["interaction_pair"] == False, "TOM"],
+    U_all, p_all = ranksums(
+        all_pairs.loc[all_pairs["interaction_all"] == True, "TOM"],
+        all_pairs.loc[all_pairs["interaction_all"] == False, "TOM"],
         alternative="greater"
     )
-
     print("Writing result to comparison.txt")
     
     # create it if it does not exist, overwrite it if it does
     with open(comparison_file, "a") as f:
-        f.write(condition + "_ranksums_U_vs_all: " + str(U_vs_all) + "\n")
-        f.write(condition + "_ranksums_p_vs_all: " + str(p_vs_all) + "\n")
-    print("Done: " + condition + " rank sum test vs all gene pairs") 
+        f.write(condition + "_ranksums_U_all: " + str(U_all) + "\n")
+        f.write(condition + "_ranksums_p_all: " + str(p_all) + "\n")
+        
+    print("Done: " + condition + " rank sum test") 
 
-    # ------ Rank Sum Test VS LR -------
-
-    print("Performing rank sum test vs LR pairs")
-    # Rank sum ov LR interactions vs all ligand and receptors
-    U_vs_lr, p_vs_lr = ranksums(
-        all_lr_combinations.loc[all_lr_combinations["interaction_pair"] == True, "TOM"],
-        all_lr_combinations.loc[all_lr_combinations["interaction_pair"] == False, "TOM"],
-        alternative="greater"
-    )
-    
-    print("Writing result to comparison.txt")
-    
-    with open(comparison_file, "a") as f:
-        f.write(condition + "_ranksums_U_vs_lr: " + str(U_vs_lr) + "\n")
-        f.write(condition + "_ranksums_p_vs_lr: " + str(p_vs_lr) + "\n")
-
-    print("Done: " + condition + " rank sum test vs LR combinations")
-
-    print()
+# Save the roc figure
+roc_fig.savefig(os.path.join(tumor_fig_dir, "roc.pdf"))
 
 # --------- Jaccard Similarity---------
 print("Calculating Jaccard similarity")
 
-LR_pairs_n = pd.read_csv(os.path.join(normal_dir, "LR_interactions.csv"))
-LR_pairs_t = pd.read_csv(os.path.join(tumor_dir, "LR_interactions.csv"))
+df_n = pd.read_csv(os.path.join(normal_dir, "interactions.csv"))
+df_t = pd.read_csv(os.path.join(tumor_dir, "interactions.csv"))
 
-all_lr_pairs_n = set(LR_pairs_n["ligand"] + "-" + LR_pairs_n["receptor"])
-all_lr_pairs_t = set(LR_pairs_t["ligand"] + "-" + LR_pairs_t["receptor"])
+interactions_n = df_n['interaction']
+interactions_t = df_t['interaction']
 
-subset_n = LR_pairs_n.loc[LR_pairs_n["same_module"]]
-subset_t = LR_pairs_t.loc[LR_pairs_t["same_module"]]
-
-same_module_lr_pairs_n = set(subset_n["ligand"] + "-" + subset_n["receptor"])
-same_module_lr_pairs_t = set(subset_t["ligand"] + "-" + subset_t["receptor"])
+same_module_n = df_n.loc[df_n["same_module"], "interaction"]
+same_module_t = df_t.loc[df_t["same_module"], "interaction"]
 
 def jaccard_similarity(set1, set2):
     intersection_size = len(set1.intersection(set2))
@@ -317,8 +302,8 @@ def jaccard_similarity(set1, set2):
     return similarity
 
 # Calculate Jaccard similarity
-js_all = jaccard_similarity(all_lr_pairs_n, all_lr_pairs_t)
-js_same_module = jaccard_similarity(same_module_lr_pairs_n, same_module_lr_pairs_t)
+js_all = jaccard_similarity(set(interactions_n), set(interactions_t))
+js_same_module = jaccard_similarity(set(same_module_n), set(same_module_t))
 
 # Print the result
 print("Jaccard Similarity:")
@@ -327,8 +312,8 @@ print(f"Same module: {js_same_module}")
 
 # Add the result to the comparison.txt file in the tumor directory 
 with open(comparison_file, "a") as f:
-    f.write("jaccard_all_lr_pairs: " + str(js_all) + "\n")
-    f.write("jaccard_same_module: " + str(js_same_module) + "\n")
+    f.write("jaccard_all_interactions: " + str(js_all) + "\n")
+    f.write("jaccard_same_module_interactions: " + str(js_same_module) + "\n")
 
 # ----- Module Similarity -----
 print("Calculating module similarity")
