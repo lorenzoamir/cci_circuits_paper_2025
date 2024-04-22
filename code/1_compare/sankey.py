@@ -17,20 +17,6 @@ args = parser.parse_args()
 print("normal file:", args.normal)
 print("tumor file:", args.tumor)
 
-# read general_info.txt in the tumor directory
-info_dir = args.tumor.split("/")[0:-1]
-info_file = os.path.join("/".join(info_dir), "general_info.txt")
-print("Trying to read: " + info_file)
-
-with open(info_file, "r") as f:
-    for line in f:
-        if "LR_resource" in line:
-            resource_path = line.split(": ")[1].strip()
-            break
-
-print("Using resource file: " + resource_path)
-resource = pd.read_csv(resource_path)
-
 tumor_dir = os.path.dirname(args.tumor)
 normal_dir = os.path.dirname(args.normal)
 
@@ -51,45 +37,56 @@ print("Normal directory: " + normal_dir)
 print("Tumor figures will be saved to: " + tumor_fig_dir)
 print("Normal figures will be saved to: " + normal_fig_dir)
 
-print("Reading LR_interactions tables")
+print("Reading interactions")
 nlr = pd.read_csv(args.normal)
 tlr = pd.read_csv(args.tumor)
 
-# Subset to lr pairs that appear in both normal and tumor
-nlr = nlr[nlr["ligand"].isin(tlr["ligand"]) & nlr["receptor"].isin(tlr["receptor"])]
-tlr = tlr[tlr["ligand"].isin(nlr["ligand"]) & tlr["receptor"].isin(nlr["receptor"])]
-
-same_module = nlr["same_module"]
-nlr["consensus_module"] = "_different"
-nlr.loc[same_module, "consensus_module"] = nlr.loc[same_module, "L_module"]
-
-same_module = tlr["same_module"]
-tlr["consensus_module"] = "_different"
-tlr.loc[same_module, "consensus_module"] = tlr.loc[same_module, "L_module"]
+nlr["module"] = np.where(nlr["module"].isnull(), "_different", nlr["module"])
+tlr["module"] = np.where(tlr["module"].isnull(), "_different", tlr["module"])
 
 print("Merging normal and tumor dataframes")
+common_cols = ["interaction"] + [col for col in nlr.columns if col.startswith("interactor")]
+
 consensus_df = pd.merge(
     nlr,
     tlr,
-    on=["ligand", "receptor"],
+    on=common_cols,
     suffixes=("_normal", "_tumor")
-)[["ligand", "receptor", "consensus_module_normal", "consensus_module_tumor"]]
+)[common_cols + ["module_normal", "module_tumor"]]
+
+print("Merged dataframe:")
+print(consensus_df.head())
+print("Number of interactions: " + str(consensus_df.shape[0]))
+
+# ----- T SAME N DIFF -----
 
 # Get pairs that have different modules in normal but the same in tumor
 t_same_n_diff = consensus_df[
-    (consensus_df["consensus_module_normal"] == "_different") & (consensus_df["consensus_module_tumor"] != "_different")
+    (consensus_df["module_normal"] == "_different") & (consensus_df["module_tumor"] != "_different")
 ]
 
 print('Saving interactions to file: ' + os.path.join(tumor_dir, "t_same_n_diff.csv"))
-t_same_n_diff = t_same_n_diff[["ligand", "receptor"]]
 t_same_n_diff.to_csv(os.path.join(tumor_dir, "t_same_n_diff.csv"), index=False)
+
+# Extract all genes from the columns starting with 'interactor'
+interactor_cols = [col for col in t_same_n_diff.columns if col.startswith("interactor")]
+
+# Get all genes from the interactors columns
+gene_list = set()
+background = set()
+for col in interactor_cols:
+    gene_list = gene_list.union(set(t_same_n_diff[col].dropna()))
+    background = background.union(set(consensus_df[col].dropna()))
+
+gene_list = list(gene_list)
+background = list(background)
 
 print('Running enrichment analysis')
 # Run enrichment analysis
 enr = gp.enrichr(
-    gene_list=t_same_n_diff["ligand"].tolist() + t_same_n_diff["receptor"].tolist(),
+    gene_list=gene_list,
     gene_sets="Reactome_2022",
-    background=[nlr["ligand"].tolist() + nlr["receptor"].tolist()],
+    background=background,
     outdir=None,
 )
 
@@ -98,22 +95,36 @@ enr = enr[enr["Adjusted P-value"] < 0.05]
 
 enr.to_csv(os.path.join(tumor_dir, 't_same_n_diff_enrichment.csv'), index=False)
 
+
+# ----- N SAME T DIFF -----
+
 # Get pairs that have different modules in tumor but the same in normal
-print("Getting pairs that have different modules in tumor but the same in normal")
 n_same_t_diff = consensus_df[
-    (consensus_df["consensus_module_tumor"] == "_different") & (consensus_df["consensus_module_normal"] != "_different")
+    (consensus_df["module_normal"] != "_different") & (consensus_df["module_tumor"] == "_different")
 ]
 
 print('Saving interactions to file: ' + os.path.join(tumor_dir, "n_same_t_diff.csv"))
-n_same_t_diff = n_same_t_diff[["ligand", "receptor"]]
 n_same_t_diff.to_csv(os.path.join(tumor_dir, "n_same_t_diff.csv"), index=False)
+
+# Extract all genes from the columns starting with 'interactor'
+interactor_cols = [col for col in n_same_t_diff.columns if col.startswith("interactor")]
+
+# Get all genes from the interactors columns
+gene_list = set()
+background = set()
+for col in interactor_cols:
+    gene_list = gene_list.union(set(n_same_t_diff[col].dropna()))
+    background = background.union(set(consensus_df[col].dropna()))
+
+gene_list = list(gene_list)
+background = list(background)
 
 print('Running enrichment analysis')
 # Run enrichment analysis
 enr = gp.enrichr(
-    gene_list=n_same_t_diff["ligand"].tolist() + n_same_t_diff["receptor"].tolist(),
+    gene_list=gene_list,
     gene_sets="Reactome_2022",
-    background=[nlr["ligand"].tolist() + nlr["receptor"].tolist()],
+    background=background,
     outdir=None,
 )
 
@@ -125,22 +136,25 @@ enr.to_csv(os.path.join(tumor_dir, 'n_same_t_diff_enrichment.csv'), index=False)
 print("Getting module changes")
 module_changes = pd.DataFrame(
     0,
-    index=consensus_df["consensus_module_normal"].value_counts().index,
-    columns=consensus_df["consensus_module_tumor"].value_counts().index,
+    index=consensus_df["module_normal"].value_counts().index,
+    columns=consensus_df["module_tumor"].value_counts().index,
 )
 
-for normal_module in consensus_df["consensus_module_normal"].unique():
-    for tumor_module in consensus_df["consensus_module_tumor"].unique():
-
+for normal_module in consensus_df["module_normal"].unique():
+    for tumor_module in consensus_df["module_tumor"].unique():
         module_changes.loc[normal_module, tumor_module] = sum(
-            (consensus_df["consensus_module_normal"] == normal_module) & (consensus_df["consensus_module_tumor"] == tumor_module)
+            (consensus_df["module_normal"] == normal_module) & (consensus_df["module_tumor"] == tumor_module)
         )
 
 module_changes = module_changes.fillna(0)
 
-# Change index and columns to include type and number of pairs in each module
-module_changes.index = "N" + module_changes.index.astype(str)# + ": (" + module_changes.sum(axis=1).astype(str) + " pairs)"
-module_changes.columns = "T" + module_changes.columns.astype(str)# + ": (" + module_changes.sum(axis=0).astype(str) + " pairs)"
+# Change index and columns to include type
+module_changes.index = "N" + module_changes.index.astype(str)
+module_changes.columns = "T" + module_changes.columns.astype(str)
+
+# Strip .0 if ends with it
+module_changes.index = module_changes.index.str.replace("\.0", "")
+module_changes.columns = module_changes.columns.str.replace("\.0", "")
 
 print(module_changes.head())
 

@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import argparse
 import gseapy as gp
+from itertools import combinations
 
 # read filename from command line
 parser = argparse.ArgumentParser(description='Enrichment analysis of WGCNA modules.')
@@ -40,5 +41,19 @@ for module in WGCNA.datExpr.var["moduleLabels"].unique():
 
 print("Saving enrichment results to: ", os.path.join(output_path, "module_enrichment.csv.gz"))
 enrichment.to_csv(os.path.join(output_path, "module_enrichment.csv.gz"), index=False)
+
+# Count co-occurrences of terms in the same module
+all_terms = enrichment["Term"].unique()
+terms_counts = pd.DataFrame(0, index=all_terms, columns=all_terms)
+
+for module, df in enrichment.groupby("module"):
+    # generate pairwise combinations of terms, no repetitions
+    pairs = list(combinations(df["Term"], 2))
+    for pair in pairs:
+        terms_counts.loc[pair[0], pair[1]] += 1
+        terms_counts.loc[pair[1], pair[0]] += 1
+
+print("Saving terms co-occurrences to: ", os.path.join(output_path, "pathways_cooccurrences.csv.gz"))
+terms_counts.to_csv(os.path.join(output_path, "pathways_cooccurrences.csv.gz"))
 
 print("Done: enrichment.py")

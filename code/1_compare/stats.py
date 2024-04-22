@@ -80,41 +80,16 @@ def generate_roc_curve(
         color = 'C0'
         label = f'GTEx {target_col} (AUC = {auroc:.2f})'
 
-    if target_col == "interaction_all":
-        # solid
-        linestyle = '-'
-    elif target_col == "interaction_same_complex":
-        # dashed
-        linestyle = '--'
-    elif target_col == "interaction_diff_complex":
-        # dotted
-        linestyle = ':'
-
     # add title to the plot if name is provided
     if name:
         ax.set_title(name + " ROC curve", fontsize=fs)
-    ax.plot([0, 1], [0, 1], color='k', linestyle='--', lw=2)
-    ax.plot(fpr, tpr, color=color, lw=2, label=label, linestyle=linestyle)
+    ax.plot([0, 1], [0, 1], color='k', lw=2)
+    ax.plot(fpr, tpr, color=color, lw=2, label=label, )
     ax.set_xlabel('False Positive Rate')
     ax.set_ylabel('True Positive Rate')
     ax.legend()
     
     return
-
-def update_same_complex(
-    all_pairs,
-    genes_series,
-):
-    for genes in genes_series:
-        for pair in combinations(genes, 2):
-            gene_a, gene_b = pair
-            if pair in all_pairs.index:
-                all_pairs.loc[pair, "interaction_all"] = 1
-                all_pairs.loc[pair, "interaction_same_complex"] = 1
-            elif (gene_b, gene_a) in all_pairs.index:
-                all_pairs.loc[(gene_b, gene_a), "interaction_all"] = 1
-                all_pairs.loc[(gene_b, gene_a), "interaction_same_complex"] = 1
-        return
 
 def update_diff_complex(
     all_pairs,
@@ -125,11 +100,9 @@ def update_diff_complex(
         for pair in product(genes_a, genes_b):
             gene_a, gene_b = pair
             if pair in all_pairs.index:
-                all_pairs.loc[pair, "interaction_all"] = 1
-                all_pairs.loc[pair, "interaction_diff_complex"] = 1
+                all_pairs.loc[pair, "interaction"] = 1
             elif (gene_b, gene_a) in all_pairs.index:
-                all_pairs.loc[(gene_b, gene_a), "interaction_all"] = 1
-                all_pairs.loc[(gene_b, gene_a), "interaction_diff_complex"] = 1
+                all_pairs.loc[(gene_b, gene_a), "interaction"] = 1
     return
 
 
@@ -158,14 +131,6 @@ for condition in ["normal", "tumor"]:
     complex_a_genes = interactions.apply(lambda row: list(set([row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])])), axis=1)
     complex_b_genes = interactions.apply(lambda row: list(set([row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])])), axis=1)
     interactions_all_genes = complex_a_genes + complex_b_genes
-
-    # print first 5 elements of each series
-    print("Complex A genes:")
-    print(complex_a_genes.head())
-    print("Complex B genes:")
-    print(complex_b_genes.head())
-    print("Interactions all genes:")
-    print(interactions_all_genes.head())
 
     # make all_interacting_genes a list containing all unique genes in the interactions
     all_interacting_genes = list(set().union(*interactions_all_genes))
@@ -200,18 +165,12 @@ for condition in ["normal", "tumor"]:
     print("all_pairs has now shape: ", all_pairs.shape)
     print(all_pairs.head())
 
-    all_pairs["interaction_same_complex"] = 0
-    all_pairs["interaction_diff_complex"] = 0
-    all_pairs["interaction_all"] = 0
+    all_pairs['interaction'] = 0
 
-    update_same_complex(all_pairs, complex_a_genes)
-    update_same_complex(all_pairs, complex_b_genes)
     update_diff_complex(all_pairs, complex_a_genes, complex_b_genes)
   
     print("all_pairs has now shape: ", all_pairs.shape)
-    print("Total number of interacting pairs: ", all_pairs["interaction_all"].sum())
-    print("Number of same complex pairs: ", all_pairs["interaction_same_complex"].sum())
-    print("Number of diff complex pairs: ", all_pairs["interaction_diff_complex"].sum())
+    print("Total number of interacting pairs: ", all_pairs["interaction"].sum())
  
     print(all_pairs.head())
 
@@ -226,49 +185,25 @@ for condition in ["normal", "tumor"]:
     else:
         name = None
 
-    # All interactions
-    generate_roc_curve(
-        data=all_pairs,
-        target_col="interaction_all",
-        feature_col="TOM",
-        condition=condition,
-        comparison_file=comparison_file,
-        ax=roc_ax,
-        name=name
-    )
-    print("Done: " + condition + " ROC all interactions")
-
-    # Same complex interactions
-    generate_roc_curve(
-        data=all_pairs,
-        target_col="interaction_same_complex",
-        feature_col="TOM",
-        condition=condition,
-        comparison_file=comparison_file,
-        ax=roc_ax,
-        name=name
-    )
-    print("Done: " + condition + " ROC same complex interactions")
-
     # Diff complex interactions
     generate_roc_curve(
         data=all_pairs,
-        target_col="interaction_diff_complex",
+        target_col="interaction",
         feature_col="TOM",
         condition=condition,
         comparison_file=comparison_file,
         ax=roc_ax,
         name=name
     )
-    print("Done: " + condition + " ROC diff complex interactions")
+    print("Done: " + condition + " ROC curve")
     
     # ------ Rank Sum Test VS All -------
     print("Performing rank sum test")
     
     # Perform rank sum test: do LR pairs have higher TOM than non-LR pairs?
     U_all, p_all = ranksums(
-        all_pairs.loc[all_pairs["interaction_all"] == True, "TOM"],
-        all_pairs.loc[all_pairs["interaction_all"] == False, "TOM"],
+        all_pairs.loc[all_pairs['interaction'] == True, "TOM"],
+        all_pairs.loc[all_pairs['interaction'] == False, "TOM"],
         alternative="greater"
     )
     print("Writing result to comparison.txt")
