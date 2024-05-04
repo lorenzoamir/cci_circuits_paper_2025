@@ -29,11 +29,11 @@ print("output_path", output_path)
 print("filename", filename)
 
 print("Loading LR resource: {}".format(args.lr_resource))
-cpdb = pd.read_csv(args.lr_resource)
+interactions = pd.read_csv(args.lr_resource)
 
 # Extract genes for complex A and B for each row
-complex_a_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
-complex_b_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+complex_a_genes = interactions.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+complex_b_genes = interactions.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
 interactions_all_genes = complex_a_genes + complex_b_genes
 
 # remove duplicates from each element of interactions_all_genes
@@ -44,21 +44,21 @@ interactions_all_genes = interactions_all_genes.apply(lambda x: list(set(x)))
 genes = WGCNA.datExpr.var
 
 # Only keep interactions where all genes are in the WGCNA data
-print(f'Number of interactions before filtering: {len(cpdb)}')
-cpdb = cpdb[interactions_all_genes.apply(lambda x: all([gene in genes.index for gene in x]))] 
-print("Keeping interactions with all genes present: ", len(cpdb))
+print(f'Number of interactions before filtering: {len(interactions)}')
+interactions = interactions[interactions_all_genes.apply(lambda x: all([gene in genes.index for gene in x]))] 
+print("Keeping interactions with all genes present: ", len(interactions))
 
 # Remove interactions with only one gene
-cpdb = cpdb[interactions_all_genes.apply(lambda x: len(x) > 1)]
-print("Keeping interactions with more than one gene: ", len(cpdb))
+interactions = interactions[interactions_all_genes.apply(lambda x: len(x) > 1)]
+print("Keeping interactions with more than one gene: ", len(interactions))
 
-result = cpdb.copy()
+result = interactions.copy()
 
 result["same_module"] = False
 result["module"] = None
 result["mean_tom"] = None
 
-for i, row in cpdb.iloc[:, 3:].iterrows():
+for i, row in interactions.iloc[:, 3:].iterrows():
     all_genes = [gene for gene in row if pd.notna(gene)]
 
     if WGCNA.datExpr.var.loc[all_genes, "moduleLabels"].nunique() == 1:
@@ -81,6 +81,26 @@ print("Saving interactions to {}".format(os.path.join(output_path, "interactions
 result.to_csv(os.path.join(output_path, "interactions.csv"), index=False)
 
 print("Done: interactions")
+
+# ----- Occurrences ------
+
+# get all genes that appear in at least one interaction
+all_interactors = set()
+for interaction in interactions_all_genes:
+    all_interactors.update(interaction)
+
+all_interactors = all_interactors.intersection(genes.index)
+all_interactors = list(all_interactors)
+
+# Count occurrences of interactors in modules
+interactors_counts = pd.DataFrame(0, index=all_interactors, columns=genes["moduleLabels"].unique())
+
+for gene in all_interactors:
+    module = genes.loc[gene, "moduleLabels"]
+    interactors_counts.loc[gene, module] += 1
+
+print("Saving interactors occurrences to: ", os.path.join(output_path, "interactors_occurrences.csv"))
+interactors_counts.to_csv(os.path.join(output_path, "interactors_occurrences.csv"))
 
 # ----- Module info ------
 

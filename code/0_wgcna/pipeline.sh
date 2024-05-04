@@ -16,21 +16,24 @@ STATS=0
 
 DESEQ_QUEUE="q02anacreon"
 WGCNA_QUEUE="q02anacreon"
-TOM_ADJ_QUEUE="q02gaia"
+NETWORK_QUEUE="q02anacreon"
 INTERACTIONS_QUEUE="q02anacreon"
 ENRICHMENT_QUEUE="q02gaia"
+STATS_QUEUE="q02anacreon"
 
 DESEQ_NCPUS=8
 WGCNA_NCPUS=4
-TOM_ADJ_NCPUS=2
-INTERACTIONS_NCPUS=2
-ENRICHMENT_NCPUS=2
+NETWORK_NCPUS=4
+INTERACTIONS_NCPUS=4
+ENRICHMENT_NCPUS=4
+STATS_NCPUS=8
 
-DESEQ_MEMORY=16gb
+DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
-TOM_ADJ_MEMORY=6gb
+NETWORK_MEMORY=6gb
 INTERACTIONS_MEMORY=6gb
 ENRICHMENT_MEMORY=6gb
+STATS_MEMORY=25gb # Failed with 16gb
 
 lr_resource="/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv"
 
@@ -115,23 +118,23 @@ for file in "${files[@]}"; do
 
     wgcnafile=$(dirname "$file")/WGCNA_"$job_name".p
 
-    # ----- TOM ADJ -----
-    if [ $TOM_ADJ -eq 1 ]; then
-        echo "TOM ADJ"
+    # ----- NETWORK -----
+    if [ $NETWORK -eq 1 ]; then
+        echo "NETWORK"
 
         # Create job script
-        tom_adj_name=tom_adj_"$job_name"
-        tom_adj_script=$(dirname "$file")/scripts/$tom_adj_name.sh
+        network_name=network_"$job_name"
+        network_script=$(dirname "$file")/scripts/$network_name.sh
 
-        tom_adj_id=$(fsub \
-            -p "$tom_adj_script" \
-            -n "$tom_adj_name" \
-            -nc "$TOM_ADJ_NCPUS" \
-            -m "$TOM_ADJ_MEMORY" \
-            -q "$TOM_ADJ_QUEUE" \
+        network_id=$(fsub \
+            -p "$network_script" \
+            -n "$network_name" \
+            -nc "$NETWORK_NCPUS" \
+            -m "$NETWORK_MEMORY" \
+            -q "$NETWORK_QUEUE" \
             -e "WGCNA" \
             -w "$waiting_list" \
-            -c "python save_tom_adj.py --input ${wgcnafile}")
+            -c "python network.py --input ${wgcnafile}")
 
         echo ""
     fi
@@ -179,6 +182,27 @@ for file in "${files[@]}"; do
             -w "$waiting_list" \
             -c "python enrichment.py --input ${wgcnafile}")
         
+        echo ""
+    fi
+
+    # ----- STATS -----
+    if [ $STATS -eq 1 ]; then
+        echo "STATS"
+
+        # Create job script
+        stats_name=stats_"$job_name"
+        stats_script=$(dirname "$file")/scripts/$stats_name.sh
+
+        stats_id=$(fsub \
+            -p "$stats_script" \
+            -n "$stats_name" \
+            -nc "$STATS_NCPUS" \
+            -m "$STATS_MEMORY" \
+            -q "$STATS_QUEUE" \
+            -e "WGCNA" \
+            -w "$waiting_list" \
+            -c "python stats.py --input ${wgcnafile}")
+
         echo ""
     fi
 done
