@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N compare
-#PBS -l select=1:ncpus=4:ngpus=0:mem=8gb
+#PBS -l select=1:ncpus=8:ngpus=0:mem=8gb
 #PBS -q q02anacreon
 mkdir -p /home/lnemati/pathway_crosstalk/code/1_analysis
 cd /home/lnemati/pathway_crosstalk/code/1_analysis

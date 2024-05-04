@@ -29,6 +29,9 @@ enrichment = pd.DataFrame()
 
 for module in WGCNA.datExpr.var["moduleLabels"].unique():
     module_genes = WGCNA.datExpr.var[WGCNA.datExpr.var["moduleLabels"] == module].index.tolist()
+    # if less than 5 genes in module, skip
+    if len(module_genes) < 5:
+        continue
     enr = gp.enrichr(
         gene_list=module_genes,
         #gene_sets="Reactome_2022",

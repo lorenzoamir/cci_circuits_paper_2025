@@ -9,9 +9,9 @@ SEPARATE=0
 
 DESEQ=0
 WGCNA=0
-NETWORK=0
+NETWORK=1
 INTERACTIONS=0
-ENRICHMENT=1
+ENRICHMENT=0
 STATS=0
 
 DESEQ_QUEUE="q02anacreon"
@@ -30,7 +30,7 @@ STATS_NCPUS=8
 
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
-NETWORK_MEMORY=6gb
+NETWORK_MEMORY=12gb # Failed with 6gb
 INTERACTIONS_MEMORY=6gb
 ENRICHMENT_MEMORY=6gb
 STATS_MEMORY=25gb # Failed with 16gb
@@ -116,7 +116,7 @@ for file in "${files[@]}"; do
         echo ""
     fi
 
-    wgcnafile=$(dirname "$file")/WGCNA_"$job_name".p
+    wgcnafile=$(dirname "$file")/wgcna_"$job_name".p
 
     # ----- NETWORK -----
     if [ $NETWORK -eq 1 ]; then
@@ -165,7 +165,6 @@ for file in "${files[@]}"; do
         echo "ENRICHMENT"
         
         # input file is the wgcna output file
-        wgcnafile=$(dirname "$file")/WGCNA_"$job_name".p
         echo "Input file for enrichment: $wgcnafile"
 
         # Create job script
@@ -192,6 +191,8 @@ for file in "${files[@]}"; do
         # Create job script
         stats_name=stats_"$job_name"
         stats_script=$(dirname "$file")/scripts/$stats_name.sh
+
+        [ $INTERACTIONS -eq 1 ] && waiting_list="$waiting_list:$interactions_id"
 
         stats_id=$(fsub \
             -p "$stats_script" \

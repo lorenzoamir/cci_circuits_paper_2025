@@ -6,9 +6,6 @@ import pandas as pd
 import os
 import argparse
 
-# read filename from command line
-#filename = os.environ.get("WGCNA_FILE_PATH")
-
 parser = argparse.ArgumentParser(description='Network analysis of WGCNA network')
 
 parser.add_argument('-i', '--input', type=str, help='path to input wgcna file')
@@ -41,7 +38,7 @@ if "/tumor/" in filename:
     # replace .h5ad with .p
     normal_tissue_files = [f.replace(".h5ad", ".p") for f in normal_tissue_files]
     # add "WGCNA_" prefix
-    normal_tissue_files = [f.replace("/normal/", "/normal/WGCNA_") for f in normal_tissue_files]
+    normal_tissue_files = [f.replace("/normal/", "/normal/wgcna_") for f in normal_tissue_files]
     # Check if there is only one corresponding normal tissue
     if len(normal_tissue_files) == 1:
         print("Found corresponding normal tissue: {}".format(normal_tissue_files[0]))
@@ -111,8 +108,8 @@ if os.path.exists(os.path.join(output_path, "general_info.txt")):
 
 print("Writing general info")
 with open(os.path.join(output_path, "general_info.txt"), "w") as f:
-    f.write("name: {}\n".format("WGCNA_" + category))
-    f.write("WGCNA_file: {}\n".format(os.path.join(output_path, "WGCNA_" + category + ".p")))
+    f.write("name: {}\n".format("wgcna_" + category))
+    f.write("wgcna_file: {}\n".format(os.path.join(output_path, "wgcna_" + category + ".p")))
     if normal_tissue_files:
         if len(normal_tissue_files) == 1:
             f.write("corresponding_normal_tissue: {}\n".format(normal_tissue_files[0]))

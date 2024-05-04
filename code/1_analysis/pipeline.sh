@@ -6,16 +6,24 @@
 source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
-HUBS=1
+HUBS=0
+PW_NETWORK=1
+INT_NETWORK=0
 
 COMPARE_QUEUE='q02anacreon'
 HUBS_QUEUE='q02anacreon'
+PW_NETWORK_QUEUE='q02anacreon'
+INT_NETWORK_QUEUE='q02anacreon'
 
 COMPARE_NCPUS=8
 HUBS_NCPUS=8
+PW_NETWORK_NCPUS=8
+INT_NETWORK_NCPUS=8
 
 COMPARE_MEMORY=8gb
 HUBS_MEMORY=8gb
+PW_NETWORK_MEMORY=16gb
+INT_NETWORK_MEMORY=16gb
 
 cd /home/lnemati/pathway_crosstalk/code/1_analysis
 if [ ! -d "/home/lnemati/pathway_crosstalk/code/1_analysis/scripts" ]; then
@@ -25,8 +33,8 @@ fi
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
-# find all directories containing files starting with WGCNA_ and ending with .p (case insensitive) in the data_dir
-directories=$(find "$data_dir" -name "WGCNA_*.p" -type f | xargs -n1 dirname | sort -u)
+# find all directories containing files starting with wgcna_ and ending with .p (case insensitive) in the data_dir
+directories=$(find "$data_dir" -name "wgcna_*.p" -type f | xargs -n1 dirname | sort -u)
 echo "Found $(echo "$directories" | wc -l) directories"
 
 # make comma delimited string of directories
@@ -63,6 +71,43 @@ if [ $HUBS -eq 1 ]; then
         -q "$HUBS_QUEUE" \
         -c "python hubs.py --dir_list $all_directories")
 fi
+
+if [ $PW_NETWORK -eq 1 ]; then
+    echo 'Pathways Network'
+    # create job script for each tumor
+    pw_network_name="pw_network"
+    pw_network_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/pathways_network.sh"
+
+    pw_network_id=$(fsub \
+        -p "$pw_network_script" \
+        -n "$pw_network_name" \
+        -nc "$PW_NETWORK_NCPUS" \
+        -m "$PW_NETWORK_MEMORY" \
+        -e "WGCNA" \
+        -q "$PW_NETWORK_QUEUE" \
+        -c "python pathways_network.py")
+fi
+
+if [ $INT_NETWORK -eq 1 ]; then
+    echo 'Interactions Network'
+    # create job script for each tumor
+    int_network_name="int_network"
+    int_network_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/interactions_network.sh"
+
+    int_network_id=$(fsub \
+        -p "$int_network_script" \
+        -n "$int_network_name" \
+        -nc "$INT_NETWORK_NCPUS" \
+        -m "$INT_NETWORK_MEMORY" \
+        -e "WGCNA" \
+        -q "$INT_NETWORK_QUEUE" \
+        -c "python interactions_network.py")
+fi
+
+
+
+
+
 ##mapfile -t files < <(find "$data_dir" -name "WGCNA_*.p" -type f)
 #
 #

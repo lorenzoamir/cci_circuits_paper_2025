@@ -112,8 +112,6 @@ print(all_pairs.head())
 
 # find nans in all_pairs
 print("Number of nans in all_pairs: ", all_pairs.isna().sum())
-# print nan rows
-print(all_pairs[all_pairs.isna().any(axis=1)])
 
 name = WGCNA.name
 

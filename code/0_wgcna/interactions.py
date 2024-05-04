@@ -6,10 +6,7 @@ import pandas as pd
 import os
 import argparse
 
-# read filename from command line
-#filename = os.environ.get("WGCNA_FILE_PATH")
-
-parser = argparse.ArgumentParser(description='Run WGCNA pipeline')
+parser = argparse.ArgumentParser(description='Find interactions in WGCNA results')
 
 parser.add_argument('-i', '--input', type=str, help='path to input wgcna file')
 parser.add_argument('-r', '--lr_resource', type=str, help='path to ligand-receptor resource')

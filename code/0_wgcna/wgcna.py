@@ -32,7 +32,7 @@ print("Starting WGCNA")
 geneExp = pd.DataFrame(data=adata.X,  index=adata.obs_names, columns=adata.var_names)
 
 WGCNA = PyWGCNA.WGCNA(
-    name="WGCNA_" + name, 
+    name="wgcna_" + name, 
     species='homo sapiens', 
     #anndata=adata, 
     geneExp=geneExp,
