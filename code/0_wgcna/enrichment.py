@@ -19,6 +19,9 @@ output_path = os.path.dirname(args.input)
 print("Loading WGCNA object: ", args.input)
 WGCNA = PyWGCNA.readWGCNA(args.input)
 all_genes = WGCNA.datExpr.var.index.tolist()
+
+reactome = '/home/lnemati/resources/reactome/ReactomeLowestLevelPathways.gmt'
+
 # ----- Enrichment analysis ------
 
 print("Enrichment analysis")
@@ -28,7 +31,8 @@ for module in WGCNA.datExpr.var["moduleLabels"].unique():
     module_genes = WGCNA.datExpr.var[WGCNA.datExpr.var["moduleLabels"] == module].index.tolist()
     enr = gp.enrichr(
         gene_list=module_genes,
-        gene_sets="Reactome_2022",
+        #gene_sets="Reactome_2022",
+        gene_sets=reactome,
         background=all_genes,
         outdir=None,
         )
