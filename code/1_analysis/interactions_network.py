@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from scipy.stats import fisher_exact
+from scipy.stats import barnard_exact
 from scipy.stats import false_discovery_control
 import argparse
 import os
@@ -93,7 +93,7 @@ for path in n_occ_files:
         n_modules[idx].update(df.columns[df.loc[idx] > 0])
 
 network = all_interactions.copy()
-network['log2_odds_ratio'] = 0
+network['wald_stat'] = 0
 network['pval'] = 0
 network['tumor_intersection'] = 0
 network['normal_intersection'] = 0
@@ -108,8 +108,7 @@ for key in list(t_modules.keys())[:3]:
     print('Normal: ', n_modules[key])
     print()
 
-min_intersection = 15
-min_union = 15
+min_row_col= 15
 
 print()
 
@@ -132,28 +131,27 @@ for idx in network.index:
     network.at[idx, 'normal_intersection'] = len(set.intersection(*normal_module_sets))
     network.at[idx, 'tumor_union'] = len(set.union(*tumor_module_sets))
     network.at[idx, 'normal_union'] = len(set.union(*normal_module_sets))
-    # Only keep interactions with at least min_intersection and min_union
-    if network.at[idx, 'tumor_intersection'] + network.at[idx, 'normal_intersection'] < min_intersection:
-        network.at[idx, 'keep'] = 0
-        continue
-    if network.at[idx, 'tumor_union'] < min_union or network.at[idx, 'normal_union'] < min_union:
-        network.at[idx, 'keep'] = 0
-        continue
-    # Fisher's exact test, make contingency table with Tumor VS Normal and Intersection VS Rest
+    # Barnard's exact test, make contingency table with Tumor VS Normal and Intersection VS Rest
     table = [
         [network.at[idx, 'tumor_intersection'], network.at[idx, 'tumor_union'] - network.at[idx, 'tumor_intersection']],
         [network.at[idx, 'normal_intersection'], network.at[idx, 'normal_union'] - network.at[idx, 'normal_intersection']]
     ]
-    odds_ratio, pval = fisher_exact(table)
-    network.at[idx, 'log2_odds_ratio'] = np.log2(odds_ratio)
+    # Only keep interactions where the sum of each row and column is at least min_row_col
+    if np.sum(table, axis=0)[0] < min_row_col or np.sum(table, axis=0)[1] < min_row_col:
+        network.at[idx, 'keep'] = 0
+        continue
+    res = barnard_exact(table)
+    wald = res.statistic
+    pval = res.pvalue
+    network.at[idx, 'wald_stat'] = wald
     network.at[idx, 'pval'] = pval
 
 # Create directory if it doesn't exist and save
 if not os.path.exists(os.path.join(args.outputdir, 'interactions_network')):
     os.makedirs(os.path.join(args.outputdir, 'interactions_network'))
 
-# Sort by log2_odds_ratio
-network = network.sort_values(by='log2_odds_ratio', ascending=False)
+# Sort by wald 
+network = network.sort_values(by='wald_stat', ascending=False)
 # Save unfiltered network
 network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'interactions_network_unfiltered.csv'), index=False)
 
@@ -163,11 +161,11 @@ network = network[network['keep'] == 1]
 network = network.sort_values(by='pval')
 network['pval_adj'] = false_discovery_control(network['pval'])
 # Sort 
-network = network.sort_values(by='log2_odds_ratio', ascending=False)
-# Sort columns, log2_odds_ratio, pval_adj, pval, J_genesets, tumor_intersection, normal_intersection, tumor_union, normal_union
+network = network.sort_values(by='wald_stat', ascending=False)
+# Sort columns, wald, pval_adj, pval, J_genesets, tumor_intersection, normal_intersection, tumor_union, normal_union
 network = network[[
     'interaction',
-    'log2_odds_ratio', 'pval_adj',
+    'wald_stat', 'pval_adj',
     'tumor_intersection', 'normal_intersection',
     'tumor_union', 'normal_union'
 ]]

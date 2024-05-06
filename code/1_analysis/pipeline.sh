@@ -7,8 +7,8 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
 HUBS=0
-INT_NETWORK=0
-PW_NETWORK=0
+INT_NETWORK=1
+PW_NETWORK=1
 RANK_PWS=1
 
 COMPARE_QUEUE='q02anacreon'
@@ -101,7 +101,8 @@ if [ $PW_NETWORK -eq 1 ]; then
     pw_network_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/pathways_network.sh"
 
     # Wait for interactions network to finish
-    waiting_list="$waiting_list:$int_network_id"
+    waiting_list=""
+    [ $INT_NETWORK -eq 1 ] && waiting_list="$waiting_list:$int_network_id"
 
     pw_network_id=$(fsub \
         -p "$pw_network_script" \
@@ -120,9 +121,11 @@ if [ $RANK_PWS -eq 1 ]; then
     rank_pws_name="rank_pws"
     rank_pws_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/rank_pathways.sh"
 
-    # Wait for pathways network to finish
+    # Wait for interactions and pathways network to finish
+    waiting_list=""
+    [ $INT_NETWORK -eq 1 ] && waiting_list="$waiting_list:$int_network_id"
     [ $PW_NETWORK -eq 1 ] && waiting_list="$waiting_list:$pw_network_id"
-
+    
     rank_pws_id=$(fsub \
         -p "$rank_pws_script" \
         -n "$rank_pws_name" \
