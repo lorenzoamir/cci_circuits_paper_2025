@@ -61,9 +61,18 @@ print('Comparison')
 t_modules = {}
 n_modules = {}
 
-for interaction in all_interactions['interaction']:
-    t_modules[interaction] = set()
-    n_modules[interaction] = set()
+for i, idx in enumerate(all_interactions.index):
+    interaction = all_interactions.loc[idx, 'interaction']
+    genes = all_interactions.loc[idx, 'interactor1':'interactor7']
+    genes = list(set(genes.dropna()))
+    # DEBUG:
+    if i < 5:
+        print(interaction)
+        print(genes)
+        print()
+    for interactor in genes:
+        t_modules[interactor] = set()
+        n_modules[interactor] = set()
 
 for path in t_occ_files:
     name = path.split('/')[-2]
@@ -90,6 +99,7 @@ network['tumor_intersection'] = 0
 network['normal_intersection'] = 0
 network['tumor_union'] = 0
 network['normal_union'] = 0
+network['keep'] = 1 
 
 print('First 3 interactions modules: ')
 for key in list(t_modules.keys())[:3]:
@@ -98,16 +108,23 @@ for key in list(t_modules.keys())[:3]:
     print('Normal: ', n_modules[key])
     print()
 
+min_intersection = 15
+min_union = 15
+
+print()
+
+print('Iterating over all interactions')
 # Iterate over all rows
 for idx in network.index:
     genes = network.loc[idx, 'interactor1':'interactor7']
     # If none of the genes are in the modules, skip
-    if not any(genes.isin(t_modules)):
-        continue
-    # Make genes into a list, remove NaNs
-    genes = list(set(genes.dropna()))
+    #if not any(genes.isin(t_modules)) and not any(genes.isin(n_modules)):
+    #    continue
+    # Make genes into a list, make unique, remove NaNs
+    genes = list(genes.dropna().unique())
     # If there is only one unique gene in the row, skip
     if len(genes) == 1:
+        network.at[idx, 'keep'] = 0
         continue
     tumor_module_sets = [t_modules[gene] if gene in t_modules else set() for gene in genes]
     normal_module_sets = [n_modules[gene] if gene in n_modules else set() for gene in genes]
@@ -115,6 +132,13 @@ for idx in network.index:
     network.at[idx, 'normal_intersection'] = len(set.intersection(*normal_module_sets))
     network.at[idx, 'tumor_union'] = len(set.union(*tumor_module_sets))
     network.at[idx, 'normal_union'] = len(set.union(*normal_module_sets))
+    # Only keep interactions with at least min_intersection and min_union
+    if network.at[idx, 'tumor_intersection'] + network.at[idx, 'normal_intersection'] < min_intersection:
+        network.at[idx, 'keep'] = 0
+        continue
+    if network.at[idx, 'tumor_union'] < min_union or network.at[idx, 'normal_union'] < min_union:
+        network.at[idx, 'keep'] = 0
+        continue
     # Fisher's exact test, make contingency table with Tumor VS Normal and Intersection VS Rest
     table = [
         [network.at[idx, 'tumor_intersection'], network.at[idx, 'tumor_union'] - network.at[idx, 'tumor_intersection']],
@@ -128,17 +152,22 @@ for idx in network.index:
 if not os.path.exists(os.path.join(args.outputdir, 'interactions_network')):
     os.makedirs(os.path.join(args.outputdir, 'interactions_network'))
 
-# Multiple hypothesis testing correction
-network = network.sort_values(by='pval')
-network['pval_adj'] = false_discovery_control(network['pval'])
 # Sort by log2_odds_ratio
 network = network.sort_values(by='log2_odds_ratio', ascending=False)
 # Save unfiltered network
 network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'interactions_network_unfiltered.csv'), index=False)
 
+# Filter
+network = network[network['keep'] == 1]
+# Multiple hypothesis testing correction
+network = network.sort_values(by='pval')
+network['pval_adj'] = false_discovery_control(network['pval'])
+# Sort 
+network = network.sort_values(by='log2_odds_ratio', ascending=False)
 # Sort columns, log2_odds_ratio, pval_adj, pval, J_genesets, tumor_intersection, normal_intersection, tumor_union, normal_union
 network = network[[
-    'log2_odds_ratio', 'pval_adj', 'pval',
+    'interaction',
+    'log2_odds_ratio', 'pval_adj',
     'tumor_intersection', 'normal_intersection',
     'tumor_union', 'normal_union'
 ]]

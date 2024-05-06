@@ -50,6 +50,20 @@ def stack_triangle(df, col):
 # ----- Genes overlap -----
 print('Genes overlap')
 
+def read_genesets(file):
+    pw_genes = {}
+
+    with open(file) as f:
+        for line in f:
+            line = line.strip().split('\t')
+            # Remove empty strings and strip whitespaces
+            line = [x for x in line if x]
+            if line[0] not in pw_genes:
+                pw_genes[line[0]] = set()
+            pw_genes[line[0]].update(line[2:])
+
+    return pw_genes
+
 # Calculate pathways gene sets jaccard similarity
 
 # Check if overlap file already exists
@@ -59,19 +73,7 @@ if os.path.exists('/home/lnemati/resources/reactome/reactome_overlap.csv'):
 else:
     print('Overlap file does not exist. Creating it...')
 
-    pw_genes = {}
-
-    with open('/home/lnemati/resources/reactome/ReactomeLowestLevelPathways.gmt') as f:
-        for line in f:
-            line = line.strip().split('\t')
-            # Remove empty strings and strip whitespaces
-            line = [x for x in line if x]
-            if line[0] not in pw_genes:
-                pw_genes[line[0]] = set()
-            pw_genes[line[0]].update(line[2:])
-            print(line)
-            print(line[2:])
-            print()
+    pw_genes = read_genesets('/home/lnemati/resources/reactome/ReactomeLowestLevelPathways.gmt')
 
     print('Number of pathways: ', len(pw_genes))
 
@@ -105,6 +107,60 @@ if len(all_pathways) != len(genes_jaccard_df):
     print('Exiting...')
     exit()
 
+# ----- Subset -----
+print('Subset')
+
+# Subset to pairs of pathways that are linked by significant interactions
+significant = pd.read_csv('/home/lnemati/pathway_crosstalk/results/interactions_network/interactions_network_filtered.csv')
+all_interaction = pd.read_csv('/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv')
+
+interactions = all_interaction[all_interaction['interaction'].isin(significant['interaction'])]
+print('Number of significant interactions: ', len(interactions))
+
+# Extract genes for complex A and B for each row
+complex_a_genes = interactions.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+complex_b_genes = interactions.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+interactions_all_genes = complex_a_genes + complex_b_genes
+
+# Initialize an empty set to store unique genes
+unique_genes = set()
+
+# Iterate over each interaction and add genes to the set
+for interaction in interactions_all_genes:
+    unique_genes.update(interaction)
+
+print('Number of unique interacting genes: ', len(unique_genes))
+
+print('Reading genesets')
+pw_genes = read_genesets('/home/lnemati/resources/reactome/ReactomeLowestLevelPathways.gmt')
+
+def are_interacting(pathway1_genes, pathway2_genes, complex_a_genes, complex_b_genes, interactions_all_genes):
+    '''
+    Check if the two pathways are linked by an interaction
+    '''
+    # get indexes of interactions_all_genes that have an intersection with both pathway1_genes and pathway2_genes
+    # interactions_all_genes is a series of lists
+
+    interactions = interactions_all_genes.apply(lambda x: len(set(x).intersection(pathway1_genes)) > 0 and len(set(x).intersection(pathway2_genes)) > 0)
+    
+    # if there is no intersection, return False
+    if not interactions.any():
+        return False
+
+    # get the index of the interaction and use it to get complex_a_genes and complex_b_genes
+    idxs = interactions[interactions].index
+    for idx in idxs:
+        complex_a = complex_a_genes[idx]
+        complex_b = complex_b_genes[idx]
+
+        # One pathway must have intersection with complex_a and the other with complex_b
+        if len(set(pathway1_genes).intersection(complex_a)) > 0 and len(set(pathway2_genes).intersection(complex_b)) > 0:
+            return True
+        elif len(set(pathway1_genes).intersection(complex_b)) > 0 and len(set(pathway2_genes).intersection(complex_a)) > 0:
+            return True
+
+    return False
+
 # ----- Comparison -----
 print('Comparison')
 
@@ -122,15 +178,7 @@ for path in t_occ_pw_files:
     df.columns = [name + '_' + str(x) for x in df.columns]
     # each pathway (idx) gets a set of all the columns where the value is > 0
     for idx in df.index:
-        try:
-            t_pw_modules[idx].update(df.columns[df.loc[idx] > 0])
-        except:
-            print('ERROR!:')
-            print(path)
-            print(idx)
-            print(df.loc[idx])
-            print(df.columns)
-            exit()
+        t_pw_modules[idx].update(df.columns[df.loc[idx] > 0])
 
 for path in n_occ_pw_files:
     name = path.split('/')[-3]
@@ -139,15 +187,7 @@ for path in n_occ_pw_files:
     df.columns = [name + '_' + str(x) for x in df.columns]
     # each pathway (idx) gets a set of all the columns where the value is > 0
     for idx in df.index:
-        try:
-            n_pw_modules[idx].update(df.columns[df.loc[idx] > 0])
-        except:
-            print('ERROR!:')
-            print(path)
-            print(idx)
-            print(df.loc[idx])
-            print(df.columns)
-            exit()
+        n_pw_modules[idx].update(df.columns[df.loc[idx] > 0])
 
 network = stack_triangle(genes_jaccard_df, 'j_genesets')
 network['log2_odds_ratio'] = 0
@@ -156,6 +196,7 @@ network['tumor_intersection'] = 0
 network['normal_intersection'] = 0
 network['tumor_union'] = 0
 network['normal_union'] = 0
+network['keep'] = 1
 
 print('First 3 pathways modules: ')
 for key in list(t_pw_modules.keys())[:3]:
@@ -168,6 +209,12 @@ for key in list(t_pw_modules.keys())[:3]:
 for idx in network.index:
     pathway1 = idx[0]
     pathway2 = idx[1]
+    
+    # Check if the two pathways are linked by an interaction
+    if not are_interacting(pw_genes[pathway1], pw_genes[pathway2], complex_a_genes, complex_b_genes, interactions_all_genes):
+        network.at[idx, 'keep'] = 0
+        continue
+
     network.at[idx, 'tumor_intersection'] = len(t_pw_modules[pathway1].intersection(t_pw_modules[pathway2]))
     network.at[idx, 'normal_intersection'] = len(n_pw_modules[pathway1].intersection(n_pw_modules[pathway2]))
     network.at[idx, 'tumor_union'] = len(t_pw_modules[pathway1].union(t_pw_modules[pathway2]))
@@ -181,6 +228,10 @@ for idx in network.index:
     network.at[idx, 'log2_odds_ratio'] = np.log2(odds_ratio)
     network.at[idx, 'pval'] = pval
 
+# Convert index columns to pathway1 and pathway2
+network.index = network.index.set_names(['pathway1', 'pathway2'])
+network = network.reset_index()
+
 # Sort by log2_odds_ratio
 network = network.sort_values(by='log2_odds_ratio', ascending=False)
 
@@ -188,19 +239,26 @@ network = network.sort_values(by='log2_odds_ratio', ascending=False)
 if not os.path.exists(os.path.join(args.outputdir, 'pathways_network')):
     os.makedirs(os.path.join(args.outputdir, 'pathways_network'))
 
-# Multiple hypothesis testing correction
-network = network.sort_values(by='pval')
-network['pval_adj'] = false_discovery_control(network['pval'])
 # Sort by log2_odds_ratio
 network = network.sort_values(by='log2_odds_ratio', ascending=False)
 # Save unfiltered network
-network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_network_unfiltered.csv'))
+network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_network_unfiltered.csv'), index=False)
+
+# Filter
+network = network[network['keep'] == 1]
+
+# Multiple hypothesis testing correction
+network = network.sort_values(by='pval')
+network['pval_adj'] = false_discovery_control(network['pval'])
+network = network[network['pval_adj'] < 0.05]
+network = network.sort_values(by='log2_odds_ratio', ascending=False)
 
 # Sort columns, log2_odds_ratio, pval_adj, pval, J_genesets, tumor_intersection, normal_intersection, tumor_union, normal_union
 network = network[[
+    'pathway1',
+    'pathway2',
     'log2_odds_ratio',
     'pval_adj',
-    'pval',
     'j_genesets',
     'tumor_intersection',
     'normal_intersection',
@@ -208,12 +266,8 @@ network = network[[
     'normal_union'
 ]]
 
-# Filter and save
-network = network[network['pval_adj'] < 0.05]
-network.drop(columns=['pval'], inplace=True)
-
 # Create directory if it does not exist and save
-network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_network_filtered.csv'))
+network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_network_filtered.csv'), index=False)
 
 ## ----- Tumor -----
 #print('Tumor')
@@ -363,5 +417,6 @@ network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_networ
 #network = network.sort_values(by='adj_diff', ascending=False)
 ## Save the network file
 #network.to_csv(os.path.join(args.outputdir, 'pathways_cooccurrences', 'pathways_network.csv'))
+print(network)
 
 print('Done: pathways_network.py')

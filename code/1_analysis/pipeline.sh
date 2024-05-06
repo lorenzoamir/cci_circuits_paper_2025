@@ -7,23 +7,27 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
 HUBS=0
-PW_NETWORK=1
 INT_NETWORK=0
+PW_NETWORK=0
+RANK_PWS=1
 
 COMPARE_QUEUE='q02anacreon'
 HUBS_QUEUE='q02anacreon'
-PW_NETWORK_QUEUE='q02anacreon'
 INT_NETWORK_QUEUE='q02anacreon'
+PW_NETWORK_QUEUE='q02anacreon'
+RANK_PWS_QUEUE='q02anacreon'
 
 COMPARE_NCPUS=8
 HUBS_NCPUS=8
-PW_NETWORK_NCPUS=8
 INT_NETWORK_NCPUS=8
+PW_NETWORK_NCPUS=8
+RANK_PWS_NCPUS=8
 
 COMPARE_MEMORY=8gb
 HUBS_MEMORY=8gb
-PW_NETWORK_MEMORY=16gb
 INT_NETWORK_MEMORY=16gb
+PW_NETWORK_MEMORY=16gb
+RANK_PWS_MEMORY=8gb
 
 cd /home/lnemati/pathway_crosstalk/code/1_analysis
 if [ ! -d "/home/lnemati/pathway_crosstalk/code/1_analysis/scripts" ]; then
@@ -39,6 +43,8 @@ echo "Found $(echo "$directories" | wc -l) directories"
 
 # make comma delimited string of directories
 all_directories=$(echo "$directories" | tr '\n' ',' | sed 's/,$//')
+
+waiting_list=""
 
 if [ $COMPARE -eq 1 ]; then
     echo 'Compare'
@@ -72,22 +78,6 @@ if [ $HUBS -eq 1 ]; then
         -c "python hubs.py --dir_list $all_directories")
 fi
 
-if [ $PW_NETWORK -eq 1 ]; then
-    echo 'Pathways Network'
-    # create job script for each tumor
-    pw_network_name="pw_network"
-    pw_network_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/pathways_network.sh"
-
-    pw_network_id=$(fsub \
-        -p "$pw_network_script" \
-        -n "$pw_network_name" \
-        -nc "$PW_NETWORK_NCPUS" \
-        -m "$PW_NETWORK_MEMORY" \
-        -e "WGCNA" \
-        -q "$PW_NETWORK_QUEUE" \
-        -c "python pathways_network.py")
-fi
-
 if [ $INT_NETWORK -eq 1 ]; then
     echo 'Interactions Network'
     # create job script for each tumor
@@ -104,8 +94,47 @@ if [ $INT_NETWORK -eq 1 ]; then
         -c "python interactions_network.py")
 fi
 
+if [ $PW_NETWORK -eq 1 ]; then
+    echo 'Pathways Network'
+    # create job script for each tumor
+    pw_network_name="pw_network"
+    pw_network_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/pathways_network.sh"
 
+    # Wait for interactions network to finish
+    waiting_list="$waiting_list:$int_network_id"
 
+    pw_network_id=$(fsub \
+        -p "$pw_network_script" \
+        -n "$pw_network_name" \
+        -nc "$PW_NETWORK_NCPUS" \
+        -m "$PW_NETWORK_MEMORY" \
+        -e "WGCNA" \
+        -q "$PW_NETWORK_QUEUE" \
+        -w "$waiting_list" \
+        -c "python pathways_network.py")
+fi
+
+if [ $RANK_PWS -eq 1 ]; then
+    echo 'Rank Pathways'
+    # create job script for each tumor
+    rank_pws_name="rank_pws"
+    rank_pws_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/rank_pathways.sh"
+
+    # Wait for pathways network to finish
+    [ $PW_NETWORK -eq 1 ] && waiting_list="$waiting_list:$pw_network_id"
+
+    rank_pws_id=$(fsub \
+        -p "$rank_pws_script" \
+        -n "$rank_pws_name" \
+        -nc "$RANK_PWS_NCPUS" \
+        -m "$RANK_PWS_MEMORY" \
+        -e "WGCNA" \
+        -q "$RANK_PWS_QUEUE" \
+        -w "$waiting_list" \
+        -c "python rank_pathways.py")
+fi
+
+exit 0
 
 
 ##mapfile -t files < <(find "$data_dir" -name "WGCNA_*.p" -type f)
