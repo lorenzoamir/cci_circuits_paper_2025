@@ -35,10 +35,25 @@ print("Column names after renaming: {}".format(adata.obs.columns))
 adata = adata[adata.obs.type.isin(["Primary Tumor", "Normal Tissue"])]
 
 # some Testicular Germ Cell Tumor are missing the gender
-adata.obs.loc[adata.obs["condition"] == "Testicular Germ Cell Tumor", "gender"] = "Male"
+# adata.obs.loc[adata.obs["condition"] == "Testicular Germ Cell Tumor", "gender"] = "Male"
+
+# Some samples are missing gender, set it to Unknown
+print(f'Found {adata.obs.loc[adata.obs.gender.isna()].shape[0]} samples with missing gender')
 
 #drop samples with missing metadata
 #adata = adata[~(adata.obs.isna().sum(axis=1) > 0), :]
+
+# Some samples are missing tissue, add it
+
+add_tissues = {
+    'Esophagus - Mucosa': 'Esophagus',
+    'Stomach': 'Stomach',
+    'Skin - Sun Exposed (Lower Leg)': 'Skin'
+}
+
+for k, v in add_tissues.items():
+    adata.obs.loc[np.logical_and(adata.obs['tissue'].isna(), adata.obs['condition'].astype(str) == k), 'tissue'] = v
+    print(f"Added tissue {v} to samples with condition {k}")
 
 # drop samples with missing tissue or condition
 adata = adata[~(adata.obs.tissue.isna() | adata.obs.condition.isna())]
@@ -250,8 +265,8 @@ def check_filter_write(adata, filename):
         return
 
     adata = filter_genes(adata, min_counts=15, fraction=0.75)
-    if adata.shape[1] < 3000:
-        print(f"Less than 3000 genes left after filtering. Skipping file: {filename}") 
+    if adata.shape[1] < 8000:
+        print(f"Less than 8000 genes left after filtering. Skipping file: {filename}") 
         return
 
     print(f"Writing file: {filename}")
@@ -264,8 +279,10 @@ def clean_string(s):
     s = s.replace(",", "_")
     # make lowercase
     s = s.lower()
-    # remove non-alphanumeric characters except _ and &
-    s = "".join([c for c in s if c.isalnum() or c in ["_", "&"]])
+    # change & to and
+    s = s.replace("&", "and")
+    # remove non-alphanumeric characters except _
+    s = "".join([c for c in s if c.isalnum() or c == "_"])
     # substitute __ with single _
     s = s.replace("__", "_")
     return s
@@ -273,6 +290,11 @@ def clean_string(s):
 for tissue in adata.obs.tissue.unique():
 
     print(tissue)
+
+    # If less than 15 samples, skip
+    if adata[adata.obs.tissue == tissue].shape[0] < 15:
+        print(f"Less than 15 samples for tissue {tissue}. Skipping.")
+        continue
 
     # Path
     tissue_str = clean_string(tissue) 
@@ -286,20 +308,50 @@ for tissue in adata.obs.tissue.unique():
 
     for condition in ["normal", "tumor"]:
         print(4*" " + condition)
+
         condition_path = os.path.join(tissue_path, condition)
         if not os.path.isdir(condition_path):
             os.mkdir(condition_path)
             print(f"Creating directory: {condition_path}")
 
         if condition == "normal":
+            # If less than 15 samples, skip
+            if bdata[bdata.obs.type == "Normal Tissue"].shape[0] < 15:
+                print(f"Less than 15 samples for normal tissue. Skipping.")
+                continue
+
             cdata = bdata[bdata.obs.type == "Normal Tissue"]
-            filename = os.path.join(condition_path, tissue_str)
-            filename += ".h5ad"
-            print(f"Writing file: {filename}")
-            check_filter_write(cdata, filename)
+            
+            # If all subtypes have less than 15 samples, make condition equal to tissue
+            if cdata.obs.condition.value_counts().max() < 15:
+                print(f"All subtypes have less than 15 samples. Merging all subtypes into: {tissue}")
+                cdata.obs["condition"] = tissue
+
+            for normal_type in cdata.obs.condition.unique():
+                print(8*" " + normal_type)
+                normal_type_str = clean_string(normal_type)
+                normal_type_path = os.path.join(condition_path, normal_type_str)
+                if not os.path.isdir(normal_type_path):
+                    os.mkdir(normal_type_path)
+                    print(8*" "+f"Creating directory: {normal_type_path}")
+                ddata = cdata[cdata.obs.condition == normal_type]
+                filename = os.path.join(normal_type_path, normal_type_str)
+                filename += ".h5ad"
+                print(8*" "+f"Writing file: {filename}")
+                check_filter_write(ddata, filename)
 
         elif condition == "tumor":
+            # If less than 15 samples, skip
+            if bdata[bdata.obs.type == "Primary Tumor"].shape[0] < 15:
+                print(f"Less than 15 samples for primary tumor. Skipping.")
+                continue
+
             cdata = bdata[bdata.obs.type == "Primary Tumor"]
+            
+            # If all subtypes have less than 15 samples, make condition equal to tissue
+            if cdata.obs.condition.value_counts().max() < 15:
+                print(f"All subtypes have less than 15 samples. Merging all subtypes into: {tissue}_cancer")
+                cdata.obs["condition"] = tissue + "_cancer"
 
             for tumor_type in cdata.obs.condition.unique():
                 print(8*" " + tumor_type)
@@ -315,4 +367,4 @@ for tissue in adata.obs.tissue.unique():
                 check_filter_write(ddata, filename)
     print()
 
-print("SeparateTissuesConditions.py finished")
+print("Done: separate_tissues.py")

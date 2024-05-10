@@ -37,8 +37,6 @@ if "/tumor/" in filename:
     normal_tissue_files = [os.path.join(normal_tissue, f) for f in os.listdir(normal_tissue) if f.endswith(".h5ad")]
     # replace .h5ad with .p
     normal_tissue_files = [f.replace(".h5ad", ".p") for f in normal_tissue_files]
-    # add "WGCNA_" prefix
-    normal_tissue_files = [f.replace("/normal/", "/normal/wgcna_") for f in normal_tissue_files]
     # Check if there is only one corresponding normal tissue
     if len(normal_tissue_files) == 1:
         print("Found corresponding normal tissue: {}".format(normal_tissue_files[0]))

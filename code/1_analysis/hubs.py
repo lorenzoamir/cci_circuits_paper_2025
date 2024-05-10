@@ -37,23 +37,19 @@ for d in dir_list:
             print('Error: File {} does not exist in directory {}'.format(f, d), file=sys.stdout)
 
 def get_name_condition(d):
-    # if path contains /tumor, the name is the last directory
-    # if path contains /normal, the name is the second to last directory
-    if '/tumor' in d:
+    if '/tumor/' in d: 
         condition = 'tumor'
-        name = d.split('/')[-1]
-        return name, condition
-    elif '/normal' in d:
+    elif '/normal/' in d:
         condition = 'normal'
-        name = d.split('/')[-2]
-        return name, condition
     else:
         print('Error: Directory {} does not contain /tumor or /normal'.format(d), file=sys.stderr)
         print('Error: Directory {} does not contain /tumor or /normal'.format(d), file=sys.stdout)
         return None, None
+    
+    name = d.split('/')[-1]
+    return name, condition
 
 global_hubs = {}
-module_hubs = {}
 all_genes = set()
 all_interactors = set()
 
@@ -90,23 +86,15 @@ for d in dir_list:
     global_hubs[name] = degree_df.sort_values('degree', ascending=False).head(int(perc * len(degree_df))).index
     print(global_hubs[name])
 
-    # Get top 5% of genes by intramodular degree in each module
-    print('Getting top 5% of genes by intramodular degree in each module')
-    module_hubs[name] = {} 
-    for module, df in degree_df.groupby('module'):
-        module_hubs[name][module] = df.sort_values('intramodular_degree', ascending=False).head(int(perc * len(df))).index
-        print(module_hubs[name][module])
 print('Done reading all files')
 
 print('Scoring each gene')
 # Score each gene by how many times it appears in the top 5% of genes
-genes_scores = pd.DataFrame(index=list(all_genes), columns=['global_hub_tumor', 'global_hub_normal', 'module_hub_tumor', 'module_hub_normal', 'interactor'])
+genes_scores = pd.DataFrame(index=list(all_genes), columns=['global_hub_tumor', 'global_hub_normal', 'interactor'])
 
 for gene in all_genes:
     global_hub_tumor = 0
     global_hub_normal = 0
-    module_hub_tumor = 0
-    module_hub_normal = 0
     genes_scores.loc[gene, 'interactor'] = 1 if gene in all_interactors else 0
 
     for name in global_hubs:
@@ -115,23 +103,20 @@ for gene in all_genes:
                 global_hub_tumor += 1
             elif name in normal_tissues:
                 global_hub_normal += 1
-        for module in module_hubs[name]:
-            if gene in module_hubs[name][module]:
-                if name in tumor_tissues:
-                    module_hub_tumor += 1
-                elif name in normal_tissues:
-                    module_hub_normal += 1
 
     genes_scores.loc[gene, 'global_hub_tumor'] = global_hub_tumor
     genes_scores.loc[gene, 'global_hub_normal'] = global_hub_normal
-    genes_scores.loc[gene, 'module_hub_tumor'] = module_hub_tumor
-    genes_scores.loc[gene, 'module_hub_normal'] = module_hub_normal
+
+# Use freq instad of count
+genes_scores['global_hub_tumor'] = genes_scores['global_hub_tumor'] / len(tumor_tissues)
+genes_scores['global_hub_normal'] = genes_scores['global_hub_normal'] / len(normal_tissues)
 
 print('Done scoring each gene')
 
 print('Removing genes that are never hubs')
+
 # Remove genes that are never hubs
-genes_scores = genes_scores[(genes_scores['global_hub_tumor'] > 0) | (genes_scores['global_hub_normal'] > 0) | (genes_scores['module_hub_tumor'] > 0) | (genes_scores['module_hub_normal'] > 0)]
+genes_scores = genes_scores[(genes_scores['global_hub_tumor'] > 0) | (genes_scores['global_hub_normal'] > 0)]
    
 # Sort by differece between tumor and normal
 genes_scores['diff'] = genes_scores['global_hub_tumor'] - genes_scores['global_hub_normal']

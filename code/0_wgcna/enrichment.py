@@ -20,7 +20,7 @@ print("Loading WGCNA object: ", args.input)
 WGCNA = PyWGCNA.readWGCNA(args.input)
 all_genes = WGCNA.datExpr.var.index.tolist()
 
-reactome = '/home/lnemati/resources/reactome/ReactomeLowestLevelPathways.gmt'
+reactome = '/home/lnemati/pathway_crosstalk/results/reactome/reactome_connected_pathways.gmt'
 
 # ----- Enrichment analysis ------
 
@@ -30,15 +30,20 @@ enrichment = pd.DataFrame()
 for module in WGCNA.datExpr.var["moduleLabels"].unique():
     module_genes = WGCNA.datExpr.var[WGCNA.datExpr.var["moduleLabels"] == module].index.tolist()
     # if less than 5 genes in module, skip
-    if len(module_genes) < 5:
+    try:
+        enr = gp.enrichr(
+            gene_list=module_genes,
+            #gene_sets="Reactome_2022",
+            gene_sets=reactome,
+            background=all_genes,
+            outdir=None,
+            )
+    except:
+        print("Error in enrichment analysis for module: ", module, file=sys.stderr)
+        print("Error in enrichment analysis for module: ", module, file=sys.stdout)
+        print("Module size: ", len(module_genes), file=sys.stderr)
+        print("Module size: ", len(module_genes), file=sys.stdout)
         continue
-    enr = gp.enrichr(
-        gene_list=module_genes,
-        #gene_sets="Reactome_2022",
-        gene_sets=reactome,
-        background=all_genes,
-        outdir=None,
-        )
     enr = enr.results
     # Only keep significant enrichments
     enr = enr[enr["Adjusted P-value"] < 0.05]

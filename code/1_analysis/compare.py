@@ -55,20 +55,17 @@ df = pd.DataFrame(
 )
 
 def get_name_condition(d):
-    # if path contains /tumor, the name is the last directory
-    # if path contains /normal, the name is the second to last directory
-    if '/tumor' in d:
+    if '/tumor/' in d: 
         condition = 'tumor'
-        name = d.split('/')[-1]
-        return name, condition
-    elif '/normal' in d:
+    elif '/normal/' in d:
         condition = 'normal'
-        name = d.split('/')[-2]
-        return name, condition
     else:
         print('Error: Directory {} does not contain /tumor or /normal'.format(d), file=sys.stderr)
         print('Error: Directory {} does not contain /tumor or /normal'.format(d), file=sys.stdout)
         return None, None
+    
+    name = d.split('/')[-1]
+    return name, condition
 
 for d in dir_list:
 

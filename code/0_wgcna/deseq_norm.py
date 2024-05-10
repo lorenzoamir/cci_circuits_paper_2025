@@ -50,20 +50,53 @@ print("Running Deseq2 normalization")
 # Run DESeq2 normalization
 dds.fit_size_factors()
 
+# Get results back to adata object
+adata.layers["deseq2_norm_counts"] = dds.layers["normed_counts"].copy()
+adata.X = adata.layers["deseq2_norm_counts"].copy()
+
 print("Variance stabilizing transformation")
 # Perform variance stabilizing transformation
 dds.vst(use_design=False)
+adata.layers["deseq2_vst_counts"] = dds.layers["vst_counts"].copy()
 
 # Remove dummy design factors
 if design_factors == "dummy_deseq2_condition": 
     adata.obs.drop(columns=design_factors, inplace=True)
 
-# Get results back to adata object
-adata.X = dds.layers["vst_counts"].copy()
-adata.layers["deseq2_vst_counts"] = dds.layers["vst_counts"].copy()
-adata.layers["deseq2_norm_counts"] = dds.layers["normed_counts"].copy()
+# --------- PCA Outliers -----------
 
+# Calculate PCA
+sc.pp.pca(adata, n_comps=10, use_highly_variable=False) 
+
+# Calculate centroid of the PCA using median
+centroid = np.median(adata.obsm["X_pca"], axis=0)
+
+# Calculate distance from centroid
+adata.obs["pca_distance"] = np.linalg.norm(adata.obsm["X_pca"] - centroid, axis=1)
+
+# Remove samples that are more than 5 stds away from the median
+std = np.std(adata.obs["pca_distance"])
+
+adata.obs['pca_outlier'] = adata.obs["pca_distance"] > 5 * std
+print("Found {} outliers".format(adata.obs['pca_outlier'].sum()))
+
+# If pca_outliers are more than 5% of the samples, print a warning to stderr
+if adata.obs['pca_outlier'].sum() > 0.05 * len(adata.obs):
+    print("WARNING: More than 5% of the samples are outliers", file=sys.stderr)
+
+# Remove outliers
+adata = adata[~adata.obs['pca_outlier']]
+adata.obs.drop(columns=["pca_distance", "pca_outlier"], inplace=True)
+
+# Remove pca from obsm
+adata.obsm.pop("X_pca")
 # Overwrite adata object
+
+# ----- Save adata object ------
+
+# Ser adata.X to vst
+adata.X = adata.layers["deseq2_vst_counts"].copy()
+
 print("Overwriting adata object")
 adata.write(args.input, compression="gzip")
 

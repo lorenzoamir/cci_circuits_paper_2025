@@ -1,9 +1,12 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import fisher_exact
+from scipy.stats import barnard_exact
 from scipy.stats import false_discovery_control
 import argparse
 import os
+
+TEST = 'fisher'
 
 parser = argparse.ArgumentParser(description='Check all dataframes to find pathway co-occurrences')
 
@@ -111,55 +114,53 @@ if len(all_pathways) != len(genes_jaccard_df):
 print('Subset')
 
 # Subset to pairs of pathways that are linked by significant interactions
-significant = pd.read_csv('/home/lnemati/pathway_crosstalk/results/interactions_network/interactions_network_filtered.csv')
-all_interaction = pd.read_csv('/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv')
-
-interactions = all_interaction[all_interaction['interaction'].isin(significant['interaction'])]
-print('Number of significant interactions: ', len(interactions))
-
-# Extract genes for complex A and B for each row
-complex_a_genes = interactions.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
-complex_b_genes = interactions.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
-interactions_all_genes = complex_a_genes + complex_b_genes
-
-# Initialize an empty set to store unique genes
-unique_genes = set()
-
-# Iterate over each interaction and add genes to the set
-for interaction in interactions_all_genes:
-    unique_genes.update(interaction)
-
-print('Number of unique interacting genes: ', len(unique_genes))
+all_interactions = pd.read_csv('/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv')
 
 print('Reading genesets')
 pw_genes = read_genesets('/home/lnemati/resources/reactome/ReactomeLowestLevelPathways.gmt')
 
-def are_interacting(pathway1_genes, pathway2_genes, complex_a_genes, complex_b_genes, interactions_all_genes):
-    '''
-    Check if the two pathways are linked by an interaction
-    '''
-    # get indexes of interactions_all_genes that have an intersection with both pathway1_genes and pathway2_genes
-    # interactions_all_genes is a series of lists
+print('Reading pathway pairs')
+pairs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/reactome/reactome_connected_pathways.csv', index_col=0)
 
-    interactions = interactions_all_genes.apply(lambda x: len(set(x).intersection(pathway1_genes)) > 0 and len(set(x).intersection(pathway2_genes)) > 0)
-    
-    # if there is no intersection, return False
-    if not interactions.any():
-        return False
+network = stack_triangle(genes_jaccard_df, 'j_genesets')
+if TEST == 'fisher':
+    network['log2_odds_ratio'] = 0
+elif TEST == 'barnard':
+    network['wald_stat'] = 0
+network['pval'] = 0
+network['tumor_intersection'] = 0
+network['normal_intersection'] = 0
+network['tumor_union'] = 0
+network['normal_union'] = 0
+network['keep'] = 0
 
-    # get the index of the interaction and use it to get complex_a_genes and complex_b_genes
-    idxs = interactions[interactions].index
-    for idx in idxs:
-        complex_a = complex_a_genes[idx]
-        complex_b = complex_b_genes[idx]
+all_pws = set(pairs['pathway1']).union(set(pairs['pathway2']))
 
-        # One pathway must have intersection with complex_a and the other with complex_b
-        if len(set(pathway1_genes).intersection(complex_a)) > 0 and len(set(pathway2_genes).intersection(complex_b)) > 0:
-            return True
-        elif len(set(pathway1_genes).intersection(complex_b)) > 0 and len(set(pathway2_genes).intersection(complex_a)) > 0:
-            return True
+# Subset to only pathways in all_pws
+keep = network.index.get_level_values(0).isin(all_pws) & network.index.get_level_values(1).isin(all_pws)
+network = network[keep]
 
-    return False
+# Subset to only pathways that are linked by an interaction
+def are_interacting(pw1, pw2, pairs):
+    result = False
+
+    if pairs[(pairs['pathway1'] == pw1) & (pairs['pathway2'] == pw2)].shape[0] > 0:
+        result = True
+    if pairs[(pairs['pathway1'] == pw2) & (pairs['pathway2'] == pw1)].shape[0] > 0:
+        result = True
+
+    return result
+
+# Only keep rows where pathway1 and pathway2 are in the same row in the pairs dataframe, order is not important
+network['keep'] = network.apply(lambda x: are_interacting(x.name[0], x.name[1], pairs), axis=1)
+network = network[network['keep'] == 1]
+
+print('Number of pathways pairs connected by interactions: ', network.shape[0])
+
+if network.shape[0] != pairs.shape[0]:
+    print('Number of pathway pairs connected by interactions does not match the number of pathway pairs in the pairs dataframe')
+    print('N pairs: ', pairs.shape[0]) 
+    print('N network: ', network.shape[0])
 
 # ----- Comparison -----
 print('Comparison')
@@ -189,32 +190,23 @@ for path in n_occ_pw_files:
     for idx in df.index:
         n_pw_modules[idx].update(df.columns[df.loc[idx] > 0])
 
-network = stack_triangle(genes_jaccard_df, 'j_genesets')
-network['log2_odds_ratio'] = 0
-network['pval'] = 0
-network['tumor_intersection'] = 0
-network['normal_intersection'] = 0
-network['tumor_union'] = 0
-network['normal_union'] = 0
-network['keep'] = 1
-
 print('First 3 pathways modules: ')
+
 for key in list(t_pw_modules.keys())[:3]:
     print(key)
     print('Tumor: ', t_pw_modules[key])
     print('Normal: ', n_pw_modules[key])
     print()
 
+min_row_col = 5
+
+print()
+
 # Iterate over all rows
 for idx in network.index:
     pathway1 = idx[0]
     pathway2 = idx[1]
     
-    # Check if the two pathways are linked by an interaction
-    if not are_interacting(pw_genes[pathway1], pw_genes[pathway2], complex_a_genes, complex_b_genes, interactions_all_genes):
-        network.at[idx, 'keep'] = 0
-        continue
-
     network.at[idx, 'tumor_intersection'] = len(t_pw_modules[pathway1].intersection(t_pw_modules[pathway2]))
     network.at[idx, 'normal_intersection'] = len(n_pw_modules[pathway1].intersection(n_pw_modules[pathway2]))
     network.at[idx, 'tumor_union'] = len(t_pw_modules[pathway1].union(t_pw_modules[pathway2]))
@@ -224,23 +216,33 @@ for idx in network.index:
         [network.at[idx, 'tumor_intersection'], network.at[idx, 'tumor_union'] - network.at[idx, 'tumor_intersection']],
         [network.at[idx, 'normal_intersection'], network.at[idx, 'normal_union'] - network.at[idx, 'normal_intersection']]
     ]
-    odds_ratio, pval = fisher_exact(table)
-    network.at[idx, 'log2_odds_ratio'] = np.log2(odds_ratio)
-    network.at[idx, 'pval'] = pval
+    # Only keep interactions where the sum of each row and column is at least min_row_col
+    if np.sum(table, axis=0)[0] < min_row_col or np.sum(table, axis=0)[1] < min_row_col:
+        network.at[idx, 'keep'] = 0
+    if TEST == 'fisher':
+        odds_ratio, pval = fisher_exact(table)
+        network.at[idx, 'log2_odds_ratio'] = np.log2(odds_ratio)
+        network.at[idx, 'pval'] = pval
+    elif TEST == 'barnard':
+        res = barnard_exact(table)
+        wald = res.statistic
+        pval = res.pvalue
+        network.at[idx, 'wald_stat'] = wald
+        network.at[idx, 'pval'] = pval
 
 # Convert index columns to pathway1 and pathway2
 network.index = network.index.set_names(['pathway1', 'pathway2'])
 network = network.reset_index()
 
-# Sort by log2_odds_ratio
-network = network.sort_values(by='log2_odds_ratio', ascending=False)
-
 # Create directory if it does not exist and save
 if not os.path.exists(os.path.join(args.outputdir, 'pathways_network')):
     os.makedirs(os.path.join(args.outputdir, 'pathways_network'))
 
-# Sort by log2_odds_ratio
-network = network.sort_values(by='log2_odds_ratio', ascending=False)
+# Sort by statistic
+if TEST == 'fisher':
+    network = network.sort_values(by='log2_odds_ratio', ascending=False)
+elif TEST == 'barnard':
+    network = network.sort_values(by='wald_stat', ascending=False)
 # Save unfiltered network
 network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_network_unfiltered.csv'), index=False)
 
@@ -251,22 +253,23 @@ network = network[network['keep'] == 1]
 network = network.sort_values(by='pval')
 network['pval_adj'] = false_discovery_control(network['pval'])
 network = network[network['pval_adj'] < 0.05]
-network = network.sort_values(by='log2_odds_ratio', ascending=False)
+# Sort by statistic
+if TEST == 'fisher':
+    network = network.sort_values(by='log2_odds_ratio', ascending=False)
+elif TEST == 'barnard':
+    network = network.sort_values(by='wald_stat', ascending=False)
 
-# Sort columns, log2_odds_ratio, pval_adj, pval, J_genesets, tumor_intersection, normal_intersection, tumor_union, normal_union
-network = network[[
-    'pathway1',
-    'pathway2',
-    'log2_odds_ratio',
-    'pval_adj',
-    'j_genesets',
-    'tumor_intersection',
-    'normal_intersection',
-    'tumor_union',
-    'normal_union'
-]]
+# Sort columns, statistic, pval_adj, pval, J_genesets, tumor_intersection, normal_intersection, tumor_union, normal_union
+cols = ['pathway1', 'pathway2']
+if TEST == 'fisher':
+    cols += ['log2_odds_ratio']
+elif TEST == 'barnard':
+    cols += ['wald_stat']
+cols += ['pval_adj', 'j_genesets', 'tumor_intersection', 'normal_intersection', 'tumor_union', 'normal_union']
 
-# Create directory if it does not exist and save
+network = network[cols]
+
+# Save
 network.to_csv(os.path.join(args.outputdir, 'pathways_network', 'pathways_network_filtered.csv'), index=False)
 
 ## ----- Tumor -----
