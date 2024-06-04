@@ -46,6 +46,7 @@ df = pd.DataFrame(
         'avg_module_size',
         'avg_degree',
         'avg_intramodular_degree',
+        'avg_coev_tom_correlation',
         'tot_interactions',
         'n_interactions_same_module',
         'interactions_auroc',
@@ -108,7 +109,9 @@ for d in dir_list:
                 sizes = sizes[1::2]
                 sizes = [int(x) for x in sizes]
                 df.loc[name, 'avg_module_size'] = np.mean(sizes)
-            
+            elif key == 'average_tom_coev_correlation':
+                df.loc[name, 'avg_coev_tom_correlation'] = float(value)
+                
     # Read degree_df
     print('Reading degree_df')
     degree_df = pd.read_csv(degree_df, index_col=0)

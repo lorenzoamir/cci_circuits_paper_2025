@@ -5,26 +5,32 @@
 
 source "/projects/bioinformatics/snsutils/snsutils.sh"
 
+SUBSET=0
+
 SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5ad files
+
 DESEQ=0
 WGCNA=0
-NETWORK=0
-INTERACTIONS=0
+NETWORK=1
+COEVOLUTION=1
+INTERACTIONS=1
 ENRICHMENT=1
-STATS=0
+STATS=1
 
 SEPARATE_QUEUE="q02anacreon"
 DESEQ_QUEUE="q02anacreon"
 WGCNA_QUEUE="q02anacreon"
 NETWORK_QUEUE="q02anacreon"
-INTERACTIONS_QUEUE="q02gaia"
+COEVOLUTION_QUEUE="q02anacreon"
+INTERACTIONS_QUEUE="q02anacreon"
 ENRICHMENT_QUEUE="q02gaia"
 STATS_QUEUE="q02anacreon"
 
 SEP_NCPUS=16
 DESEQ_NCPUS=8
 WGCNA_NCPUS=4
-NETWORK_NCPUS=4
+NETWORK_NCPUS=8
+COEVOLUTION_NCPUS=8
 INTERACTIONS_NCPUS=4
 ENRICHMENT_NCPUS=4
 STATS_NCPUS=8
@@ -32,10 +38,11 @@ STATS_NCPUS=8
 SEP_MEMORY=64gb
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
-NETWORK_MEMORY=12gb # Failed with 6gb
-INTERACTIONS_MEMORY=6gb
+NETWORK_MEMORY=12gb
+COEVOLUTION_MEMORY=18gb # Failed with 16gb (only testis)
+INTERACTIONS_MEMORY=7gb
 ENRICHMENT_MEMORY=6gb
-STATS_MEMORY=24gb # Failed with 16gb
+STATS_MEMORY=24gb # Failed with 16gb, succeeded with 24gb
 
 lr_resource="/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv"
 
@@ -65,13 +72,18 @@ fi
 
 # ----- Analysis -----
 
+eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
+conda activate WGCNA
+
 # find all .h5ad files in the data directory and its subdirectories
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
 mapfile -t files < <(find "$data_dir" -name "*.h5ad")
 
-eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
-conda activate WGCNA
- 
+# If SUBSET is positive, only use the first SUBSET files
+if [ $SUBSET -gt 0 ]; then
+    files=("${files[@]:0:$SUBSET}")
+fi
+
 for file in "${files[@]}"; do
     echo "$(dirname "$file")"
     waiting_list=""
@@ -156,6 +168,35 @@ for file in "${files[@]}"; do
             -e "WGCNA" \
             -w "$waiting_list" \
             -c "python network.py --input ${wgcnafile}")
+
+        echo ""
+    fi
+
+    # ----- COEVOLUTION -----
+    if [ $COEVOLUTION -eq 1 ]; then
+        echo "COEVOLUTION"
+
+        # Create job script
+        coevolution_name=coevolution_"$job_name"
+        coevolution_script=$(dirname "$file")/scripts/$coevolution_name.sh
+
+        # Wait for network job to finish
+        waiting_list=""
+        [ $NETWORK -eq 1 ] && waiting_list="$waiting_list:$network_id"
+        echo "Waiting list: $waiting_list"
+
+        directory=$(dirname "$file")
+        coevolution_matrix="/home/lnemati/resources/coevolution/jaccard_genes.csv.gz"
+
+        coevolution_id=$(fsub \
+            -p "$coevolution_script" \
+            -n "$coevolution_name" \
+            -nc "$COEVOLUTION_NCPUS" \
+            -m "$COEVOLUTION_MEMORY" \
+            -q "$COEVOLUTION_QUEUE" \
+            -e "WGCNA" \
+            -w "$waiting_list" \
+            -c "python coevolution.py --directory ${directory} --input ${coevolution_matrix}") 
 
         echo ""
     fi
