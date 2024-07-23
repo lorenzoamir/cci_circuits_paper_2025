@@ -11,11 +11,11 @@ SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5
 
 DESEQ=0
 WGCNA=0
-NETWORK=1
+NETWORK=0
 COEVOLUTION=1
-INTERACTIONS=1
-ENRICHMENT=1
-STATS=1
+INTERACTIONS=0
+ENRICHMENT=0
+STATS=0
 
 SEPARATE_QUEUE="q02anacreon"
 DESEQ_QUEUE="q02anacreon"
@@ -39,7 +39,7 @@ SEP_MEMORY=64gb
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
 NETWORK_MEMORY=12gb
-COEVOLUTION_MEMORY=18gb # Failed with 16gb (only testis)
+COEVOLUTION_MEMORY=18gb
 INTERACTIONS_MEMORY=7gb
 ENRICHMENT_MEMORY=6gb
 STATS_MEMORY=24gb # Failed with 16gb, succeeded with 24gb
@@ -168,35 +168,6 @@ for file in "${files[@]}"; do
             -e "WGCNA" \
             -w "$waiting_list" \
             -c "python network.py --input ${wgcnafile}")
-
-        echo ""
-    fi
-
-    # ----- COEVOLUTION -----
-    if [ $COEVOLUTION -eq 1 ]; then
-        echo "COEVOLUTION"
-
-        # Create job script
-        coevolution_name=coevolution_"$job_name"
-        coevolution_script=$(dirname "$file")/scripts/$coevolution_name.sh
-
-        # Wait for network job to finish
-        waiting_list=""
-        [ $NETWORK -eq 1 ] && waiting_list="$waiting_list:$network_id"
-        echo "Waiting list: $waiting_list"
-
-        directory=$(dirname "$file")
-        coevolution_matrix="/home/lnemati/resources/coevolution/jaccard_genes.csv.gz"
-
-        coevolution_id=$(fsub \
-            -p "$coevolution_script" \
-            -n "$coevolution_name" \
-            -nc "$COEVOLUTION_NCPUS" \
-            -m "$COEVOLUTION_MEMORY" \
-            -q "$COEVOLUTION_QUEUE" \
-            -e "WGCNA" \
-            -w "$waiting_list" \
-            -c "python coevolution.py --directory ${directory} --input ${coevolution_matrix}") 
 
         echo ""
     fi

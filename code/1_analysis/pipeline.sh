@@ -6,24 +6,28 @@
 source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
+COEVOLUTION=1
 HUBS=0
-INT_NETWORK=1
-PW_NETWORK=1
-RANK_PWS=1
+INT_NETWORK=0
+PW_NETWORK=0
+RANK_PWS=0
 
 COMPARE_QUEUE='q02anacreon'
+COEVOLUTION_QUEUE='q02anacreon'
 HUBS_QUEUE='q02anacreon'
 INT_NETWORK_QUEUE='q02anacreon'
 PW_NETWORK_QUEUE='q02anacreon'
 RANK_PWS_QUEUE='q02anacreon'
 
 COMPARE_NCPUS=8
+COEVOLUTION_NCPUS=50
 HUBS_NCPUS=8
 INT_NETWORK_NCPUS=8
 PW_NETWORK_NCPUS=8
 RANK_PWS_NCPUS=8
 
 COMPARE_MEMORY=8gb
+COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
 HUBS_MEMORY=8gb
 INT_NETWORK_MEMORY=16gb
 PW_NETWORK_MEMORY=16gb
@@ -59,7 +63,23 @@ if [ $COMPARE -eq 1 ]; then
         -m "$COMPARE_MEMORY" \
         -e "WGCNA" \
         -q "$COMPARE_QUEUE" \
-        -c "python compare.py --dir_list $all_directories")
+        -c "python compare.py --dir-list $all_directories")
+fi
+
+if [ $COEVOLUTION -eq 1 ]; then
+    echo 'Coevolution'
+    # create job script for each tumor
+    coevolution_name="coevolution"
+    coevolution_script="/home/lnemati/pathway_crosstalk/code/1_analysis/scripts/coevolution.sh"
+
+    coevolution_id=$(fsub \
+        -p "$coevolution_script" \
+        -n "$coevolution_name" \
+        -nc "$COEVOLUTION_NCPUS" \
+        -m "$COEVOLUTION_MEMORY" \
+        -e "WGCNA" \
+        -q "$COEVOLUTION_QUEUE" \
+        -c "python coevolution.py --use-existing --dir-list "$all_directories"")
 fi
 
 if [ $HUBS -eq 1 ]; then
@@ -75,7 +95,7 @@ if [ $HUBS -eq 1 ]; then
         -m "$HUBS_MEMORY" \
         -e "WGCNA" \
         -q "$HUBS_QUEUE" \
-        -c "python hubs.py --dir_list $all_directories")
+        -c "python hubs.py --dir-list $all_directories")
 fi
 
 if [ $INT_NETWORK -eq 1 ]; then

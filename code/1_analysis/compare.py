@@ -6,7 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Compare results of individual WGCNA analysis')
 
-parser.add_argument('--dir_list', type=str, help='List of directories to compare, delimited by commas')
+parser.add_argument('--dir-list', type=str, help='List of directories to compare, delimited by commas')
 
 args = parser.parse_args()
 
