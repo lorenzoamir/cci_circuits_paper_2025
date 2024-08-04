@@ -1,0 +1,882 @@
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Condition: normal
+Normal
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adipose_tissue/normal/adipose_subcutaneous
+Name: adipose_subcutaneous
+Condition: normal
+Reading TOM
+Expanding TOM
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Condition: normal
+Normal
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adipose_tissue/normal/adipose_subcutaneous
+Name: adipose_subcutaneous
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 0
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adipose_tissue/normal/adipose_visceral_omentum
+Name: adipose_visceral_omentum
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 1
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/normal/adrenal_gland
+Name: adrenal_gland
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 2
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood/normal/whole_blood
+Name: whole_blood
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 3
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood_vessel/normal/artery_aorta
+Name: artery_aorta
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 4
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood_vessel/normal/artery_coronary
+Name: artery_coronary
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 5
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood_vessel/normal/artery_tibial
+Name: artery_tibial
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 6
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_amygdala
+Name: brain_amygdala
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 7
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_anterior_cingulate_cortex_ba24
+Name: brain_anterior_cingulate_cortex_ba24
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 8
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_caudate_basal_ganglia
+Name: brain_caudate_basal_ganglia
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 9
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_cerebellar_hemisphere
+Name: brain_cerebellar_hemisphere
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 10
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_cerebellum
+Name: brain_cerebellum
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 11
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_cortex
+Name: brain_cortex
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 12
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_frontal_cortex_ba9
+Name: brain_frontal_cortex_ba9
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 13
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_hippocampus
+Name: brain_hippocampus
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 14
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_hypothalamus
+Name: brain_hypothalamus
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 15
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_nucleus_accumbens_basal_ganglia
+Name: brain_nucleus_accumbens_basal_ganglia
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 16
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_putamen_basal_ganglia
+Name: brain_putamen_basal_ganglia
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 17
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_spinal_cord_cervical_c1
+Name: brain_spinal_cord_cervical_c1
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 18
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_substantia_nigra
+Name: brain_substantia_nigra
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 19
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/normal/breast_mammary_tissue
+Name: breast_mammary_tissue
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 20
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/normal/colon_sigmoid
+Name: colon_sigmoid
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 21
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/normal/colon_transverse
+Name: colon_transverse
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 22
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/esophagus_gastroesophageal_junction
+Name: esophagus_gastroesophageal_junction
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 23
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/esophagus_mucosa
+Name: esophagus_mucosa
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 24
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/esophagus_muscularis
+Name: esophagus_muscularis
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 25
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/heart/normal/heart_atrial_appendage
+Name: heart_atrial_appendage
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 26
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/heart/normal/heart_left_ventricle
+Name: heart_left_ventricle
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 27
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/normal/kidney_cortex
+Name: kidney_cortex
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 28
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/normal/liver
+Name: liver
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 29
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/normal/lung
+Name: lung
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 30
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/muscle/normal/muscle_skeletal
+Name: muscle_skeletal
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 31
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/nerve/normal/nerve_tibial
+Name: nerve_tibial
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 32
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/normal/ovary
+Name: ovary
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 33
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/normal/pancreas
+Name: pancreas
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 34
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pituitary/normal/pituitary
+Name: pituitary
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 35
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/normal/prostate
+Name: prostate
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 36
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/salivary_gland/normal/minor_salivary_gland
+Name: minor_salivary_gland
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 37
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/normal/skin_not_sun_exposed_suprapubic
+Name: skin_not_sun_exposed_suprapubic
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 38
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/normal/skin_sun_exposed_lower_leg
+Name: skin_sun_exposed_lower_leg
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 39
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/small_intestine/normal/small_intestine_terminal_ileum
+Name: small_intestine_terminal_ileum
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 40
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/spleen/normal/spleen
+Name: spleen
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 41
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/normal/stomach
+Name: stomach
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 42
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/normal/testis
+Name: testis
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 43
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/thyroid/normal/thyroid
+Name: thyroid
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 44
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/normal/uterus
+Name: uterus
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 45
+Checking number of non-nan values
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/vagina/normal/vagina
+Name: vagina
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 46
+Checking number of non-nan values
+Saving tensor and collapsed tensor
+Saving tensor
+Collapsing tensor
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Condition: normal
+Normal
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adipose_tissue/normal/adipose_subcutaneous
+Name: adipose_subcutaneous
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 0
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adipose_tissue/normal/adipose_visceral_omentum
+Name: adipose_visceral_omentum
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 1
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/normal/adrenal_gland
+Name: adrenal_gland
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 2
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood/normal/whole_blood
+Name: whole_blood
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 3
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood_vessel/normal/artery_aorta
+Name: artery_aorta
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 4
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood_vessel/normal/artery_coronary
+Name: artery_coronary
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 5
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/blood_vessel/normal/artery_tibial
+Name: artery_tibial
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 6
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_amygdala
+Name: brain_amygdala
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 7
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_anterior_cingulate_cortex_ba24
+Name: brain_anterior_cingulate_cortex_ba24
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 8
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_caudate_basal_ganglia
+Name: brain_caudate_basal_ganglia
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 9
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_cerebellar_hemisphere
+Name: brain_cerebellar_hemisphere
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 10
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_cerebellum
+Name: brain_cerebellum
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 11
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_cortex
+Name: brain_cortex
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 12
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_frontal_cortex_ba9
+Name: brain_frontal_cortex_ba9
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 13
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_hippocampus
+Name: brain_hippocampus
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 14
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_hypothalamus
+Name: brain_hypothalamus
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 15
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_nucleus_accumbens_basal_ganglia
+Name: brain_nucleus_accumbens_basal_ganglia
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 16
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_putamen_basal_ganglia
+Name: brain_putamen_basal_ganglia
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 17
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_spinal_cord_cervical_c1
+Name: brain_spinal_cord_cervical_c1
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 18
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/normal/brain_substantia_nigra
+Name: brain_substantia_nigra
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 19
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/normal/breast_mammary_tissue
+Name: breast_mammary_tissue
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 20
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/normal/colon_sigmoid
+Name: colon_sigmoid
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 21
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/normal/colon_transverse
+Name: colon_transverse
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 22
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/esophagus_gastroesophageal_junction
+Name: esophagus_gastroesophageal_junction
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 23
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/esophagus_mucosa
+Name: esophagus_mucosa
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 24
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/normal/esophagus_muscularis
+Name: esophagus_muscularis
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 25
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/heart/normal/heart_atrial_appendage
+Name: heart_atrial_appendage
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 26
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/heart/normal/heart_left_ventricle
+Name: heart_left_ventricle
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 27
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/normal/kidney_cortex
+Name: kidney_cortex
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 28
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/normal/liver
+Name: liver
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 29
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/normal/lung
+Name: lung
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 30
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/muscle/normal/muscle_skeletal
+Name: muscle_skeletal
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 31
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/nerve/normal/nerve_tibial
+Name: nerve_tibial
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 32
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/normal/ovary
+Name: ovary
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 33
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/normal/pancreas
+Name: pancreas
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 34
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pituitary/normal/pituitary
+Name: pituitary
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 35
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/normal/prostate
+Name: prostate
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 36
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/salivary_gland/normal/minor_salivary_gland
+Name: minor_salivary_gland
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 37
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/normal/skin_not_sun_exposed_suprapubic
+Name: skin_not_sun_exposed_suprapubic
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 38
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/normal/skin_sun_exposed_lower_leg
+Name: skin_sun_exposed_lower_leg
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 39
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/small_intestine/normal/small_intestine_terminal_ileum
+Name: small_intestine_terminal_ileum
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 40
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/spleen/normal/spleen
+Name: spleen
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 41
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/normal/stomach
+Name: stomach
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 42
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/normal/testis
+Name: testis
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 43
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/thyroid/normal/thyroid
+Name: thyroid
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 44
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/normal/uterus
+Name: uterus
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 45
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/vagina/normal/vagina
+Name: vagina
+Condition: normal
+Reading TOM
+Expanding TOM
+Filling tensor slice 46
+Saving tensor and collapsed tensor
+Saving tensor
+Collapsing tensor
+Saving collapsed tensor
+Condition: tumor
+Tumor
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/tumor/adrenocortical_cancer
+Name: adrenocortical_cancer
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 0
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/bile_duct/tumor/cholangiocarcinoma
+Name: cholangiocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 1
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/bladder/tumor/bladder_urothelial_carcinoma
+Name: bladder_urothelial_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 2
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/brain_lower_grade_glioma
+Name: brain_lower_grade_glioma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 3
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/brain/tumor/glioblastoma_multiforme
+Name: glioblastoma_multiforme
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 4
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/breast/tumor/breast_invasive_carcinoma
+Name: breast_invasive_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 5
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/cervix/tumor/cervical_and_endocervical_cancer
+Name: cervical_and_endocervical_cancer
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 6
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/colon/tumor/colon_adenocarcinoma
+Name: colon_adenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 7
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/endometrium/tumor/uterine_corpus_endometrioid_carcinoma
+Name: uterine_corpus_endometrioid_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 8
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/esophagus/tumor/esophageal_carcinoma
+Name: esophageal_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 9
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/eye/tumor/uveal_melanoma
+Name: uveal_melanoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 10
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/head_and_neck_region/tumor/head_and_neck_squamous_cell_carcinoma
+Name: head_and_neck_squamous_cell_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 11
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_chromophobe
+Name: kidney_chromophobe
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 12
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_clear_cell_carcinoma
+Name: kidney_clear_cell_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 13
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/kidney/tumor/kidney_papillary_cell_carcinoma
+Name: kidney_papillary_cell_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 14
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lining_of_body_cavities/tumor/mesothelioma
+Name: mesothelioma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 15
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/liver/tumor/liver_hepatocellular_carcinoma
+Name: liver_hepatocellular_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 16
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_adenocarcinoma
+Name: lung_adenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 17
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lung/tumor/lung_squamous_cell_carcinoma
+Name: lung_squamous_cell_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 18
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/lymphatic_tissue/tumor/diffuse_large_bcell_lymphoma
+Name: diffuse_large_bcell_lymphoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 19
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/ovary/tumor/ovarian_serous_cystadenocarcinoma
+Name: ovarian_serous_cystadenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 20
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/pancreas/tumor/pancreatic_adenocarcinoma
+Name: pancreatic_adenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 21
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/paraganglia/tumor/pheochromocytoma_and_paraganglioma
+Name: pheochromocytoma_and_paraganglioma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 22
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/prostate/tumor/prostate_adenocarcinoma
+Name: prostate_adenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 23
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/rectum/tumor/rectum_adenocarcinoma
+Name: rectum_adenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 24
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/skin/tumor/skin_cutaneous_melanoma
+Name: skin_cutaneous_melanoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 25
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/soft_tissue_bone/tumor/sarcoma
+Name: sarcoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 26
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/stomach/tumor/stomach_adenocarcinoma
+Name: stomach_adenocarcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 27
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/testis/tumor/testicular_germ_cell_tumor
+Name: testicular_germ_cell_tumor
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 28
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/thymus/tumor/thymoma
+Name: thymoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 29
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/thyroid_gland/tumor/thyroid_carcinoma
+Name: thyroid_carcinoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 30
+Directory /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/uterus/tumor/uterine_carcinosarcoma
+Name: uterine_carcinosarcoma
+Condition: tumor
+Reading TOM
+Expanding TOM
+Filling tensor slice 31
+Saving tensor and collapsed tensor
+Saving tensor
+Collapsing tensor
+Saving collapsed tensor
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Using existing coexpression and coevolution matrices
+Condition: normal
+Loading tensor
+Collapsing tensor
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Using existing coexpression and coevolution matrices
+Condition: normal
+Loading tensor
+Collapsing tensor
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Using existing coexpression and coevolution matrices
+Condition: normal
+Loading tensor
+Collapsing tensor
+Condition: tumor
+Loading tensor
+Collapsing tensor
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Condition: normal
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Condition: normal
+Condition: tumor
+Reading coevolution matrix
+Converting coevolution matrix to float32
+(17756, 17756)
+Condition: normal
+Condition: tumor
+Condition: normal
+Condition: tumor

@@ -1,0 +1,230 @@
+import numpy as np
+import sys
+import scanpy as sc
+import PyWGCNA
+import pandas as pd
+import os
+import argparse
+
+# read filename from command line
+#filename = os.environ.get("WGCNA_FILE_PATH")
+
+parser = argparse.ArgumentParser(description='Run WGCNA pipeline')
+
+parser.add_argument('-i', '--input', type=str, help='path to input wgcna file')
+parser.add_argument('-r', '--lr_resource', type=str, help='path to ligand-receptor resource')
+
+args = parser.parse_args()
+
+filename = args.input
+WGCNA = PyWGCNA.readWGCNA(filename)
+
+# category is the last part of the filename after the last /
+category = filename.split("/")[-1].split(".")[0]
+# output_path is the path to the category folder
+output_path = "/".join(filename.split("/")[:-1]) + "/"
+
+print("category", category)
+print("output_path", output_path)
+print("filename", filename)
+
+print("Loading LR resource: {}".format(args.lr_resource))
+resource = pd.read_csv(args.lr_resource)
+
+# Extract genes for complex A and B for each row
+complex_a_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(1, row['num_interactors_a'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+complex_b_genes = cpdb.apply(lambda row: [row[f'interactor{i}'] for i in range(row['num_interactors_a'] + 1, row['num_interactors_a'] + row['num_interactors_b'] + 1) if pd.notna(row[f'interactor{i}'])], axis=1)
+interactions_all_genes = complex_a_genes + complex_b_genes
+
+# --------- Check corresponding normal tissue -----------
+print("Checking corresponding normal tissue")
+normal_tissue_files = None
+
+if "/tumor/" in filename:
+    print("Checking corresponding normal tissue")
+    # Get the corresponding normal tissue, strip everything after /tumor/
+    normal_tissue = filename.split("/tumor/")[0] + "/normal/"
+    # Search for .h5ad files in the normal tissue folder
+    # and save their absolute path
+    normal_tissue_files = [os.path.join(normal_tissue, f) for f in os.listdir(normal_tissue) if f.endswith(".h5ad")]
+    # replace .h5ad with .p
+    normal_tissue_files = [f.replace(".h5ad", ".p") for f in normal_tissue_files]
+    # add "WGCNA_" prefix
+    normal_tissue_files = [f.replace("/normal/", "/normal/WGCNA_") for f in normal_tissue_files]
+    # Check if there is only one corresponding normal tissue
+    if len(normal_tissue_files) == 1:
+        print("Found corresponding normal tissue: {}".format(normal_tissue_files[0]))
+        # Writing normal tissue location in same folder as tumor tissue
+        with open(os.path.join(output_path, "corresponding_normal_file.txt"), "w") as f:
+            f.write(normal_tissue_files[0])
+    elif len(normal_tissue_files) == 0:
+        print("No corresponding normal tissue found")
+        normal_tissue_files = None
+    else:
+        print("Multiple corresponding normal tissues found: {}".format(normal_tissue_files))
+        normal_tissue_files = None
+
+print("Done: Checking corresponding normal tissue")
+
+# ------ TOM & adjacency ------
+
+print("Saving TOM and adjacency")
+
+# save TOM matrix as csv
+WGCNA.TOM.to_csv(os.path.join(output_path, "tom.csv.gz"))
+# save adjacency matrix as csv
+WGCNA.adjacency.to_csv(os.path.join(output_path, "adjacency.csv.gz"))
+
+print("Done: TOM and adjacency")
+
+# -------- Same Module ---------
+
+print("Checking which gene pairs are in the same module")
+
+same_module = WGCNA.datExpr.var['moduleLabels'].values[:, None] == WGCNA.datExpr.var['moduleLabels'].values
+same_module = pd.DataFrame(data=same_module, index=WGCNA.datExpr.var.index, columns=WGCNA.datExpr.var.index)
+
+# save same_module as csv
+same_module.to_csv(os.path.join(output_path, "same_module.csv.gz"))
+
+# Get idxs corresponding to upper triangle (diagonal excluded)
+idxs_x, idxs_y = np.triu_indices(same_module.shape[0], 1)
+
+same_module = same_module.values[idxs_x, idxs_y]
+
+total_pairs = same_module.shape[0]
+n_same_module = same_module.sum()
+
+# ----- Z-score ------
+
+# Z-score number of LR pairs in the same module using a binomial
+# with n = total_LR_pairs and p = n_same_module / total_pairs
+
+print("Z-scoring number of LR pairs in the same module")
+
+all_complex_a_genes = set(gene for genes in complex_a_genes for gene in genes).intersection(WGCNA.datExpr.var.index)
+all_complex_b_genes = set(gene for genes in complex_b_genes for gene in genes).intersection(WGCNA.datExpr.var.index)
+cpdb_all_genes = all_complex_a_genes.union(all_complex_b_genes)
+
+same_module = same_module.loc[cpdb_all_genes, cpdb_all_genes]
+
+interactions_matrix = pd.DataFrame(data=np.zeros((len(cpdb_all_genes), len(cpdb_all_genes))), index=cpdb_all_genes, columns=cpdb_all_genes)
+
+# Create mask with interactions
+for zipped in zip(complex_a_genes, complex_b_genes):
+    a, b = zipped
+    interactions_matrix.loc[a, b] = 1
+    
+
+
+
+total_pairs_all_cpdb_genes = same_module.size # number of pairs (all cpdb genes)
+n_same_module_all_cpdb_genes = same_module.sum() # number of pairs same module (all cpdb genes)
+
+p = n_same_module_all_cpdb_genes / total_pairs_all_cpdb_genes
+
+# All possible interactions excluding self-interactions
+n = all
+
+n_lr_same_module = resource["same_module"].sum()
+
+z_score = (n_lr_same_module - n * p) / np.sqrt(n * p * (1 - p))
+
+print("Done: Z-score")
+# --------- LR Pairs ---------
+
+genes = WGCNA.datExpr.var
+
+# Only keep interactions where all genes are in the WGCNA data
+cpdb = = cpdb[interactions_all_genes.apply(lambda x: all([gene in genes.index for gene in x]))] 
+
+
+
+
+print("Annotating genes")
+# Drop interactions in which the ligand or the receptor is missing from the WGCNA data
+resource = resource[resource["ligand"].isin(genes.index) & resource["receptor"].isin(genes.index)]
+print("Only keeping interactions with both ligand and receptor in WGCNA data: {} interactions".format(resource.shape[0]))
+
+resource["same_module"] = False
+resource["L_module"] = None
+resource["R_module"] = None
+resource["TOM"] = None
+resource["adjacency"] = None
+
+for i, row in resource.iterrows():
+    ligand_module = genes.loc[row["ligand"], "moduleLabels"]
+    receptor_module = genes.loc[row["receptor"], "moduleLabels"]
+    # Add L_module and R_module columns containing moduleLabels
+    resource.loc[i, "L_module"] = ligand_module
+    resource.loc[i, "R_module"] = receptor_module
+    if ligand_module == receptor_module:
+        resource.loc[i, "same_module"] = True
+    # Add TOM and adjacency to LR interactions
+    resource.loc[i, "TOM"] = WGCNA.TOM.loc[row["ligand"], row["receptor"]]
+    resource.loc[i, "adjacency"] = WGCNA.adjacency.loc[row["ligand"], row["receptor"]]
+
+print("Showing the first 10 interactions")
+print(resource.head(10))
+
+# Save the interactions in the same path as the WGCNA object
+
+print("Saving interactions to {}".format(os.path.join(output_path, "LR_interactions.csv")))
+resource.to_csv(os.path.join(output_path, "LR_interactions.csv"), index=False)
+
+# ----- Module info ------
+
+# rank modules by size and save number of LR_interactions in each module
+print("Ranking modules by size and saving number of LR interactions in each module")
+# number of modules
+n_modules = len(WGCNA.datExpr.var["moduleLabels"].unique())
+# make dataframe with module sizes
+module_sizes = WGCNA.datExpr.var["moduleLabels"].value_counts().to_dict()
+module_df = pd.DataFrame(data=module_sizes.items(), columns=["module", "size"])
+# sort by size, bigger first
+module_df = module_df.sort_values(by="size", ascending=False)
+module_df["rank"] = range(1, module_df.shape[0] + 1)
+# add number of LR interactions in each module
+module_df["n_LR_interactions"] = None
+module_df["frac_of_tot_LR_interactions"] = None
+
+for i, row in module_df.iterrows():
+    ::   n_LR_interactions = resource[resource["L_module"] == row["module"]]["same_module"].sum()
+    module_df.loc[i, "n_LR_interactions"] = n_LR_interactions
+    module_df.loc[i, "frac_of_tot_LR_interactions"] = n_LR_interactions / resource.shape[0]
+    
+module_df.to_csv(os.path.join(output_path, "module_info.csv"), index=False)
+
+print("Done: LR Pairs")
+
+# ----- General info ------
+# If general_info.txt exists, overwrite it
+print("general_info.txt already exists, overwriting")
+if os.path.exists(os.path.join(output_path, "general_info.txt")):
+    os.remove(os.path.join(output_path, "general_info.txt"))
+
+print("Writing general info")
+with open(os.path.join(output_path, "general_info.txt"), "w") as f:
+    f.write("name: {}\n".format("WGCNA_" + category))
+    f.write("WGCNA_file: {}\n".format(os.path.join(output_path, "WGCNA_" + category + ".p")))
+    f.write("LR_resource: {}\n".format(args.lr_resource))
+    if normal_tissue_files:
+        if len(normal_tissue_files) == 1:
+            f.write("corresponding_normal_tissue: {}\n".format(normal_tissue_files[0]))
+
+    f.write("n_modules: {}\n".format(n_modules))
+    f.write("module_sizes: {}\n".format(module_sizes))
+
+    f.write("n_genes: {}\n".format(genes.shape[0]))
+    f.write("n_samples: {}\n".format(WGCNA.datExpr.shape[0]))
+
+    f.write("n_pairs_all_genes: {}\n".format(total_pairs))
+    f.write("n_pairs_same_module_all_genes: {}\n".format(n_same_module))
+
+    f.write("total_LR_pairs: {}\n".format(resource.shape[0]))
+    f.write("LR_pairs_same_module: {}\n".format(n_lr_same_module))
+    f.write("LR_pairs_Z_score: {}\n".format(z_score))
+
+# ----- Done ------
+
+print("Done: annotate.py")

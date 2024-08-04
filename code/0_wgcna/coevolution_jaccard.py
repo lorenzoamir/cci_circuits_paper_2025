@@ -168,11 +168,15 @@ for mutation_type in mutation_types:
 
     num_processes = multiprocessing.cpu_count()
 
-    print('Calculating jaccard matrix')
+    print('Calculating matrices')
+    # Make a matrix with the Jaccard index
+    # Also make a matrix with the number of co-occurrences (intersection of the sets of mutations)
     jaccard_matrix = calculate_jaccard_matrix(all_genes, modules[mutation_type], num_processes)
 
     print('Making dataframe')
     jaccard_df = pd.DataFrame(jaccard_matrix, index=all_genes, columns=all_genes)
+
+    
 
     # Saving the Jaccard index matrix and the number of mutations for each gene
     output_path = os.path.join(output_dir, 'All Cancers', mutation_type)
