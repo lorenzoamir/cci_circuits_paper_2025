@@ -53,7 +53,7 @@ result = interactions.copy()
 
 result["same_module"] = False
 result["module"] = None
-result["mean_tom"] = None
+result["mean_adj"] = None
 
 for i, row in interactions.iloc[:, 3:].iterrows():
     all_genes = [gene for gene in row if pd.notna(gene)]
@@ -64,11 +64,11 @@ for i, row in interactions.iloc[:, 3:].iterrows():
     else:
         result.loc[i, "same_module"] = False
         result.loc[i, "module"] = None
-    # Add TOM to interactions
-    tom = WGCNA.TOM.loc[all_genes, all_genes]
-    idxs_x, idxs_y = np.triu_indices(tom.shape[0], 1)
-    tom = tom.values[idxs_x, idxs_y].mean()
-    result.loc[i, "mean_tom"] = tom
+    # Add adjacency to interactions
+    adj = WGCNA.adjacency.loc[all_genes, all_genes]
+    idxs_x, idxs_y = np.triu_indices(adj.shape[0], 1)
+    adj = adj.values[idxs_x, idxs_y].mean()
+    result.loc[i, "mean_adj"] = adj
     
 print("Showing the first 10 interactions")
 print(result.head(10))

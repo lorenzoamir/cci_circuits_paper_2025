@@ -7,21 +7,25 @@ source "/projects/bioinformatics/snsutils/snsutils.sh"
 
 MUTATIONS=0
 SEPARATE=0
+JACCARD=1
 COOCCURRENCE=0
-DIRECTIONALITY=1
+DIRECTIONALITY=0
 
 MUTATIONS_QUEUE="q02anacreon"
 SEPARATE_QUEUE="q02anacreon"
+JACCARD_QUEUE="q02anacreon"
 COOCCURRENCE_QUEUE="q02anacreon"
 DIRECTIONALITY_QUEUE="q02anacreon"
 
 MUTATIONS_NCPUS=16
 SEPARATE_NCPUS=8
+JACCARD_NCPUS=32
 COOCCURRENCE_NCPUS=8
 DIRECTIONALITY_NCPUS=8
 
 MUTATIONS_MEMORY=16gb
 SEPARATE_MEMORY=8gb
+JACCARD_MEMORY=32gb
 COOCCURRENCE_MEMORY=16gb
 DIRECTIONALITY_MEMORY=16gb
 
@@ -72,6 +76,30 @@ if [ $SEPARATE -eq 1 ]; then
         -e "WGCNA" \
         -w "$waiting_list" \
         -c "python separate.py")
+fi
+
+if [ $JACCARD -eq 1 ]; then
+    echo "JACCARD"
+
+    jaccard_name=jacc
+    jaccard_script="$scripts_dir"/"$jaccard_name".sh
+
+    inputfile="/home/lnemati/pathway_crosstalk/data/tumor_coev/all_cancers/Patient/mutations_df.csv"
+
+    # Wait for separate job to finish
+    waiting_list=""
+    [ $MUTATIONS -eq 1 ] && waiting_list="$waiting_list:$mutations_id"
+    [ $SEPARATE -eq 1 ] && waiting_list="$waiting_list:$separate_id"
+
+    jaccard_id=$(fsub \
+        -p "$jaccard_script" \
+        -n "$jaccard_name" \
+        -nc "$JACCARD_NCPUS" \
+        -m "$JACCARD_MEMORY" \
+        -q "$JACCARD_QUEUE" \
+        -e "WGCNA" \
+        -w "$waiting_list" \
+        -c "python jaccard.py --inputfile $inputfile")
 fi
 
 datadir="/home/lnemati/pathway_crosstalk/data/tumor_coev"

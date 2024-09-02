@@ -4,7 +4,7 @@ import os
 import numpy as np
 import PyWGCNA
 from sklearn.metrics import roc_curve, roc_auc_score
-from scipy.stats import ranksums
+from scipy.stats import mannwhitneyu
 from itertools import combinations, product
 import argparse
 
@@ -197,11 +197,11 @@ for condition in ["normal", "tumor"]:
     )
     print("Done: " + condition + " ROC curve")
     
-    # ------ Rank Sum Test VS All -------
-    print("Performing rank sum test")
+    # ------ Test VS All -------
+    print("Performing Mann-Whitney U test")
     
-    # Perform rank sum test: do LR pairs have higher TOM than non-LR pairs?
-    U_all, p_all = ranksums(
+    # Perform test: do LR pairs have higher TOM than non-LR pairs?
+    U_all, p_all = mannwhitneyu(
         all_pairs.loc[all_pairs['interaction'] == True, "TOM"],
         all_pairs.loc[all_pairs['interaction'] == False, "TOM"],
         alternative="greater"
@@ -210,10 +210,10 @@ for condition in ["normal", "tumor"]:
     
     # create it if it does not exist, overwrite it if it does
     with open(comparison_file, "a") as f:
-        f.write(condition + "_ranksums_U_all: " + str(U_all) + "\n")
-        f.write(condition + "_ranksums_p_all: " + str(p_all) + "\n")
+        f.write(condition + "_mannwhitneyu_U_all: " + str(U_all) + "\n")
+        f.write(condition + "_mannwhitneyu_p_all: " + str(p_all) + "\n")
         
-    print("Done: " + condition + " rank sum test") 
+    print("Done: " + condition + " test") 
 
 # Save the roc figure
 roc_fig.savefig(os.path.join(tumor_fig_dir, "roc.pdf"))

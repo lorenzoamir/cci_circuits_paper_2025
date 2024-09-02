@@ -7,15 +7,15 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
 COEVOLUTION=0
-HUBS=0
+NODES=1
 INT_NETWORK=0
-LR_PAIRS=1
+LR_PAIRS=0
 PW_NETWORK=0
 RANK_PWS=0
 
 COMPARE_QUEUE='q02anacreon'
 COEVOLUTION_QUEUE='q02anacreon'
-HUBS_QUEUE='q02anacreon'
+NODES_QUEUE='q02anacreon'
 INT_NETWORK_QUEUE='q02anacreon'
 LR_PAIRS_QUEUE='q02anacreon'
 PW_NETWORK_QUEUE='q02anacreon'
@@ -23,7 +23,7 @@ RANK_PWS_QUEUE='q02anacreon'
 
 COMPARE_NCPUS=8
 COEVOLUTION_NCPUS=50
-HUBS_NCPUS=8
+NODES_NCPUS=8
 INT_NETWORK_NCPUS=8
 LR_PAIRS_NCPUS=4
 PW_NETWORK_NCPUS=8
@@ -31,7 +31,7 @@ RANK_PWS_NCPUS=8
 
 COMPARE_MEMORY=8gb
 COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
-HUBS_MEMORY=8gb
+NODES_MEMORY=8gb
 INT_NETWORK_MEMORY=16gb
 LR_PAIRS_MEMORY=16gb
 PW_NETWORK_MEMORY=16gb
@@ -86,20 +86,20 @@ if [ $COEVOLUTION -eq 1 ]; then
         -c "python coevolution.py --use-existing --dir-list "$all_directories"")
 fi
 
-if [ $HUBS -eq 1 ]; then
+if [ $NODES -eq 1 ]; then
     echo 'Hubs'
     # create job script for each tumor
-    hubs_name="hubs"
-    hubs_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/hubs.sh"
+    nodes_name="nodes"
+    nodes_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/nodes.sh"
 
-    hubs_id=$(fsub \
-        -p "$hubs_script" \
-        -n "$hubs_name" \
-        -nc "$HUBS_NCPUS" \
-        -m "$HUBS_MEMORY" \
+    nodes_id=$(fsub \
+        -p "$nodes_script" \
+        -n "$nodes_name" \
+        -nc "$NODES_NCPUS" \
+        -m "$NODES_MEMORY" \
         -e "WGCNA" \
-        -q "$HUBS_QUEUE" \
-        -c "python hubs.py --dir-list $all_directories")
+        -q "$NODES_QUEUE" \
+        -c "python node_metrics.py --dir-list $all_directories")
 fi
 
 if [ $INT_NETWORK -eq 1 ]; then

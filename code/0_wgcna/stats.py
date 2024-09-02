@@ -4,7 +4,7 @@ import os
 import numpy as np
 import PyWGCNA
 from sklearn.metrics import roc_curve, roc_auc_score
-from scipy.stats import ranksums
+from scipy.stats import mannwhitneyu
 from itertools import combinations, product
 import argparse
 
@@ -79,24 +79,20 @@ print("Number of interacting genes: ", len(all_interacting_genes))
 
 print("Generating ROC curves")
 
-# subset to all_interacting_genes
-tom = WGCNA.TOM
-#print("Subsetting to all interacting genes")
-#tom = WGCNA.TOM.loc[all_interacting_genes, all_interacting_genes]
-print("TOM has shape: ", tom.shape)
-print(tom.head())
+adj = WGCNA.adjacency
+print("Adjacency has shape: ", adj.shape)
 
-# flatten TOM matrix, remove diagonal and duplicated values
-print("Flattening TOM matrix")
+# flatten matrix, remove diagonal and duplicated values
+print("Flattening matrix")
 all_pairs = pd.DataFrame(
-    tom.where(
+    adj.where(
         np.tri(
-            tom.shape[0],
+            adj.shape[0],
             dtype=bool,
             k=-1
         ),
         np.nan
-    ).stack(dropna=True), columns=["TOM"]
+    ).stack(dropna=True), columns=["adj"]
 )
 print("all_pairs has now shape: ", all_pairs.shape)
 print(all_pairs.head())
@@ -119,27 +115,25 @@ name = WGCNA.name
 generate_roc_curve(
     data=all_pairs,
     target_col="interaction",
-    feature_col="TOM",
+    feature_col="adj",
     file=stats_file,
     name=name
 )
 
-# ------ Rank Sum Test VS All -------
-print("Performing rank sum test")
+# ------ Test VS All -------
+print("Performing test")
 
-# Perform rank sum test: do interacting pairs have higher TOM than other pairs?
-U_all, p_all = ranksums(
-    all_pairs.loc[all_pairs['interaction'] == True, "TOM"],
-    all_pairs.loc[all_pairs['interaction'] == False, "TOM"],
+# Perform test: do interacting pairs have higher connectivity than other pairs?
+U_all, p_all = mannwhitneyu(
+    all_pairs.loc[all_pairs['interaction'] == True, "adj"],
+    all_pairs.loc[all_pairs['interaction'] == False, "adj"],
     alternative="greater"
 )
 print("Writing result to: " + stats_file)
 
 # create it if it does not exist, overwrite it if it does
 with open(stats_file, "a") as f:
-    f.write("ranksums_U_all: " + str(U_all) + "\n")
-    f.write("ranksums_p_all: " + str(p_all) + "\n")
+    f.write("mannwhitneyu_U_all: " + str(U_all) + "\n")
+    f.write("mannwhitneyu_p_all: " + str(p_all) + "\n")
     
-print("Done: Rank Sum Test")
-
 print("Done: stats.py") 

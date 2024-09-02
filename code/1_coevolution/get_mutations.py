@@ -11,16 +11,18 @@ from itertools import combinations
 def extract_gene_symbols(mutation_string):
     if pd.isna(mutation_string) or mutation_string == '':
         return []
-    
+
     # Split the string into individual entries
     gene_entries = mutation_string.split(',')
-    
+
     # Filter entries to only those with parentheses
-    filtered_entries = [entry for entry in gene_entries if '(' in entry and ')' in entry]
-    
+    allowed_strings = ['(p.', '(amp', '(del']
+
+    filtered_entries = [entry for entry in gene_entries if any([ x in entry for x in allowed_strings]) and ')' in entry]
+
     # Remove the parentheses and any content within them
     cleaned_entries = [re.sub(r'\([^()]*\)', '', entry).strip() for entry in filtered_entries]
-    
+
     # Return the cleaned entries
     return cleaned_entries
 
@@ -36,6 +38,11 @@ df_complete = df_complete[~df_complete.index.isin(['p075_p3'])]
 df_complete['Trunk'] = df_complete['Trunk_mutation'].apply(extract_gene_symbols)
 df_complete['Branch'] = df_complete['Branch_mutation'].apply(extract_gene_symbols)
 df_complete['Private'] = df_complete['Private_mutation'].apply(extract_gene_symbols)
+
+print('Subsetting to only coding, amp and del')
+keep = df_complete.apply(lambda x: any([len(x['Trunk']), len(x['Branch']), len(x['Private'])]) != 0, axis=1).values
+df_complete = df_complete[keep]
+print('Subsetted shape:', df_complete.shape)
 
 mutation_types = ['Trunk', 'Branch', 'Private', 'Patient']
 

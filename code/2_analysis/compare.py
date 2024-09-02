@@ -20,7 +20,6 @@ dir_list = [x.strip() for x in dir_list]
 check_files = [
     'general_info.txt',
     'interactions_info.txt',
-    'degree_df.csv.gz',
     'stats.txt',
 ]
 
@@ -40,18 +39,28 @@ df = pd.DataFrame(
     columns=[
         'name',
         'condition',
-        'n_samples',
-        'n_genes',
         'n_modules',
+        'n_genes',
+        'n_samples',
+        'sft_power',
         'avg_module_size',
-        'avg_degree',
-        'avg_intramodular_degree',
         'avg_coev_tom_correlation',
         'tot_interactions',
         'n_interactions_same_module',
         'interactions_auroc',
-        'interactions_ranksum_U',
-        'interactions_ranksum_p',
+        'interactions_mannwhitneyu_U',
+        'interactions_mannwhitneyu_p',
+        'avg_degree',
+        'avg_intramodular_degree',
+        'var_degree',
+        'var_intramodular_degree',
+        'powerlaw_alpha',
+        'powerlaw_xmin',
+        'powerlaw_sigma',
+        'avg_path_length',
+        'diameter',
+        'clustering_global',
+        'modularity',
     ]
 )
 
@@ -68,6 +77,18 @@ def get_name_condition(d):
     name = d.split('/')[-1]
     return name, condition
 
+def remove_duplicates(file):
+    # Each line of the file follows "key: value"
+    # If a key appears more than once, only the first value is kept
+    with open(file, 'r') as f:
+        lines = f.readlines()
+    with open(file, 'w') as f:
+        seen = set()
+        for line in lines:
+            if line.split(': ')[0] not in seen:
+                f.write(line)
+                seen.add(line.split(': ')[0])
+
 for d in dir_list:
 
     print(d)
@@ -76,8 +97,11 @@ for d in dir_list:
     print(condition)
     
     general_info = os.path.join(d, 'general_info.txt')
+    
+    # Remove duplicates from general_info
+    #remove_duplicates(general_info)
+
     interactions_info = os.path.join(d, 'interactions_info.txt')
-    degree_df = os.path.join(d, 'degree_df.csv.gz')
     stats = os.path.join(d, 'stats.txt')
 
     # add name to df index
@@ -96,6 +120,8 @@ for d in dir_list:
                 df.loc[name, 'n_samples'] = int(value)
             elif key == 'n_genes':
                 df.loc[name, 'n_genes'] = int(value)
+            elif key == 'sft_power':
+                df.loc[name, 'sft_power'] = float(value)
             elif key == 'n_modules':
                 df.loc[name, 'n_modules'] = int(value)
             elif key == 'module_sizes':
@@ -111,15 +137,29 @@ for d in dir_list:
                 df.loc[name, 'avg_module_size'] = np.mean(sizes)
             elif key == 'average_tom_coev_correlation':
                 df.loc[name, 'avg_coev_tom_correlation'] = float(value)
+            elif key == 'avg_degree':
+                df.loc[name, 'avg_degree'] = float(value)
+            elif key == 'avg_intramodular_degree':
+                df.loc[name, 'avg_intramodular_degree'] = float(value)
+            elif key == 'var_degree':
+                df.loc[name, 'var_degree'] = float(value)
+            elif key == 'var_intramodular_degree':
+                df.loc[name, 'var_intramodular_degree'] = float(value)
+            elif key == 'powerlaw_alpha':
+                df.loc[name, 'powerlaw_alpha'] = float(value)
+            elif key == 'powerlaw_xmin':
+                df.loc[name, 'powerlaw_xmin'] = float(value)
+            elif key == 'powerlaw_sigma':
+                df.loc[name, 'powerlaw_sigma'] = float(value)
+            elif key == 'avg_path_length':
+                df.loc[name, 'avg_path_length'] = float(value)
+            elif key == 'diameter':
+                df.loc[name, 'diameter'] = float(value)
+            elif key == 'clustering_global':
+                df.loc[name, 'clustering_global'] = float(value)
+            elif key == 'modularity':
+                df.loc[name, 'modularity'] = float(value)
                 
-    # Read degree_df
-    print('Reading degree_df')
-    degree_df = pd.read_csv(degree_df, index_col=0)
-    avg_degree = degree_df['degree'].mean()
-    avg_intramodular_degree = degree_df['intramodular_degree'].mean()
-    df.loc[name, 'avg_degree'] = avg_degree
-    df.loc[name, 'avg_intramodular_degree'] = avg_intramodular_degree
-
     # Read interactions_info
     print('Reading interactions_info')
     with open(interactions_info, 'r') as f:
@@ -143,10 +183,10 @@ for d in dir_list:
                 value = value[0]
             if key == 'auroc':
                 df.loc[name, 'interactions_auroc'] = float(value)
-            elif key == 'ranksums_U_all':
-                df.loc[name, 'interactions_ranksum_U'] = float(value)
-            elif key == 'ranksums_p_all':
-                df.loc[name, 'interactions_ranksum_p'] = float(value)
+            elif key == 'mannwhitneyu_U_all':
+                df.loc[name, 'interactions_mannwhitneyu_U'] = float(value)
+            elif key == 'mannwhitneyu_p_all':
+                df.loc[name, 'interactions_mannwhitneyu_p'] = float(value)
     
 # Save results
 df.to_csv(os.path.join(output, 'compare_results.csv'), index=False)

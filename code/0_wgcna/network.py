@@ -3,7 +3,10 @@ import sys
 import scanpy as sc
 import PyWGCNA
 import pandas as pd
+import powerlaw
 import os
+import igraph as ig
+from scipy.sparse import csr_matrix
 import argparse
 
 parser = argparse.ArgumentParser(description='Network analysis of WGCNA network')
@@ -83,7 +86,11 @@ n_same_module = same_module_vals.sum()
 
 # ----- Network ------
 
-adj = WGCNA.adjacency
+sft_power = WGCNA.power
+adj = WGCNA.adjacency # Pandas DataFrame
+
+# Remove self-loops by filling diagonal with 0
+#np.fill_diagonal(adj.values, 0)
 
 degree_df = pd.DataFrame(index=adj.index, columns=["degree", "intramodular_degree", "module"])
 degree_df["degree"] = adj.sum(axis=0)
@@ -94,8 +101,58 @@ for module, df in adj.groupby(WGCNA.datExpr.var['moduleLabels'], axis=0):
     degree_df.loc[df.index, "module"] = module
     degree_df.loc[df.index, "intramodular_degree"] = df.loc[df.index, df.index].sum(axis=0)
 
+# Fit degree distribution to powerlaw
+results = powerlaw.Fit(degree_df["degree"].values)
+powerlaw_alpha = results.power_law.alpha
+powerlaw_xmin = results.power_law.xmin
+powerlaw_xmax = results.power_law.xmax
+powerlaw_sigma = results.power_law.sigma
+
+# Create an igraph graph from the adjacency matrix
+# Remove weak interactions that sum up to 10% of the total weight
+
+# Flatten the matrix
+flat_adj = adj.values
+flat_adj = flat_adj[flat_adj > 0]
+flat_adj = np.sort(flat_adj)
+
+# Get total and cutoff values
+total_weight = np.sum(flat_adj)
+cutoff = 0.10 * total_weight
+
+# Get weakest link to keep
+cum_sum = np.cumsum(flat_adj)
+num_to_remove = np.searchsorted(cum_sum, cutoff, side='right')
+weakest_link = flat_adj[num_to_remove]
+
+g = ig.Graph.Weighted_Adjacency(csr_matrix(np.where(adj < weakest_link, 0, adj)), mode=ig.ADJ_UNDIRECTED)
+
+# Distance = 1 - adj
+d = 1 - np.array(g.es['weight'])
+
+# Distance must be strictly positive, so set 0 to min/10
+d[d == 0] = np.min(d[d > 0]) / 10
+
+# Set distance attribute
+g.es['distance'] = d
+
+# Calculate network attributes
+clustering_global = g.transitivity_undirected()
+modularity = g.modularity(degree_df["module"], weights=g.es['weight'])
+avg_path_length = g.average_path_length(weights=g.es['distance'])
+diameter = g.diameter(directed=False, weights=g.es['distance'])
+
+# Calculate node attributes
+degree_df["pagerank"] = g.pagerank(weights=g.es['weight'])
+degree_df["clustering_local"] = g.transitivity_local_undirected(weights=g.es['weight'])
+degree_df["closeness"] = g.closeness(weights=g.es['distance'])
+degree_df["betweenness"] = g.betweenness(weights=g.es['distance'])
+
 # save degree_df as csv
 degree_df.to_csv(os.path.join(output_path, "degree_df.csv.gz"))
+
+# Maybe add assortativity?
+
 
 # ----- General info ------
 
@@ -117,9 +174,26 @@ with open(os.path.join(output_path, "general_info.txt"), "w") as f:
 
     f.write("n_genes: {}\n".format(WGCNA.datExpr.shape[1]))
     f.write("n_samples: {}\n".format(WGCNA.datExpr.shape[0]))
-
+    
+    f.write("sft_power: {}\n".format(sft_power))
+    
     f.write("n_pairs_all_genes: {}\n".format(total_pairs))
     f.write("n_pairs_same_module_all_genes: {}\n".format(n_same_module))
+    
+    f.write("avg_degree: {}\n".format(degree_df["degree"].mean()))
+    f.write("avg_intramodular_degree: {}\n".format(degree_df["intramodular_degree"].mean()))
+    f.write("var_degree: {}\n".format(degree_df["degree"].var()))
+    f.write("var_intramodular_degree: {}\n".format(degree_df["intramodular_degree"].var()))
+
+    f.write("powerlaw_alpha: {}\n".format(powerlaw_alpha))
+    f.write("powerlaw_xmin: {}\n".format(powerlaw_xmin))
+    f.write("powerlaw_xmax: {}\n".format(powerlaw_xmax))
+    f.write("powerlaw_sigma: {}\n".format(powerlaw_sigma))
+
+    f.write("avg_path_length: {}\n".format(avg_path_length))
+    f.write("diameter: {}\n".format(diameter))
+    f.write("clustering_global: {}\n".format(clustering_global))
+    f.write("modularity: {}\n".format(modularity))
 
 # ----- Done ------
 

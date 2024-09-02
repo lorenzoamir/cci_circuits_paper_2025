@@ -55,7 +55,7 @@ for gene, module in list(modules.items())[:3]:
     print(f'{gene}: {module}')
 
 # Subset to only genes with at least min_modules modules
-min_modules = 0
+min_modules = 5
 print(f'Subsetting to genes mutated in at least {min_modules} patients')
 all_genes = set([gene for gene in modules.keys() if len(modules[gene]) >= min_modules])
 print(f'Number of genes: {len(all_genes)}')

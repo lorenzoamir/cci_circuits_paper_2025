@@ -53,6 +53,13 @@ print(other_df.head())
 
 # Get all pairs of genes from significant cooccurrences
 all_pairs = significant
+
+# Also invert the pairs
+all_pairs_inv = all_pairs.copy()
+all_pairs_inv['gene1'] = all_pairs['gene2']
+all_pairs_inv['gene2'] = all_pairs['gene1']
+all_pairs = pd.concat([all_pairs, all_pairs_inv])
+
 all_pairs['dir_log2_odds_ratio'] = np.nan
 all_pairs['dir_pval'] = np.nan
 
