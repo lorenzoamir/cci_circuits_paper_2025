@@ -7,16 +7,20 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
 COEVOLUTION=0
-NODES=1
+NODES=0
 INT_NETWORK=0
+INT_PAIRS=1
+RANK_INT=0
 LR_PAIRS=0
 PW_NETWORK=0
 RANK_PWS=0
 
 COMPARE_QUEUE='q02anacreon'
 COEVOLUTION_QUEUE='q02anacreon'
-NODES_QUEUE='q02anacreon'
+NODES_QUEUE='q02gaia'
 INT_NETWORK_QUEUE='q02anacreon'
+INT_PAIRS_QUEUE='q02anacreon'
+RANK_INT_QUEUE='q02anacreon'
 LR_PAIRS_QUEUE='q02anacreon'
 PW_NETWORK_QUEUE='q02anacreon'
 RANK_PWS_QUEUE='q02anacreon'
@@ -25,6 +29,8 @@ COMPARE_NCPUS=8
 COEVOLUTION_NCPUS=50
 NODES_NCPUS=8
 INT_NETWORK_NCPUS=8
+INT_PAIRS_NCPUS=32
+RANK_INT_NCPUS=24
 LR_PAIRS_NCPUS=4
 PW_NETWORK_NCPUS=8
 RANK_PWS_NCPUS=8
@@ -33,6 +39,8 @@ COMPARE_MEMORY=8gb
 COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
 NODES_MEMORY=8gb
 INT_NETWORK_MEMORY=16gb
+INT_PAIRS_MEMORY=24gb
+RANK_INT_MEMORY=24gb #Succeded with 24gb
 LR_PAIRS_MEMORY=16gb
 PW_NETWORK_MEMORY=16gb
 RANK_PWS_MEMORY=8gb
@@ -116,6 +124,37 @@ if [ $INT_NETWORK -eq 1 ]; then
         -e "WGCNA" \
         -q "$INT_NETWORK_QUEUE" \
         -c "python interactions_network.py")
+fi
+
+if [ $INT_PAIRS -eq 1 ]; then
+    echo 'Interactions Pairs'
+    # create job script for each tumor
+    int_pairs_name="int_pairs"
+    int_pairs_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/pairs_of_interactions.sh"
+
+    int_pairs_id=$(fsub \
+        -p "$int_pairs_script" \
+        -n "$int_pairs_name" \
+        -nc "$INT_PAIRS_NCPUS" \
+        -m "$INT_PAIRS_MEMORY" \
+        -e "WGCNA" \
+        -q "$INT_PAIRS_QUEUE" \
+        -c "python pairs_of_interactions.py")
+fi
+
+if [ $RANK_INT -eq 1 ]; then
+    echo 'Rank Interactions'
+    rank_int_name="rank_int"
+    rank_int_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/rank_interactions.sh"
+
+    rank_int_id=$(fsub \
+        -p "$rank_int_script" \
+        -n "$rank_int_name" \
+        -nc "$RANK_INT_NCPUS" \
+        -m "$RANK_INT_MEMORY" \
+        -e "WGCNA" \
+        -q "$RANK_INT_QUEUE" \
+        -c "python rank_interactions.py")
 fi
 
 if [ $LR_PAIRS -eq 1 ]; then

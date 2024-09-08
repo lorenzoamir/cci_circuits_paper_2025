@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import gseapy as gp
 import os
 import sys
 import argparse
@@ -12,7 +13,9 @@ args = parser.parse_args()
 
 dir_list = args.dir_list
 
-output = '/home/lnemati/pathway_crosstalk/results'
+output = '/home/lnemati/pathway_crosstalk/results/hubs'
+# Create output directory if it does not exist
+os.makedirs(output, exist_ok=True)
 
 perc = 0.05
 
@@ -114,6 +117,72 @@ print('Done scoring each gene')
    
 # Save results
 genes_scores.to_csv(os.path.join(output, 'n_tissues_top_node_metrics.csv'))
+
+# ----- Enrichment analysis -----
+
+reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+
+# Make previous code into a function
+def enrichment_analysis(genes_scores, metric, output, reactome):
+    # Create directory if it does not exist and save results
+    os.makedirs(os.path.join(output, metric), exist_ok=True)
+
+    # Get genes with higher score in tumor than in normal
+    tumor_genes = genes_scores[
+        (genes_scores['f_{}'.format(metric) + '_tumor'] > genes_scores['f_{}'.format(metric) + '_normal'])
+    ].index.tolist()
+
+    try:
+        enr = gp.enrichr(
+            gene_list=tumor_genes,
+            gene_sets=reactome,
+            background=list(all_genes),
+            outdir=None,
+        )
+
+        enr = enr.results
+        enr = enr[enr["Adjusted P-value"] < 0.05]
+        enr.to_csv(os.path.join(output, metric, 'enrichment_tumor.csv'), index=False)
+
+    except:
+        print(f"Error in enrichment analysis for tumor {metric}", file=sys.stderr)
+        print(f"Error in enrichment analysis for tumor {metric}", file=sys.stdout)
+
+    # Repeat for normal
+    normal_genes = genes_scores[
+        (genes_scores['f_{}'.format(metric) + '_tumor'] < genes_scores['f_{}'.format(metric) + '_normal'])
+    ].index.tolist()
+
+    try:
+        enr = gp.enrichr(
+            gene_list=normal_genes,
+            gene_sets=reactome,
+            background=list(all_genes),
+            outdir=None,
+        )
+    except:
+        print(f"Error in enrichment analysis for normal {metric}", file=sys.stderr)
+        print(f"Error in enrichment analysis for normal {metric}", file=sys.stdout)
+
+    enr = enr.results
+    enr = enr[enr["Adjusted P-value"] < 0.05]
+
+    # Create directory if it does not exist and save results
+    os.makedirs(os.path.join(output, metric), exist_ok=True)
+    enr.to_csv(os.path.join(output, metric, 'enrichment_normal.csv'), index=False)
+
+    print(f'Finished enrichment analysis for {metric}')
+
+# Run enrichment analysis for each metric
+all_hubs_output = os.path.join(output, 'enrichment', 'all_hubs')
+for metric in metrics:
+    enrichment_analysis(genes_scores, metric, all_hubs_output, reactome)
+
+# Subset to CCC (interactor) genes and rerun enrichment analysis
+ccc_output = os.path.join(output, 'enrichment', 'ccc_only')
+ccc_genes_scores = genes_scores[genes_scores['interactor'] == 1]
+for metric in metrics:
+    enrichment_analysis(ccc_genes_scores, metric, ccc_output, reactome)
 
 print('Done: node_metrics.py')
 

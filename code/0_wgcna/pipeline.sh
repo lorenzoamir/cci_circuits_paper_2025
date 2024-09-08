@@ -11,7 +11,8 @@ SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5
 
 DESEQ=0
 WGCNA=0
-NETWORK=1
+NETWORK=0
+RANK_ADJ=1
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
 ENRICHMENT=0
@@ -21,6 +22,7 @@ SEPARATE_QUEUE="q02anacreon"
 DESEQ_QUEUE="q02anacreon"
 WGCNA_QUEUE="q02anacreon"
 NETWORK_QUEUE="q02gaia"
+RANK_ADJ_QUEUE="q02anacreon"
 COEVOLUTION_QUEUE="q02anacreon"
 INTERACTIONS_QUEUE="q02anacreon"
 ENRICHMENT_QUEUE="q02gaia"
@@ -30,6 +32,7 @@ SEP_NCPUS=16
 DESEQ_NCPUS=8
 WGCNA_NCPUS=4
 NETWORK_NCPUS=2
+RANK_ADJ_NCPUS=2
 COEVOLUTION_NCPUS=8
 INTERACTIONS_NCPUS=4
 ENRICHMENT_NCPUS=4
@@ -39,6 +42,7 @@ SEP_MEMORY=64gb
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
 NETWORK_MEMORY=32gb
+RANK_ADJ_MEMORY=16gb # Failed with 12gb
 COEVOLUTION_MEMORY=18gb
 INTERACTIONS_MEMORY=7gb
 ENRICHMENT_MEMORY=6gb
@@ -168,6 +172,32 @@ for file in "${files[@]}"; do
             -e "WGCNA" \
             -w "$waiting_list" \
             -c "python network.py --input ${wgcnafile}")
+
+        echo ""
+    fi
+
+    # ----- RANK ADJACENCY -----
+    if [ $RANK_ADJ -eq 1 ]; then
+        echo "RANK ADJACENCY"
+
+        # Create job script
+        rank_adj_name=rank_adj_"$job_name"
+        rank_adj_script=$(dirname "$file")/scripts/$rank_adj_name.sh
+
+        # Wait for wgcna job to finish
+        waiting_list=""
+        [ $WGCNA -eq 1 ] && waiting_list="$waiting_list:$wgcna_id"
+        echo "Waiting list: $waiting_list"
+
+        rank_adj_id=$(fsub \
+            -p "$rank_adj_script" \
+            -n "$rank_adj_name" \
+            -nc "$RANK_ADJ_NCPUS" \
+            -m "$RANK_ADJ_MEMORY" \
+            -q "$RANK_ADJ_QUEUE" \
+            -e "WGCNA" \
+            -w "$waiting_list" \
+            -c "python rank_pairs.py --input ${wgcnafile}")
 
         echo ""
     fi
