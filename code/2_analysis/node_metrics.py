@@ -121,9 +121,10 @@ genes_scores.to_csv(os.path.join(output, 'n_tissues_top_node_metrics.csv'))
 # ----- Enrichment analysis -----
 
 reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+hallmarks = '/home/lnemati/resources/cancer_hallmarks/integrated.gmt'
 
 # Make previous code into a function
-def enrichment_analysis(genes_scores, metric, output, reactome):
+def enrichment_analysis(genes_scores, metric, output, genesets):
     # Create directory if it does not exist and save results
     os.makedirs(os.path.join(output, metric), exist_ok=True)
 
@@ -135,7 +136,7 @@ def enrichment_analysis(genes_scores, metric, output, reactome):
     try:
         enr = gp.enrichr(
             gene_list=tumor_genes,
-            gene_sets=reactome,
+            gene_sets=genesets,
             background=list(all_genes),
             outdir=None,
         )
@@ -156,7 +157,7 @@ def enrichment_analysis(genes_scores, metric, output, reactome):
     try:
         enr = gp.enrichr(
             gene_list=normal_genes,
-            gene_sets=reactome,
+            gene_sets=genesets,
             background=list(all_genes),
             outdir=None,
         )
@@ -173,16 +174,25 @@ def enrichment_analysis(genes_scores, metric, output, reactome):
 
     print(f'Finished enrichment analysis for {metric}')
 
-# Run enrichment analysis for each metric
-all_hubs_output = os.path.join(output, 'enrichment', 'all_hubs')
+# Run reactome enrichment analysis for each metric
+all_hubs_output = os.path.join(output, 'enrichment', 'reactome', 'all_hubs')
 for metric in metrics:
     enrichment_analysis(genes_scores, metric, all_hubs_output, reactome)
-
 # Subset to CCC (interactor) genes and rerun enrichment analysis
-ccc_output = os.path.join(output, 'enrichment', 'ccc_only')
+ccc_output = os.path.join(output, 'enrichment', 'reactome', 'ccc_only')
 ccc_genes_scores = genes_scores[genes_scores['interactor'] == 1]
 for metric in metrics:
     enrichment_analysis(ccc_genes_scores, metric, ccc_output, reactome)
+
+# Run hallmarks enrichment analysis for each metric
+all_hubs_output = os.path.join(output, 'enrichment', 'hallmarks', 'all_hubs')
+for metric in metrics:
+    enrichment_analysis(genes_scores, metric, all_hubs_output, hallmarks)
+# Subset to CCC (interactor) genes and rerun enrichment analysis
+ccc_output = os.path.join(output, 'enrichment', 'hallmarks', 'ccc_only')
+ccc_genes_scores = genes_scores[genes_scores['interactor'] == 1]
+for metric in metrics:
+    enrichment_analysis(ccc_genes_scores, metric, ccc_output, hallmarks)
 
 print('Done: node_metrics.py')
 
