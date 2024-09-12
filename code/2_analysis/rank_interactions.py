@@ -55,6 +55,9 @@ for i, idx in enumerate(all_interactions.index):
 def triu_mean(matrix):
     return np.mean(matrix[np.triu_indices(matrix.shape[0], k=1)])
 
+def triu_min(matrix):
+    return np.min(matrix[np.triu_indices(matrix.shape[0], k=1)])
+
 def get_value(df, genes):
     # If no genes are present, return 0
     if len(df.index.intersection(genes)) == 0:
@@ -64,7 +67,8 @@ def get_value(df, genes):
     # Fill the matrix with the values from the dataframe
     common_genes = list(set(genes).intersection(df.index))
     matrix.loc[common_genes, common_genes] = df.loc[common_genes, common_genes]
-    return triu_mean(matrix.loc[genes, genes].values)
+    #return triu_mean(matrix.loc[genes, genes].values)
+    return triu_min(matrix.loc[genes, genes].values)
 
 for path in t_files:
     df = pd.read_csv(path, index_col=0)
@@ -133,7 +137,7 @@ if not os.path.exists(os.path.join(args.outputdir, 'interactions_network')):
 
 # Save unfiltered network
 print('Saving unfiltered network')
-network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu_unfiltered.csv'), index=False)
+network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu_min_unfiltered.csv'), index=False)
 
 # Filter
 # Multiple hypothesis testing correction
@@ -150,6 +154,6 @@ network = network[['interaction', 'more_expressed_in', 'pval_adj']]
 print(network.head())
 print(network.shape)
 # Save
-network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu_filtered.csv'), index=False)
+network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu_min_filtered.csv'), index=False)
 
 print('Done: rank_interactions.py')
