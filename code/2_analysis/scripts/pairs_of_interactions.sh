@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N int_pairs
-#PBS -l select=1:ncpus=32:ngpus=0:mem=24gb
+#PBS -l select=1:ncpus=40:ngpus=0:mem=24gb
 #PBS -q q02anacreon
 mkdir -p /home/lnemati/pathway_crosstalk/code/2_analysis
 cd /home/lnemati/pathway_crosstalk/code/2_analysis

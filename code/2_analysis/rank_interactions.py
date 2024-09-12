@@ -137,7 +137,7 @@ if not os.path.exists(os.path.join(args.outputdir, 'interactions_network')):
 
 # Save unfiltered network
 print('Saving unfiltered network')
-network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu_min_unfiltered.csv'), index=False)
+network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu', 'mannwhitneyu_min_unfiltered.csv'), index=False)
 
 # Filter
 # Multiple hypothesis testing correction
@@ -154,6 +154,6 @@ network = network[['interaction', 'more_expressed_in', 'pval_adj']]
 print(network.head())
 print(network.shape)
 # Save
-network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu_min_filtered.csv'), index=False)
+network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu', 'mannwhitneyu_min.csv'), index=False)
 
 print('Done: rank_interactions.py')
