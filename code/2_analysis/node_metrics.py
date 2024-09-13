@@ -121,7 +121,7 @@ genes_scores.to_csv(os.path.join(output, 'n_tissues_top_node_metrics.csv'))
 # ----- Enrichment analysis -----
 
 reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
-hallmarks = '/home/lnemati/resources/cancer_hallmarks/integrated.gmt'
+hallmarks = '/home/lnemati/resources/cancer_hallmarks/gsea_hallmarks.gmt'
 
 # Make previous code into a function
 def enrichment_analysis(genes_scores, metric, output, genesets, subset=False):
@@ -197,4 +197,3 @@ for metric in metrics:
     enrichment_analysis(ccc_genes_scores, metric, ccc_output, hallmarks, subset=False)
 
 print('Done: node_metrics.py')
-
