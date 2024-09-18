@@ -25,14 +25,16 @@ print("filename", filename)
 
 # ------ Rank adjacency ------
 
-def rank_matrix(matrix):
-    n_elements = matrix.shape[0] * (matrix.shape[0] - 1) / 2
-    print(f'n_elements: {n_elements}')
+print("Getting adjacency matrix")
 
+def rank_matrix(matrix):
+    original_shape = matrix.shape
 
     # Only keep upper triangle, set diagonal and lower triangle to 0
     matrix = np.triu(matrix , 1)
-    original_shape = matrix.shape
+
+    n_elements = matrix[matrix > 0].size
+    print(f'n_elements: {n_elements}')
 
     # Flatten the matrix into a 1D array
     flat_matrix = matrix.flatten()
@@ -43,29 +45,39 @@ def rank_matrix(matrix):
     print(f'max rank: {ranks.max()}')
 
     ranks = ranks.reshape(original_shape)
+    print(ranks)
 
     # Use n_elements to normalize the ranks so that all elements outside the upper triangle are 0
     threshold = np.max(ranks) - n_elements
     print(f'threshold: {threshold}')
 
-    ranks = np.where(ranks >= threshold, ranks - threshold, 0)
+    ranks = np.where(ranks > threshold, ranks - threshold, 0)
+    print(ranks)
+    print()
 
     print(f'new max: {ranks.max()}')
+    print(ranks)
+    assert (ranks == np.triu(ranks , 1)).all()
 
     print(f'non 0: {np.sum(ranks > 0)}')
+    assert (ranks == np.triu(ranks , 1)).all()
 
     # Reshape the ranks back to the original matrix shape
     ranks = ranks.reshape(original_shape)
     print(f'new max: {ranks.max()}')
+    assert (ranks == np.triu(ranks , 1)).all()
 
-    ranks = ranks / ranks.max()
-
+    # Normalizing
+    print('Normalizing')
+    ranks = ranks / n_elements
     print(f'new max: {ranks.max()}')
-
+    assert (ranks.max() == 1)
     # Make symmetric
-    ranks = ranks + ranks.T
 
+    print('Making symmetric')
+    ranks = ranks + ranks.T
     print(f'new max: {ranks.max()}')
+    assert (ranks.max() == 1)
 
     return ranks
 

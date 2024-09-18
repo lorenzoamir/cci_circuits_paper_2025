@@ -17,6 +17,12 @@ args = parser.parse_args()
 
 print("inputfile: " + args.inputfile)
 
+# Create output directory
+roc_dir = '/home/lnemati/pathway_crosstalk/results/roc'
+os.makedirs(roc_dir, exist_ok=True)
+os.makedirs(os.path.join(roc_dir, "tumor"), exist_ok=True)
+os.makedirs(os.path.join(roc_dir, "normal"), exist_ok=True)
+
 # read interactions
 workdir = os.path.dirname(args.inputfile)
 figdir = os.path.join(workdir, "figures")
@@ -37,12 +43,13 @@ def generate_roc_curve(
     name=None,
 ):
     # ROC curve using all gene pairs
-    fpr, tpr, _ = roc_curve(data[target_col], data[feature_col])
+    fpr, tpr, ths = roc_curve(data[target_col], data[feature_col])
     auroc = roc_auc_score(data[target_col], data[feature_col])
     
     with open(file, "a") as f:
         f.write(f"auroc: " + str(auroc) + "\n")
-    return
+
+    return fpr, tpr, ths
 
 def update_diff_complex(
     all_pairs,
@@ -110,15 +117,29 @@ print(all_pairs.head())
 print("Number of nans in all_pairs: ", all_pairs.isna().sum())
 
 name = WGCNA.name
+if "/tumor/" in args.inputfile:
+    condition = "tumor"
+if "/normal/" in args.inputfile:
+    condition = "normal"
 
 # Diff complex interactions
-generate_roc_curve(
+fpr, tpr, ths = generate_roc_curve(
     data=all_pairs,
     target_col="interaction",
     feature_col="adj",
     file=stats_file,
     name=name
 )
+
+# save fpr, tpr, ths
+print("Saving ROC curve")
+output_dir = os.path.join(roc_dir, condition, name)
+os.makedirs(output_dir, exist_ok=True)
+print("Saving to: " + output_dir)
+np.save(os.path.join(output_dir, "fpr.npy"), fpr)
+np.save(os.path.join(output_dir, "tpr.npy"), tpr)
+np.save(os.path.join(output_dir, "ths.npy"), ths)
+print()
 
 # ------ Test VS All -------
 print("Performing test")

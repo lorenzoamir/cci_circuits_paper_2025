@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import mannwhitneyu 
 from scipy.stats import false_discovery_control
+import gseapy as gp
 import multiprocessing
 import argparse
 import os
@@ -25,6 +26,14 @@ t_files = []
 n_files = []
 
 all_interactions = pd.read_csv('/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv')
+
+# Get all genes by reading values in columns interactor1 to interactor7
+all_ccc_genes = set()
+
+for col in ['interactor1', 'interactor2', 'interactor3', 'interactor4', 'interactor5', 'interactor6', 'interactor7']:
+    all_ccc_genes.update(all_interactions[col].dropna())
+
+print('Number of CCC genes: ', len(all_ccc_genes))
 
 print('Searching for ranked_adjacency.csv.gz files')
 for root, dirs, files in os.walk(parent_dir):
@@ -146,6 +155,41 @@ network = network.sort_values(by='pval')
 network['pval_adj'] = false_discovery_control(network['pval'])
 network = network[network['pval_adj'] < 0.05]
 network = network.drop(columns=['pval'])
+
+# Get all significant ccc genes from interaction columns
+t_significant_genes = set()
+n_significant_genes = set()
+for col in ['interactor1', 'interactor2', 'interactor3', 'interactor4', 'interactor5', 'interactor6', 'interactor7']:
+    t_significant_genes.update(network[network['more_expressed_in'] == 'tumor'][col].dropna())
+    n_significant_genes.update(network[network['more_expressed_in'] == 'normal'][col].dropna())
+print('Number of significant genes: ', len(t_significant_genes), len(n_significant_genes))
+
+reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+
+enr = gp.enrichr(
+    gene_list=list(t_significant_genes),
+    gene_sets=reactome,
+    background=list(all_ccc_genes),
+    outdir=None,
+)
+
+enr = enr.results
+enr = enr[enr['Adjusted P-value'] < 0.05]
+
+enr.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu', 'mannwhitneyu_min_tumor_enrichment.csv'), index=False)
+
+enr = gp.enrichr(
+    gene_list=list(n_significant_genes),
+    gene_sets=reactome,
+    background=list(all_ccc_genes),
+    outdir=None,
+)
+
+enr = enr.results
+enr = enr[enr['Adjusted P-value'] < 0.05]
+
+enr.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu', 'mannwhitneyu_min_normal_enrichment.csv'), index=False)
+
 # Sort by statistic
 network = network.sort_values(by=['more_expressed_in', 'pval_adj'], ascending=[False, True])
 # Make more readable
@@ -154,6 +198,6 @@ network = network[['interaction', 'more_expressed_in', 'pval_adj']]
 print(network.head())
 print(network.shape)
 # Save
-network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu', 'mannwhitneyu_min.csv'), index=False)
+network.to_csv(os.path.join(args.outputdir, 'interactions_network', 'mannwhitneyu', 'mannwhitneyu_min_filtered.csv'), index=False)
 
 print('Done: rank_interactions.py')
