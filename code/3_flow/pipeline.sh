@@ -25,38 +25,47 @@ fi
 
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 
-# find all corresponding_normal_wgcna.txt files in the data directory
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
 
 # Find all tissue directories
 mapfile -t tissuedirs < <(find "$data_dir" -maxdepth 1 -mindepth 1 -type d)
 
-tumors=()
-normals=()
+tumors=() # Tumor types with only one normal tissue associated
+normals=() # Normal tissues associated with tumor types
+tissues_with_both=() # Tissues at least one tumor and one normal tissue
 
 for tissuedir in "${tissuedirs[@]}"; do
     # Inside each tissue directory, there are tumor and normal directories
     tumordir="$tissuedir/tumor"
     normaldir="$tissuedir/normal"
 
-    # Check if both tumor and normal directories contain one and only one directory each
+    # Check if normal directories contain one and only one directory each
     tumorcount=$(find "$tumordir" -maxdepth 1 -mindepth 1 -type d | wc -l)
     normalcount=$(find "$normaldir" -maxdepth 1 -mindepth 1 -type d | wc -l)
 
     # Also check that none of the directories they contain are empty
     t_empty=$(find "$tumordir" -maxdepth 1 -mindepth 1 -type d -empty | wc -l)
     n_empty=$(find "$normaldir" -maxdepth 1 -mindepth 1 -type d -empty | wc -l)
+    
+    # Check if at least one tumor and one normal tissue are present
+    if [ "$tumorcount" -gt 0 ] && [ "$normalcount" -gt 0 ] && [ "$t_empty" -eq 0 ] && [ "$n_empty" -eq 0 ]; then
+        tissues_with_both+=("$tissuedir")
+        echo "$tissuedir"
+        
+        # Check if there is only one tumor and one normal tissue
+        if [ "$normalcount" -eq 1 ] && [ "$tumorcount" -eq 1 ]; then
+            tumordirs=$(find "$tumordir" -maxdepth 1 -mindepth 1 -type d)
+            normaldir=$(find "$normaldir" -maxdepth 1 -mindepth 1 -type d)
 
-    if [ "$tumorcount" -eq 1 ] && [ "$normalcount" -eq 1 ] && [ "$t_empty" -eq 0 ] && [ "$n_empty" -eq 0 ]; then
-        tumordir=$(find "$tumordir" -maxdepth 1 -mindepth 1 -type d)
-        normaldir=$(find "$normaldir" -maxdepth 1 -mindepth 1 -type d)
-
-        # Save the tumor and normal paths
-        tumors+=("$tumordir")
-        normals+=("$normaldir")
-        echo "$tumordir"
-        echo "$normaldir"
-        echo ""
+            # Save the tumor and normal paths pairs (multiple tumors can have the same normal)
+            for tumor in $tumordirs; do
+                tumors+=("$tumor")
+                normals+=("$normaldir")
+                echo "$tumor"
+                echo "$normaldir"
+            done
+        fi
+    echo ""
     fi
 done
 
@@ -70,11 +79,10 @@ if [ $FLOW -eq 1 ]; then
 
     echo "$flow_script"
     
-    tumors_str=\"${tumors[@]}\"
-    normals_str=\"${normals[@]}\"
-    
-    echo tumors_str
-    echo normals_str
+    # Convert list to string for passing as argument
+    # The entries are separated by a space, add double quotes to keep them together
+    tissues_string=$(printf "\"%s\" " "${tissues_with_both[@]}")
+    echo "$tissues_string"
 
     flow_id=$(fsub \
         -p "$flow_script" \
@@ -83,7 +91,7 @@ if [ $FLOW -eq 1 ]; then
         -m "$FLOW_MEMORY" \
         -e "WGCNA" \
         -q "$FLOW_QUEUE" \
-        -c "python flow.py --tumors $tumors_str --normals $normals_str")
+        -c "python flow.py --tissues \"$tissues_string\"")
 
 fi
 
@@ -109,4 +117,7 @@ for i in "${!tumors[@]}"; do
             -q "$SANKEY_QUEUE" \
             -c "python sankey.py --tumordir $tumordir --normaldir $normaldir")
     fi
+
 done
+
+echo "Done: pipeline.sh"
