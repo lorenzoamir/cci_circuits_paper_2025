@@ -10,10 +10,11 @@ COEVOLUTION=0
 NODES=0
 INT_NETWORK=0
 INT_PAIRS=0
-RANK_INT=1
+RANK_INT=0
 LR_PAIRS=0
 PW_NETWORK=0
 RANK_PWS=0
+CONSESUS=1
 
 COMPARE_QUEUE='q02anacreon'
 COEVOLUTION_QUEUE='q02anacreon'
@@ -24,6 +25,7 @@ RANK_INT_QUEUE='q02gaia'
 LR_PAIRS_QUEUE='q02anacreon'
 PW_NETWORK_QUEUE='q02anacreon'
 RANK_PWS_QUEUE='q02anacreon'
+CONSESUS_QUEUE='q02anacreon'
 
 COMPARE_NCPUS=8
 COEVOLUTION_NCPUS=50
@@ -34,6 +36,7 @@ RANK_INT_NCPUS=32
 LR_PAIRS_NCPUS=4
 PW_NETWORK_NCPUS=8
 RANK_PWS_NCPUS=8
+CONSESUS_NCPUS=4
 
 COMPARE_MEMORY=8gb
 COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
@@ -44,6 +47,7 @@ RANK_INT_MEMORY=24gb #Succeded with 24gb
 LR_PAIRS_MEMORY=16gb
 PW_NETWORK_MEMORY=16gb
 RANK_PWS_MEMORY=8gb
+CONSESUS_MEMORY=24gb
 
 cd /home/lnemati/pathway_crosstalk/code/2_analysis
 if [ ! -d "/home/lnemati/pathway_crosstalk/code/2_analysis/scripts" ]; then
@@ -64,7 +68,6 @@ waiting_list=""
 
 if [ $COMPARE -eq 1 ]; then
     echo 'Compare'
-    # create job script for each tumor
     compare_name="compare"
     compare_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/compare.sh"
 
@@ -80,7 +83,6 @@ fi
 
 if [ $COEVOLUTION -eq 1 ]; then
     echo 'Coevolution'
-    # create job script for each tumor
     coevolution_name="coevolution"
     coevolution_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/coevolution.sh"
 
@@ -96,7 +98,6 @@ fi
 
 if [ $NODES -eq 1 ]; then
     echo 'Hubs'
-    # create job script for each tumor
     nodes_name="nodes"
     nodes_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/nodes.sh"
 
@@ -112,7 +113,6 @@ fi
 
 if [ $INT_NETWORK -eq 1 ]; then
     echo 'Interactions Network'
-    # create job script for each tumor
     int_network_name="int_network"
     int_network_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/interactions_network.sh"
 
@@ -128,7 +128,6 @@ fi
 
 if [ $INT_PAIRS -eq 1 ]; then
     echo 'Interactions Pairs'
-    # create job script for each tumor
     int_pairs_name="int_pairs"
     int_pairs_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/pairs_of_interactions.sh"
 
@@ -159,8 +158,6 @@ fi
 
 if [ $LR_PAIRS -eq 1 ]; then
     echo 'LR Pairs'
-
-    # create job script for each tumor
     lr_pairs_name="lr_pairs"
     lr_pairs_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/lr_pairs.sh"
 
@@ -172,16 +169,13 @@ if [ $LR_PAIRS -eq 1 ]; then
         -e "WGCNA" \
         -q "$LR_PAIRS_QUEUE" \
         -c "python lr_pairs.py")
-
 fi
 
 if [ $PW_NETWORK -eq 1 ]; then
     echo 'Pathways Network'
-    # create job script for each tumor
     pw_network_name="pw_network"
     pw_network_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/pathways_network.sh"
 
-    # Wait for interactions network to finish
     waiting_list=""
     [ $INT_NETWORK -eq 1 ] && waiting_list="$waiting_list:$int_network_id"
 
@@ -198,11 +192,9 @@ fi
 
 if [ $RANK_PWS -eq 1 ]; then
     echo 'Rank Pathways'
-    # create job script for each tumor
     rank_pws_name="rank_pws"
     rank_pws_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/rank_pathways.sh"
 
-    # Wait for interactions and pathways network to finish
     waiting_list=""
     [ $INT_NETWORK -eq 1 ] && waiting_list="$waiting_list:$int_network_id"
     [ $PW_NETWORK -eq 1 ] && waiting_list="$waiting_list:$pw_network_id"
@@ -218,75 +210,34 @@ if [ $RANK_PWS -eq 1 ]; then
         -c "python rank_pathways.py")
 fi
 
+if [ $CONSESUS -eq 1 ]; then
+    echo 'Consensus'
+    consesus_name="consensus"
+    consesus_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/consensus.sh"
+    
+    # instead of passing the directories, we pass the actual wgcna files
+    # follow the same format as the directories
+    all_files=$(find "$data_dir" -name "wgcna_*.p" -type f | sort -u | tr '\n' ',' | sed 's/,$//')
+
+    # run the job twice, one for tumor and one for normal
+    consensus_tumor_id=$(fsub \
+        -p "$consesus_script" \
+        -n "$consesus_name"_tumor \
+        -nc "$CONSESUS_NCPUS" \
+        -m "$CONSESUS_MEMORY" \
+        -e "WGCNA" \
+        -q "$CONSESUS_QUEUE" \
+        -c "python consensus.py --condition tumor --file-list $all_files")
+
+    consensus_normal_id=$(fsub \
+        -p "$consesus_script" \
+        -n "$consesus_name"_normal \
+        -nc "$CONSESUS_NCPUS" \
+        -m "$CONSESUS_MEMORY" \
+        -e "WGCNA" \
+        -q "$CONSESUS_QUEUE" \
+        -c "python consensus.py --condition normal --file-list $all_files")
+
+fi
+
 exit 0
-
-
-##mapfile -t files < <(find "$data_dir" -name "WGCNA_*.p" -type f)
-#
-#
-#for file in "${files[@]}"; do
-#    echo "$file"
-#    waiting_list=""
-#    # Read file content and check if it contains only one line
-#    lines=$(wc -l < "$file")
-#    if [ "$lines" -gt 1 ]; then
-#        echo "Multiple normal files found for $file"
-#        echo "Skipping..."
-#        echo "-------------------------"
-#        continue
-#    fi
-#
-#    directory=$(dirname "$file")
-#    echo "Tumor directory: $directory"
-#    tumor_wgcna=$(find "$directory" -name "WGCNA_*.p" -type f)
-#    tumor_interactions=$(find "$directory" -name "interactions.csv" -type f)
-#
-#    # if corresponding_normal_wgcna.txt doesn't exist, print a message and skip
-#    normal_wgcna=$(cat "$file")
-#    normal_interactions=$(find "$(dirname "$normal_wgcna")" -name "interactions.csv" -type f)
-#
-#    if [ -z "$normal_wgcna" ]; then
-#        echo "Normal file not found for $file"
-#        echo "Skipping..."
-#        echo "-------------------------"
-#        continue
-#    fi
-#    
-#	# ----- STATS -----
-#    if [ $STATS -eq 1 ]; then
-#        echo 'Stats'
-#
-#        # create job script for each tumor
-#        stats_name="$(basename "$directory")_stats"
-#        stats_script="$directory/scripts/stats.sh"
-#
-#        stats_id=$(fsub \
-#            -p "$stats_script" \
-#            -n "$stats_name" \
-#            -nc "$STATS_NCPUS" \
-#            -m "$STATS_MEMORY" \
-#            -e "WGCNA" \
-#            -q "$STATS_QUEUE" \
-#            -w "$waiting_list" \
-#            -c "python stats.py --tumor $tumor_wgcna --normal $normal_wgcna")
-#    fi
-#
-#    # ----- SANKEY -----
-#    if [ $SANKEY -eq 1 ]; then
-#        echo 'Sankey'
-#
-#        # create job script for each tumor
-#        sankey_name="$(basename "$directory")_sankey"
-#        sankey_script="$directory/scripts/sankey.sh"
-#
-#        sanky_id=$(fsub \
-#            -p "$sankey_script" \
-#            -n "$sankey_name" \
-#            -nc "$SANKEY_NCPUS" \
-#            -m "$SANKEY_MEMORY" \
-#            -e "WGCNA" \
-#            -q "$SANKEY_QUEUE" \
-#            -w "$waiting_list" \
-#            -c "python sankey.py --tumor $tumor_interactions --normal $normal_interactions")
-#    fi
-#done
