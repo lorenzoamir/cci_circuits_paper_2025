@@ -22,27 +22,26 @@ output_path = '/home/lnemati/pathway_crosstalk/results/consensus_modules'
 
 # category is the last part of the filename after the last /
 major_tissue = filename.split("/")[-4]
+condition = filename.split("/")[-3]
 sub_tissue = filename.split("/")[-2]
 
 print("Major tissue: {}".format(major_tissue))
+print("Condition: {}".format(condition))
 print("Sub tissue: {}".format(sub_tissue))
-
-# DEBUG
-sys.exit()
 
 # ----- Network ------
 
 adj = WGCNA.adjacency # Pandas DataFrame
 
-# TODO: read precomputed clusterings and subset to only genes that are in the network
-# ORDER IS IMPORTANT
+# Read precomputed clusterings
+print("Reading precomputed clusterings")
+all_clusterings = pd.read_csv(os.path.join(output_path, condition, 'all_clusterings.csv', index_col=0))
 
 # Remove self-loops by filling diagonal with 0
 #np.fill_diagonal(adj.values, 0)
 
 # Create an igraph graph from the adjacency matrix
 # Remove weak interactions that sum up to 10% of the total weight
-# TODO: you can probably remove the 10% cutoff
 
 # Flatten the matrix
 flat_adj = adj.values
@@ -59,11 +58,18 @@ num_to_remove = np.searchsorted(cum_sum, cutoff, side='right')
 weakest_link = flat_adj[num_to_remove]
 
 g = ig.Graph.Weighted_Adjacency(csr_matrix(np.where(adj < weakest_link, 0, adj)), mode=ig.ADJ_UNDIRECTED)
+result = pd.DataFrame()
 
-for clustering in all_clusterings:
-    # Calculate network attributes
+for column in all_clusterings.columns:
+
+    # Calculate modularity
+    clustering = all_clusterings.loc[adj.index, column].values
     modularity = g.modularity(clustering, weights=g.es['weight'])
 
+    # Use current column as index of result and add modularity
+    result.at[column, 'modularity'] = modularity
+
     # TODO: save results, subtissue and major tissue should be retrievable
+    result.to_csv(os.path.join(output_path, condition, major_tissue, sub_tissue, 'modularity.csv'))
 
 print("Done: modularity.py")

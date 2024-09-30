@@ -13,7 +13,7 @@ MODULARITY_QUEUE="q02anacreon"
 
 MODULARITY_NCPUS=2
 
-MODULARITY_MEMORY=20gb
+MODULARITY_MEMORY=32gb
 
 lr_resource="/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv"
 
@@ -34,11 +34,11 @@ fi
 for file in "${files[@]}"; do
     echo "$(dirname "$file")"
     waiting_list=""
-    # clean job name from extension .p
-    job_name=$(basename "$file" | sed 's/.p//')
-    # create scripts directory in the same directory as the input file
-    mkdir -p $(dirname "$file")/scripts
-   
+    # clean job name from extension .p and prefix wgcna_
+    job_name=$(basename "$file" | sed 's/wgcna_//g' | sed 's/.p//g')
+    # create scripts directory in the same directory as the input file if it does not exist
+    mkdir -p $(dirname "$file")/scripts 
+
     # ----- MODULARITY -----
     if [ $MODULARITY -eq 1 ]; then
         echo "MODULARITY"

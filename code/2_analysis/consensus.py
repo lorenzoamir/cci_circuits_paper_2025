@@ -1,7 +1,8 @@
 import PyWGCNA
 import pandas as pd
 import numpy as np
-import gseapy as gp
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from sklearn.metrics.pairwise import cosine_distances
 import os
 import sys
 import argparse
@@ -40,71 +41,49 @@ for path in file_list:
 
     # Read WGCNA object
     wgcna = PyWGCNA.readWGCNA(path)
+    name = wgcna.name.replace('wgcna_', '')
     
-    # Use one-hot encoding to get binary matrix of gene-module membership
-    df = pd.get_dummies(wgcna.name + '_' + wgcna.datExpr.var.moduleLabels.astype(str))
-    
+    # Get KME module memeberships
+    wgcna.CalculateSignedKME()
+    df = wgcna.signedKME
+    df.columns = [f'{name}_{x}' for x in df.columns]
+
     # Update genes set with the new genes
     genes.update(df.index)
     
-    # Reindex the DataFrame to ensure all genes are present, filling missing values with 0
-    combined_df = pd.concat([combined_df, df], axis=1).fillna(0)
+    # Reindex the DataFrame to ensure all genes are present, use nans for missing genes
+    combined_df = pd.concat([combined_df, df], axis=1)
+
     # Print the number of unique genes detected so far
     print(f"Number of unique genes detected: {len(genes)}")
 
 # After the loop, combined_df will contain all genes with 0s for missing genes
-df = combined_df
+df = combined_df.copy()
 X = df.values
 
-import numpy as np
-import pandas as pd
-from scipy.cluster.hierarchy import linkage, dendrogram
-from sklearn.metrics import jaccard_score
-import matplotlib.pyplot as plt
+# Save the module membership matrix
+df.to_csv(os.path.join(output, 'module_membership.csv'))
 
-# Sample Sparse Binary Matrix (in a dense format for illustration)
-# Each row is a binary vector
+# Create correlation matrix
+correlation_matrix = df.T.corr()
+correlation_matrix.to_csv(os.path.join(output, 'correlation_matrix.csv'))
 
-def jaccard_similarity_matrix(data):
-    # Compute the intersection and union for Jaccard similarity
-    intersection = np.dot(data, data.T)  # Number of 1s in both vectors
-    union = data.sum(axis=1).reshape(-1, 1) + data.sum(axis=1) - intersection  # Total 1s in either vector
-
-    # Compute Jaccard similarity
-    similarity = intersection / union
-    
-    # Handle cases where union is zero (to avoid division by zero)
-    similarity[np.isnan(similarity)] = 0  # Set NaN values to 0 (for all-zero rows)
-    
-    return similarity
-
-def similarity_to_distance(similarity):
-    return 1 - similarity  # Convert similarity to distance
-
-def hierarchical_clustering(data):
-    # Calculate Jaccard similarity
-    print('Calculating similarity')
-    jaccard_sim = jaccard_similarity_matrix(data)
-    # Convert to distance matrix
-    print('Calculating distance')
-    distance_matrix = similarity_to_distance(jaccard_sim)
-    
-    # Perform hierarchical clustering using the 'ward' method
-    # Note: You can change the method (e.g., 'average', 'single', 'complete')
-    print('Calculating linkage')
-    Z = linkage(distance_matrix, method='average')
-   
-    return Z
+distance_matrix = 1 - correlation_matrix
 
 # Execute the hierarchical clustering
-Z = hierarchical_clustering(df.values)
+Z = linkage(distance_matrix, method='average')
 
 # Save the linkage matrix
 linkage_matrix = pd.DataFrame(Z, columns=['cluster_1', 'cluster_2', 'distance', 'n_genes'])
 linkage_matrix.to_csv(os.path.join(output, 'linkage_matrix.csv'), index=False)
 
+# Generate all possible clusterings
+genes = pd.DataFrame(list(genes), columns=['gene']).set_index('gene')
+
+for i in range(2, 100):
+    genes[f'{i}_clusters'] = fcluster(Z, i, criterion='maxclust')
+
 # Save genes
-genes_df = pd.DataFrame(list(genes), columns=['gene'])
-genes_df.to_csv(os.path.join(output, 'genes.csv'), index=False)
+genes.to_csv(os.path.join(output, 'all_clusterings.csv'))
 
 print('Done: consensus.py ({})'.format(condition))
