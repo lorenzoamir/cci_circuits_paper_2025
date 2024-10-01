@@ -28,62 +28,64 @@ os.makedirs(output, exist_ok=True)
 
 genes = set()
 
-print('List of WGCNA files:')
+# Get all genes by looking at all wgcna files
 for path in file_list:
-    print(path)
+    wgcna = PyWGCNA.readWGCNA(path)
+    genes.update(wgcna.datExpr.var.index)
+
+genes = list(genes)
+print('Found {} unique genes'.format(len(genes)))
+
+matrices = []
 
 print('Reading all files')
-
-combined_df = pd.DataFrame()
-
 for path in file_list:
     print(path)
 
     # Read WGCNA object
     wgcna = PyWGCNA.readWGCNA(path)
-    name = wgcna.name.replace('wgcna_', '')
+    tom = wgcna.TOM
     
-    # Get KME module memeberships
-    wgcna.CalculateSignedKME()
-    df = wgcna.signedKME
-    df.columns = [f'{name}_{x}' for x in df.columns]
+    # Expand tom (both rows and cols) to include all genes, use 0 for missing genes
+    tom = tom.reindex(index=genes, columns=genes, fill_value=0)
+   
+    # Add the matrix to the list
+    matrices.append(tom.values)
 
-    # Update genes set with the new genes
-    genes.update(df.index)
-    
-    # Reindex the DataFrame to ensure all genes are present, use nans for missing genes
-    combined_df = pd.concat([combined_df, df], axis=1)
+print()
+# Stack all matrices into a 3D numpy array
+print('Stacking matrices')
+stacked = np.dstack(matrices)
 
-    # Print the number of unique genes detected so far
-    print(f"Number of unique genes detected: {len(genes)}")
+def clustering_pipeline(matrix, path, max_clusters=250):
+    os.makedirs(path, exist_ok=True)
+    # Save the matrix
+    matrix.to_csv(os.path.join(path, 'matrix.csv'))
+    genes = matrix.index
+    # Calculate dissimilarity matrix
+    dissimilarity = 1 - matrix
+    dissimilarity.to_csv(os.path.join(path, 'disimilarity.csv'))
+    # Generate linkage
+    Z = linkage(dissimilarity, method='average')
+    Z = pd.DataFrame(Z, columns=['cluster_1', 'cluster_2', 'distance', 'n_genes'])
+    Z.to_csv(os.path.join(path, 'linkage.csv'), index=False)
+    # Generate possible clusterings
+    all_cluterings = pd.DataFrame(list(genes), columns=['gene']).set_index('gene')
+    for i in range(2, max_clusters):
+        all_cluterings[f'{i}_clusters'] = fcluster(Z, i, criterion='maxclust')
+    all_cluterings.to_csv(os.path.join(path, 'all_clusterings.csv'))
 
-# After the loop, combined_df will contain all genes with 0s for missing genes
-df = combined_df.copy()
-X = df.values
+    return
 
-# Save the module membership matrix
-df.to_csv(os.path.join(output, 'module_membership.csv'))
+# Calculate median
+print('Calculating median')
+median = np.median(stacked, axis=2)
+median = pd.DataFrame(median, index=genes, columns=genes)
+clustering_pipeline(median, os.path.join(output, 'median'))
 
-# Create correlation matrix
-correlation_matrix = df.T.corr()
-correlation_matrix.to_csv(os.path.join(output, 'correlation_matrix.csv'))
-
-distance_matrix = 1 - correlation_matrix
-
-# Execute the hierarchical clustering
-Z = linkage(distance_matrix, method='average')
-
-# Save the linkage matrix
-linkage_matrix = pd.DataFrame(Z, columns=['cluster_1', 'cluster_2', 'distance', 'n_genes'])
-linkage_matrix.to_csv(os.path.join(output, 'linkage_matrix.csv'), index=False)
-
-# Generate all possible clusterings
-genes = pd.DataFrame(list(genes), columns=['gene']).set_index('gene')
-
-for i in range(2, 100):
-    genes[f'{i}_clusters'] = fcluster(Z, i, criterion='maxclust')
-
-# Save genes
-genes.to_csv(os.path.join(output, 'all_clusterings.csv'))
+# Do the same with 25% percentile
+perc25 = np.quantile(stacked, 0.25, axis=2)
+perc25 = pd.DataFrame(perc25, index=genes, columns=genes)
+clustering_pipeline(perc25, os.path.join(output, 'perc25'))
 
 print('Done: consensus.py ({})'.format(condition))

@@ -25,7 +25,7 @@ RANK_INT_QUEUE='q02gaia'
 LR_PAIRS_QUEUE='q02anacreon'
 PW_NETWORK_QUEUE='q02anacreon'
 RANK_PWS_QUEUE='q02anacreon'
-CONSESUS_QUEUE='q02anacreon'
+CONSESUS_QUEUE='q07gaia'
 
 COMPARE_NCPUS=8
 COEVOLUTION_NCPUS=50
@@ -36,7 +36,7 @@ RANK_INT_NCPUS=32
 LR_PAIRS_NCPUS=4
 PW_NETWORK_NCPUS=8
 RANK_PWS_NCPUS=8
-CONSESUS_NCPUS=4
+CONSESUS_NCPUS=8
 
 COMPARE_MEMORY=8gb
 COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
@@ -47,7 +47,7 @@ RANK_INT_MEMORY=24gb #Succeded with 24gb
 LR_PAIRS_MEMORY=16gb
 PW_NETWORK_MEMORY=16gb
 RANK_PWS_MEMORY=8gb
-CONSESUS_MEMORY=24gb
+CONSESUS_MEMORY=350gb
 
 cd /home/lnemati/pathway_crosstalk/code/2_analysis
 if [ ! -d "/home/lnemati/pathway_crosstalk/code/2_analysis/scripts" ]; then
@@ -219,15 +219,15 @@ if [ $CONSESUS -eq 1 ]; then
     # follow the same format as the directories
     all_files=$(find "$data_dir" -name "wgcna_*.p" -type f | sort -u | tr '\n' ',' | sed 's/,$//')
 
-    # run the job twice, one for tumor and one for normal
-    consensus_tumor_id=$(fsub \
-        -p "$consesus_script" \
-        -n "$consesus_name"_tumor \
-        -nc "$CONSESUS_NCPUS" \
-        -m "$CONSESUS_MEMORY" \
-        -e "WGCNA" \
-        -q "$CONSESUS_QUEUE" \
-        -c "python consensus.py --condition tumor --file-list $all_files")
+    ## run the job twice, one for tumor and one for normal
+    #consensus_tumor_id=$(fsub \
+    #    -p "$consesus_script" \
+    #    -n "$consesus_name"_tumor \
+    #    -nc "$CONSESUS_NCPUS" \
+    #    -m "$CONSESUS_MEMORY" \
+    #    -e "WGCNA" \
+    #    -q "$CONSESUS_QUEUE" \
+    #    -c "python consensus.py --condition tumor --file-list $all_files")
 
     consensus_normal_id=$(fsub \
         -p "$consesus_script" \

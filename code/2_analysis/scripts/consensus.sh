@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N consensus_normal
-#PBS -l select=1:ncpus=4:ngpus=0:mem=24gb
-#PBS -q q02anacreon
+#PBS -l select=1:ncpus=8:ngpus=0:mem=350gb
+#PBS -q q07gaia
 mkdir -p /home/lnemati/pathway_crosstalk/code/2_analysis
 cd /home/lnemati/pathway_crosstalk/code/2_analysis
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
