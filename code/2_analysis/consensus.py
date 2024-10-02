@@ -34,9 +34,10 @@ for path in file_list:
     genes.update(wgcna.datExpr.var.index)
 
 genes = list(genes)
+triu_indices = np.triu_indices(len(genes), k=1)
 print('Found {} unique genes'.format(len(genes)))
 
-matrices = []
+flattened = []
 
 print('Reading all files')
 for path in file_list:
@@ -48,14 +49,14 @@ for path in file_list:
     
     # Expand tom (both rows and cols) to include all genes, use 0 for missing genes
     tom = tom.reindex(index=genes, columns=genes, fill_value=0)
-   
-    # Add the matrix to the list
-    matrices.append(tom.values)
+
+    # Only use upper triangle to save memory
+    flattened.append(tom.values[triu_indices])
 
 print()
-# Stack all matrices into a 3D numpy array
+# Stack all vectors into a 2D numpy array
 print('Stacking matrices')
-stacked = np.dstack(matrices)
+stacked = np.vstack(flattened)
 
 def clustering_pipeline(matrix, path, max_clusters=250):
     os.makedirs(path, exist_ok=True)
@@ -77,14 +78,24 @@ def clustering_pipeline(matrix, path, max_clusters=250):
 
     return
 
-# Calculate median
+# Calculate median across tissues (one value per gene pair)
 print('Calculating median')
-median = np.median(stacked, axis=2)
+flat = np.median(stacked, axis=0)
+# Reshape to square matrix
+median = np.zeros((len(genes), len(genes)))
+median[triu_indices] = flat
+median = median + median.T
 median = pd.DataFrame(median, index=genes, columns=genes)
+# Cluster the matrix
 clustering_pipeline(median, os.path.join(output, 'median'))
 
 # Do the same with 25% percentile
-perc25 = np.quantile(stacked, 0.25, axis=2)
+print('Calculating 25th percentile')
+flat = np.percentile(stacked, 25, axis=0)
+# Reshape to square matrix
+perc25 = np.zeros((len(genes), len(genes)))
+perc25[triu_indices] = flat
+perc25 = perc25 + perc25.T
 perc25 = pd.DataFrame(perc25, index=genes, columns=genes)
 clustering_pipeline(perc25, os.path.join(output, 'perc25'))
 

@@ -219,15 +219,15 @@ if [ $CONSESUS -eq 1 ]; then
     # follow the same format as the directories
     all_files=$(find "$data_dir" -name "wgcna_*.p" -type f | sort -u | tr '\n' ',' | sed 's/,$//')
 
-    ## run the job twice, one for tumor and one for normal
-    #consensus_tumor_id=$(fsub \
-    #    -p "$consesus_script" \
-    #    -n "$consesus_name"_tumor \
-    #    -nc "$CONSESUS_NCPUS" \
-    #    -m "$CONSESUS_MEMORY" \
-    #    -e "WGCNA" \
-    #    -q "$CONSESUS_QUEUE" \
-    #    -c "python consensus.py --condition tumor --file-list $all_files")
+    # run the job twice, one for tumor and one for normal
+    consensus_tumor_id=$(fsub \
+        -p "$consesus_script" \
+        -n "$consesus_name"_tumor \
+        -nc "$CONSESUS_NCPUS" \
+        -m "$CONSESUS_MEMORY" \
+        -e "WGCNA" \
+        -q "$CONSESUS_QUEUE" \
+        -c "python consensus.py --condition tumor --file-list $all_files")
 
     consensus_normal_id=$(fsub \
         -p "$consesus_script" \
@@ -239,5 +239,7 @@ if [ $CONSESUS -eq 1 ]; then
         -c "python consensus.py --condition normal --file-list $all_files")
 
 fi
+
+echo "Done: all jobs submitted"
 
 exit 0
