@@ -227,7 +227,7 @@ if [ $CONSESUS -eq 1 ]; then
         -m "$CONSESUS_MEMORY" \
         -e "WGCNA" \
         -q "$CONSESUS_QUEUE" \
-        -c "python consensus.py --condition tumor --file-list $all_files")
+        -c "python consensus_distance.py --condition tumor --file-list $all_files")
 
     consensus_normal_id=$(fsub \
         -p "$consesus_script" \
@@ -236,7 +236,7 @@ if [ $CONSESUS -eq 1 ]; then
         -m "$CONSESUS_MEMORY" \
         -e "WGCNA" \
         -q "$CONSESUS_QUEUE" \
-        -c "python consensus.py --condition normal --file-list $all_files")
+        -c "python consensus_distance.py --condition normal --file-list $all_files")
 
 fi
 

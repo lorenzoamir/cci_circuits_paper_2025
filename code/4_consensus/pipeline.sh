@@ -7,17 +7,24 @@ source "/projects/bioinformatics/snsutils/snsutils.sh"
 
 SUBSET=0
 
-MODULARITY=1
+CLUSTER=1
+MODULARITY=0
 
-MODULARITY_QUEUE="q02anacreon"
+CLUSTER_QUEUE="q02anacreon"
+MODULARITY_QUEUE="q02gaia"
 
+CLUSTER_NCPUS=4
 MODULARITY_NCPUS=2
 
-MODULARITY_MEMORY=32gb
+CLUSTER_MEMORY=32gb
+MODULARITY_MEMORY=40gb
 
 lr_resource="/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv"
 
 cd "/home/lnemati/pathway_crosstalk/code/4_consensus"
+
+# Make scripts directory if it does not exist
+mkdir -p scripts
 
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 conda activate WGCNA
@@ -29,6 +36,40 @@ mapfile -t files < <(find "$data_dir" -name "wgcna_*.p")
 # If SUBSET is positive, only use the first SUBSET files
 if [ $SUBSET -gt 0 ]; then
     files=("${files[@]:0:$SUBSET}")
+fi
+
+conditions=("normal" "tumor")
+quantiles=("perc25" "median")
+
+if [ $CLUSTER -eq 1 ]; then
+    echo "CLUSTER"
+
+    # Iterate over the 4 possible combinations of conditions and quantiles
+    for condition in "${conditions[@]}"; do
+        for quantile in "${quantiles[@]}"; do
+            echo "Condition: $condition"
+            echo "Quantile: $quantile"
+
+            # Create job script
+            cluster_name=cluster_"$condition"_"$quantile"
+            cluster_script="./scripts/$cluster_name.sh"
+            inputdir="/home/lnemati/pathway_crosstalk/results/consensus_modules/$condition/$quantile"
+            echo "$inputdir"
+
+            cluster_id=$(fsub \
+                -p "$cluster_script" \
+                -n "$cluster_name" \
+                -nc "$CLUSTER_NCPUS" \
+                -m "$CLUSTER_MEMORY" \
+                -q "$CLUSTER_QUEUE" \
+                -e "WGCNA" \
+                -w "$waiting_list" \
+                -c "python cluster.py --inputdir $inputdir"
+            )
+
+            echo ""
+        done
+    done
 fi
 
 for file in "${files[@]}"; do
@@ -64,5 +105,9 @@ for file in "${files[@]}"; do
         echo ""
     fi
 done
+
+echo "Done: pipeline.sh"
+
 exit 0
+
 

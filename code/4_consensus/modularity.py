@@ -32,44 +32,61 @@ print("Sub tissue: {}".format(sub_tissue))
 # ----- Network ------
 
 adj = WGCNA.adjacency # Pandas DataFrame
+adj = (adj + adj.T) / 2
 
 # Read precomputed clusterings
 print("Reading precomputed clusterings")
-all_clusterings = pd.read_csv(os.path.join(output_path, condition, 'all_clusterings.csv', index_col=0))
 
-# Remove self-loops by filling diagonal with 0
-#np.fill_diagonal(adj.values, 0)
+quantiles = ['perc25', 'median']
 
-# Create an igraph graph from the adjacency matrix
-# Remove weak interactions that sum up to 10% of the total weight
+for quantile in quantiles:
 
-# Flatten the matrix
-flat_adj = adj.values
-flat_adj = flat_adj[flat_adj > 0]
-flat_adj = np.sort(flat_adj)
+    if quantile == 'perc25':
+        # DEBUG
+        print("Skipping perc25")
+        continue
 
-# Get total and cutoff values
-total_weight = np.sum(flat_adj)
-cutoff = 0.10 * total_weight
+    clustering_path = os.path.join(output_path, condition, quantile, 'all_clusterings.csv')
+    all_clusterings = pd.read_csv(clustering_path, index_col=0)
 
-# Get weakest link to keep
-cum_sum = np.cumsum(flat_adj)
-num_to_remove = np.searchsorted(cum_sum, cutoff, side='right')
-weakest_link = flat_adj[num_to_remove]
+    # Remove self-loops by filling diagonal with 0
+    #np.fill_diagonal(adj.values, 0)
 
-g = ig.Graph.Weighted_Adjacency(csr_matrix(np.where(adj < weakest_link, 0, adj)), mode=ig.ADJ_UNDIRECTED)
-result = pd.DataFrame()
+    # Create an igraph graph from the adjacency matrix
+    # Remove weak interactions that sum up to 10% of the total weight
 
-for column in all_clusterings.columns:
+    # Flatten the matrix
+    #flat_adj = adj.values
+    #flat_adj = flat_adj[flat_adj > 0]
+    #flat_adj = np.sort(flat_adj)
+    #
+    ## Get total and cutoff values
+    #total_weight = np.sum(flat_adj)
+    #cutoff = 0.10 * total_weight
+    #
+    ## Get weakest link to keep
+    #cum_sum = np.cumsum(flat_adj)
+    #num_to_remove = np.searchsorted(cum_sum, cutoff, side='right')
+    #weakest_link = flat_adj[num_to_remove]
+    #
+    #g = ig.Graph.Weighted_Adjacency(csr_matrix(np.where(adj < weakest_link, 0, adj)), mode=ig.ADJ_UNDIRECTED)
 
-    # Calculate modularity
-    clustering = all_clusterings.loc[adj.index, column].values
-    modularity = g.modularity(clustering, weights=g.es['weight'])
+    g = ig.Graph.Weighted_Adjacency(adj.values, mode=ig.ADJ_UNDIRECTED)
+    result = pd.DataFrame()
 
-    # Use current column as index of result and add modularity
-    result.at[column, 'modularity'] = modularity
+    out_tissue_path = os.path.join(output_path, condition, quantile, 'tissues', major_tissue, sub_tissue)
 
-    # TODO: save results, subtissue and major tissue should be retrievable
-    result.to_csv(os.path.join(output_path, condition, major_tissue, sub_tissue, 'modularity.csv'))
+    for column in all_clusterings.columns:
+
+        # Calculate modularity
+        clustering = all_clusterings.loc[adj.index, column].values
+        modularity = g.modularity(clustering, weights=g.es['weight'])
+
+        # Use current column as index of result and add modularity
+        result.at[column, 'modularity'] = modularity
+
+        # Create dir and save the clustering
+        os.makedirs(out_tissue_path, exist_ok=True)
+        result.to_csv(os.path.join(out_tissue_path, 'modularity.csv'))
 
 print("Done: modularity.py")
