@@ -72,6 +72,10 @@ if [ $CLUSTER -eq 1 ]; then
     done
 fi
 
+#  From now on we'll have to iterate over the two quantiles: median and perc25
+quantiles=("perc25" "median")
+
+
 for file in "${files[@]}"; do
     echo "$(dirname "$file")"
     waiting_list=""

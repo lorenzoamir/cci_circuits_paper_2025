@@ -14,7 +14,8 @@ RANK_INT=0
 LR_PAIRS=0
 PW_NETWORK=0
 RANK_PWS=0
-CONSESUS=1
+CONSESUS=0
+CORR_CONS=1
 
 COMPARE_QUEUE='q02anacreon'
 COEVOLUTION_QUEUE='q02anacreon'
@@ -26,6 +27,7 @@ LR_PAIRS_QUEUE='q02anacreon'
 PW_NETWORK_QUEUE='q02anacreon'
 RANK_PWS_QUEUE='q02anacreon'
 CONSESUS_QUEUE='q07gaia'
+CORR_CONS_QUEUE='q07gaia'
 
 COMPARE_NCPUS=8
 COEVOLUTION_NCPUS=50
@@ -37,6 +39,7 @@ LR_PAIRS_NCPUS=4
 PW_NETWORK_NCPUS=8
 RANK_PWS_NCPUS=8
 CONSESUS_NCPUS=8
+CORR_CONS_NCPUS=8
 
 COMPARE_MEMORY=8gb
 COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
@@ -48,6 +51,7 @@ LR_PAIRS_MEMORY=16gb
 PW_NETWORK_MEMORY=16gb
 RANK_PWS_MEMORY=8gb
 CONSESUS_MEMORY=350gb
+CORR_CONS_MEMORY=350gb
 
 cd /home/lnemati/pathway_crosstalk/code/2_analysis
 if [ ! -d "/home/lnemati/pathway_crosstalk/code/2_analysis/scripts" ]; then
@@ -240,6 +244,35 @@ if [ $CONSESUS -eq 1 ]; then
 
 fi
 
+if [ $CORR_CONS -eq 1 ]; then
+    echo 'Correlation Consensus'
+    corr_cons_name="corr_cons"
+    corr_cons_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/${consesus_name}.sh"
+    
+    # instead of passing the directories, we pass the actual wgcna files
+    # follow the same format as the directories
+    all_files=$(find "$data_dir" -name "wgcna_*.p" -type f | sort -u | tr '\n' ',' | sed 's/,$//')
+
+    # run the job twice, one for tumor and one for normal
+    corr_cons_tumor_id=$(fsub \
+        -p "$corr_cons_script" \
+        -n "$corr_cons_name"_tumor \
+        -nc "$CORR_CONS_NCPUS" \
+        -m "$CORR_CONS_MEMORY" \
+        -e "WGCNA" \
+        -q "$CORR_CONS_QUEUE" \
+        -c "python correlation_consensus.py --condition tumor --file-list $all_files")
+
+    corr_cons_normal_id=$(fsub \
+        -p "$corr_cons_script" \
+        -n "$corr_cons_name"_normal \
+        -nc "$CORR_CONS_NCPUS" \
+        -m "$CORR_CONS_MEMORY" \
+        -e "WGCNA" \
+        -q "$CORR_CONS_QUEUE" \
+        -c "python correlation_consensus.py --condition normal --file-list $all_files")
+   
+fi
 echo "Done: all jobs submitted"
 
 exit 0
