@@ -5,18 +5,20 @@
 
 source "/projects/bioinformatics/snsutils/snsutils.sh"
 
-SUBSET=0
-
-CLUSTER=1
-MODULARITY=0
+CLUSTER=0
+ENRICHMENT=0
+MODULARITY=1
 
 CLUSTER_QUEUE="q02anacreon"
+ENRICHMENT_QUEUE="q02gaia"
 MODULARITY_QUEUE="q02gaia"
 
 CLUSTER_NCPUS=4
+ENRICHMENT_NCPUS=2
 MODULARITY_NCPUS=2
 
 CLUSTER_MEMORY=32gb
+ENRICHMENT_MEMORY=8gb
 MODULARITY_MEMORY=40gb
 
 lr_resource="/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv"
@@ -33,22 +35,17 @@ conda activate WGCNA
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
 mapfile -t files < <(find "$data_dir" -name "wgcna_*.p")
 
-# If SUBSET is positive, only use the first SUBSET files
-if [ $SUBSET -gt 0 ]; then
-    files=("${files[@]:0:$SUBSET}")
-fi
-
 conditions=("normal" "tumor")
 quantiles=("perc25" "median")
 
-if [ $CLUSTER -eq 1 ]; then
-    echo "CLUSTER"
+# Iterate over the 4 possible combinations of conditions and quantiles
+for condition in "${conditions[@]}"; do
+    for quantile in "${quantiles[@]}"; do
+        echo "Condition: $condition"
+        echo "Quantile: $quantile"
 
-    # Iterate over the 4 possible combinations of conditions and quantiles
-    for condition in "${conditions[@]}"; do
-        for quantile in "${quantiles[@]}"; do
-            echo "Condition: $condition"
-            echo "Quantile: $quantile"
+        if [ $CLUSTER -eq 1 ]; then
+            echo "CLUSTER"
 
             # Create job script
             cluster_name=cluster_"$condition"_"$quantile"
@@ -68,46 +65,65 @@ if [ $CLUSTER -eq 1 ]; then
             )
 
             echo ""
+        fi
+
+        if [ $ENRICHMENT -eq 1 ]; then
+            echo "ENRICHMENT"
+
+            # Create job script
+            enrichment_name=enrichment_"$condition"_"$quantile"
+            enrichment_script=./scripts/$enrichment_name.sh
+
+            # Wait for cluster job to finish
+            [ $CLUSTER -eq 1 ] && waiting_list="$cluster_id"
+            
+            inputfile="/home/lnemati/pathway_crosstalk/results/consensus_modules/$condition/$quantile/consensus_modules.csv"
+
+            enrichment_id=$(fsub \
+                -p "$enrichment_script" \
+                -n "$enrichment_name" \
+                -nc "$ENRICHMENT_NCPUS" \
+                -m "$ENRICHMENT_MEMORY" \
+                -q "$ENRICHMENT_QUEUE" \
+                -e "WGCNA" \
+                -w "$waiting_list" \
+                -c "python enrichment.py --input $inputfile" 
+            )
+
+            echo ""
+        fi
+
+
+        for file in "${files[@]}"; do
+            echo "$(dirname "$file")"
+            # clean job name from extension .p and prefix wgcna_
+            job_name=$(basename "$file" | sed 's/wgcna_//g' | sed 's/.p//g')
+
+            # ----- MODULARITY -----
+            if [ $MODULARITY -eq 1 ]; then
+                echo "MODULARITY"
+
+                # Create job script
+                modularity_name=md_"$job_name"_"$condition"_"$quantile"
+                modularity_script=./scripts/$modularity_name.sh
+                
+                # Wait for cluster job to finish
+                [ $CLUSTER -eq 1 ] && waiting_list="$cluster_id"
+
+                modularity_id=$(fsub \
+                    -p "$modularity_script" \
+                    -n "$modularity_name" \
+                    -nc "$MODULARITY_NCPUS" \
+                    -m "$MODULARITY_MEMORY" \
+                    -q "$MODULARITY_QUEUE" \
+                    -e "WGCNA" \
+                    -w "$waiting_list" \
+                    -c "python modularity.py --input $file --condition $condition --quantile $quantile")
+
+                echo ""
+            fi
         done
     done
-fi
-
-#  From now on we'll have to iterate over the two quantiles: median and perc25
-quantiles=("perc25" "median")
-
-
-for file in "${files[@]}"; do
-    echo "$(dirname "$file")"
-    waiting_list=""
-    # clean job name from extension .p and prefix wgcna_
-    job_name=$(basename "$file" | sed 's/wgcna_//g' | sed 's/.p//g')
-    # create scripts directory in the same directory as the input file if it does not exist
-    mkdir -p $(dirname "$file")/scripts 
-
-    # ----- MODULARITY -----
-    if [ $MODULARITY -eq 1 ]; then
-        echo "MODULARITY"
-
-        # Create job script
-        modularity_name=modularity_"$job_name"
-        modularity_script=$(dirname "$file")/scripts/$modularity_name.sh
-        
-        # Wait for wgcna job to finish
-        waiting_list=""
-        echo "Waiting list: $waiting_list"
-
-        modularity_id=$(fsub \
-            -p "$modularity_script" \
-            -n "$modularity_name" \
-            -nc "$MODULARITY_NCPUS" \
-            -m "$MODULARITY_MEMORY" \
-            -q "$MODULARITY_QUEUE" \
-            -e "WGCNA" \
-            -w "$waiting_list" \
-            -c "python modularity.py --input $file")
-
-        echo ""
-    fi
 done
 
 echo "Done: pipeline.sh"
