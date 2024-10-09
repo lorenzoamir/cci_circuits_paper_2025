@@ -12,7 +12,8 @@ SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5
 DESEQ=0
 WGCNA=0
 NETWORK=0
-RANK_ADJ=1
+HUBS=1
+RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
 ENRICHMENT=0
@@ -22,6 +23,7 @@ SEPARATE_QUEUE="q02anacreon"
 DESEQ_QUEUE="q02anacreon"
 WGCNA_QUEUE="q02anacreon"
 NETWORK_QUEUE="q02gaia"
+HUBS_QUEUE="q02anacreon"
 RANK_ADJ_QUEUE="q02anacreon"
 COEVOLUTION_QUEUE="q02anacreon"
 INTERACTIONS_QUEUE="q02anacreon"
@@ -32,6 +34,7 @@ SEP_NCPUS=16
 DESEQ_NCPUS=8
 WGCNA_NCPUS=4
 NETWORK_NCPUS=2
+HUBS_NCPUS=2
 RANK_ADJ_NCPUS=2
 COEVOLUTION_NCPUS=8
 INTERACTIONS_NCPUS=4
@@ -42,6 +45,7 @@ SEP_MEMORY=64gb
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
 NETWORK_MEMORY=32gb
+HUBS_MEMORY=20gb
 RANK_ADJ_MEMORY=16gb # Failed with 12gb
 COEVOLUTION_MEMORY=18gb
 INTERACTIONS_MEMORY=7gb
@@ -172,6 +176,32 @@ for file in "${files[@]}"; do
             -e "WGCNA" \
             -w "$waiting_list" \
             -c "python network.py --input ${wgcnafile}")
+
+        echo ""
+    fi
+
+    # ----- HUBS -----
+    if [ $HUBS -eq 1 ]; then
+        echo "HUBS"
+
+        # Create job script
+        hubs_name=hubs_"$job_name"
+        hubs_script=$(dirname "$file")/scripts/$hubs_name.sh
+
+        # Wait for wgcna job to finish
+        waiting_list=""
+        [ $WGCNA -eq 1 ] && waiting_list="$waiting_list:$wgcna_id"
+        echo "Waiting list: $waiting_list"
+
+        hubs_id=$(fsub \
+            -p "$hubs_script" \
+            -n "$hubs_name" \
+            -nc "$HUBS_NCPUS" \
+            -m "$HUBS_MEMORY" \
+            -q "$HUBS_QUEUE" \
+            -e "WGCNA" \
+            -w "$waiting_list" \
+            -c "python hubs_connectivities.py --input ${wgcnafile}")
 
         echo ""
     fi
