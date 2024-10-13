@@ -5,16 +5,24 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-FLOW=1
+FLOW=0
+GENERATE=1 # Generate bootstrap interactions
+BOOTSTRAP=1 # Get same_module for bootstrap interactions 
 SANKEY=0
 
 FLOW_QUEUE='q02anacreon'
+GENERATE_QUEUE='q02anacreon'
+BOOTSTRAP_QUEUE='q02anacreon'
 SANKEY_QUEUE='q02anacreon'
 
 FLOW_NCPUS=8
+GENERATE_NCPUS=8
+BOOTSTRAP_NCPUS=2
 SANKEY_NCPUS=8
 
 FLOW_MEMORY=8gb
+GENERATE_MEMORY=20gb
+BOOTSTRAP_MEMORY=8gb
 SANKEY_MEMORY=8gb
 
 cd /home/lnemati/pathway_crosstalk/code/3_flow
@@ -94,6 +102,51 @@ if [ $FLOW -eq 1 ]; then
         -c "python flow.py --tissues \"$tissues_string\"")
 
 fi
+
+if [ $GENERATE -eq 1 ]; then
+    echo 'Generate'
+
+    # create job script for all tissues
+    generate_name="generate"
+    generate_script="$script_dir/$generate_name.sh"
+
+    generate_id=$(fsub \
+        -p "$generate_script" \
+        -n "$generate_name" \
+        -nc "$GENERATE_NCPUS" \
+        -m "$GENERATE_MEMORY" \
+        -e "WGCNA" \
+        -q "$GENERATE_QUEUE" \
+        -c "python generate_bootstrap.py --tissues \"$tissues_string\"")
+fi
+
+# Generate list of wgcna files searching for wgcna_*.p
+mapfile -t wgcna_files < <(find "$data_dir" -name "wgcna_*.p")
+
+for wgcnafile in "${wgcna_files[@]}"; do
+    if [ $BOOTSTRAP -eq 1 ]; then
+        # Cut 'wgcna_' and '.p' from the file name
+        tissue_name=$(basename "$wgcnafile" | sed 's/wgcna_//g' | sed 's/\.p//g')
+
+        # create job script for each tissue
+        bootstrap_name="btp_$tissue_name"
+        bootstrap_script="$script_dir/$bootstrap_name.sh"
+        
+        # Wait for generate to finish
+        waiting_list=""
+        [ $GENERATE -eq 1 ] && waiting_list="$waiting_list:$generate_id"
+
+        bootstrap_id=$(fsub \
+            -p "$bootstrap_script" \
+            -n "$bootstrap_name" \
+            -nc "$BOOTSTRAP_NCPUS" \
+            -m "$BOOTSTRAP_MEMORY" \
+            -e "WGCNA" \
+            -q "$BOOTSTRAP_QUEUE" \
+            -w "$waiting_list" \
+            -c "python bootstrap_interactions.py --input $wgcnafile")
+    fi
+done
 
 # Run pipeline for each tissue
 for i in "${!tumors[@]}"; do

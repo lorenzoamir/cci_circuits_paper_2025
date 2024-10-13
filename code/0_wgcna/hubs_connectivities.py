@@ -37,8 +37,20 @@ with open('/home/lnemati/resources/reactome/ReactomePathways.gmt', 'r') as f:
 root_pws = pd.read_csv('/home/lnemati/resources/reactome/ReactomeRootPathways.csv')
 root_pws = root_pws['root'].map(id_to_name).unique()
 
+print('Getting total strength of connections between hubs and pathways')
+all_genes_in_pathways = set()
+for pw in root_pws:
+    all_genes_in_pathways.update(pw_genes[pw])
+all_genes_in_pathways = all_genes_in_pathways.intersection(adj.columns)
+total = adj.loc[hubs, all_genes_in_pathways].sum().sum()
+
+# Normalize adjacency matrix so that the sum of 
+# all connections of hubs to pathways is 1
+print('Normalizing adjacency matrix')
+adj = adj / total
 
 # Get strength of connections between hubs and pathways
+print('Getting strength of connections between hubs and each pathway')
 results = pd.DataFrame(index=root_pws, columns=['connection_strength'])
 
 for pw in root_pws:
