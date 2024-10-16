@@ -36,13 +36,10 @@ with open('/home/lnemati/resources/reactome/ReactomePathways.gmt', 'r') as f:
 
 root_pws = pd.read_csv('/home/lnemati/resources/reactome/ReactomeRootPathways.csv')
 root_pws = root_pws['root'].map(id_to_name).unique()
+all_pws  = pw_genes.keys()
 
 print('Getting total strength of connections between hubs and pathways')
-all_genes_in_pathways = set()
-for pw in root_pws:
-    all_genes_in_pathways.update(pw_genes[pw])
-all_genes_in_pathways = all_genes_in_pathways.intersection(adj.columns)
-total = adj.loc[hubs, all_genes_in_pathways].sum().sum()
+total = adj.loc[hubs, :].sum().sum()
 
 # Normalize adjacency matrix so that the sum of 
 # all connections of hubs to pathways is 1
@@ -53,6 +50,7 @@ adj = adj / total
 print('Getting strength of connections between hubs and each pathway')
 results = pd.DataFrame(index=root_pws, columns=['connection_strength'])
 
+# Calculate connection strength with root pathways
 for pw in root_pws:
     print(pw)
     genes = list(set(pw_genes[pw]).intersection(adj.columns))
@@ -60,6 +58,16 @@ for pw in root_pws:
     results.loc[pw, 'connection_strength'] = tot
 
 # save degree_df as csv
-results.to_csv(os.path.join(output_path, "hubs_connectivities.csv"))
+results.to_csv(os.path.join(output_path, "hubs_connectivities_root.csv"))
+
+# Calculate connection strength with all pathways
+for pw in all_pws:
+    print(pw)
+    genes = list(set(pw_genes[pw]).intersection(adj.columns))
+    tot = np.sum(adj.loc[hubs, genes].values)
+    results.loc[pw, 'connection_strength'] = tot
+
+# save degree_df as csv
+results.to_csv(os.path.join(output_path, "hubs_connectivities_all.csv"))
 
 print("Done: hubs_connectivities.py")

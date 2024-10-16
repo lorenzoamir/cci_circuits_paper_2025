@@ -37,7 +37,7 @@ bootstrap_path = '/home/lnemati/pathway_crosstalk/results/flow/bootstrap'
 
 # Read bootstap_all.csv
 print("Reading bootstrap_all.csv")
-interactions = pd.read_csv(os.path.join(bootstrap_path, "bootstrap_all.csv"))
+interactions = pd.read_csv(os.path.join(bootstrap_path, "bootstrap_all.csv"), index_col=0)
 
 # The all_genes column contains a list of genes and should not be interpreted as a string
 # Remove first and last character ('[' and ']') and split by ', ' to get a list of genes
@@ -68,6 +68,6 @@ print(result.head(10))
 
 # Save the interactions in the same path as the WGCNA object
 print("Saving interactions to {}".format(os.path.join(output_path, "bootstrap_interactions.csv")))
-result.to_csv(os.path.join(output_path, "interactions_bootstrap.csv"), index=False)
+result.to_csv(os.path.join(output_path, "interactions_bootstrap.csv"), index=True)
 
 print("Done: bootstrap_interactions.py")

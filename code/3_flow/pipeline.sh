@@ -8,21 +8,25 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 FLOW=0
 GENERATE=1 # Generate bootstrap interactions
 BOOTSTRAP=1 # Get same_module for bootstrap interactions 
+AGGREGATE=1 # Aggregate bootstrap results
 SANKEY=0
 
 FLOW_QUEUE='q02anacreon'
 GENERATE_QUEUE='q02anacreon'
 BOOTSTRAP_QUEUE='q02anacreon'
+AGGREGATE_QUEUE='q02anacreon'
 SANKEY_QUEUE='q02anacreon'
 
 FLOW_NCPUS=8
 GENERATE_NCPUS=8
 BOOTSTRAP_NCPUS=2
+AGGREGATE_NCPUS=8
 SANKEY_NCPUS=8
 
 FLOW_MEMORY=8gb
 GENERATE_MEMORY=20gb
 BOOTSTRAP_MEMORY=8gb
+AGGREGATE_MEMORY=16gb
 SANKEY_MEMORY=8gb
 
 cd /home/lnemati/pathway_crosstalk/code/3_flow
@@ -77,6 +81,11 @@ for tissuedir in "${tissuedirs[@]}"; do
     fi
 done
 
+# Convert list to string for passing as argument
+# The entries are separated by a space, add double quotes to keep them together
+tissues_string=$(printf "\"%s\" " "${tissues_with_both[@]}")
+echo "$tissues_string"
+
 # FLOW takes all tissues at once
 if [ $FLOW -eq 1 ]; then
     echo 'Flow'
@@ -87,11 +96,6 @@ if [ $FLOW -eq 1 ]; then
 
     echo "$flow_script"
     
-    # Convert list to string for passing as argument
-    # The entries are separated by a space, add double quotes to keep them together
-    tissues_string=$(printf "\"%s\" " "${tissues_with_both[@]}")
-    echo "$tissues_string"
-
     flow_id=$(fsub \
         -p "$flow_script" \
         -n "$flow_name" \
@@ -147,6 +151,54 @@ for wgcnafile in "${wgcna_files[@]}"; do
             -c "python bootstrap_interactions.py --input $wgcnafile")
     fi
 done
+
+# AGGREAGATE takes all tissues like FLOW
+if [ $AGGREGATE -eq 1 ]; then
+    echo 'Aggregate'
+
+    # create job script for all tissues
+    aggregate_name="aggregate"
+    aggregate_script="$script_dir/$aggregate_name.sh"
+
+    # Wait for generate and bootstrap
+    waiting_list=""
+    [ $GENERATE -eq 1 ] && waiting_list="$waiting_list:$generate_id"
+    [ $BOOTSTRAP -eq 1 ] && waiting_list="$waiting_list:$bootstrap_id"
+
+    aggregate_id=$(fsub \
+        -p "$aggregate_script" \
+        -n "$aggregate_name" \
+        -nc "$AGGREGATE_NCPUS" \
+        -m "$AGGREGATE_MEMORY" \
+        -e "WGCNA" \
+        -q "$AGGREGATE_QUEUE" \
+        -c "python aggregate_bootstrap.py --tissues \"$tissues_string\"")
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Run pipeline for each tissue
 for i in "${!tumors[@]}"; do

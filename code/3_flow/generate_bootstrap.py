@@ -93,7 +93,7 @@ bootstrap = pd.DataFrame(
 )
 bootstrap['n_genes'] = bootstrap['all_genes'].apply(lambda x: len(x))
 
-N = 5000
+N = 10000
 
 df_all = pd.DataFrame()
 # Bootstrap
@@ -113,7 +113,10 @@ for n_genes in range(2,8):
     # Save dataframe of bootstrap samples
     df.to_csv(os.path.join(output_dir, f'bootstrap_{n_genes}.csv'), index=False)
 
+# Explicitly create index
+df_all.index = range(len(df_all))
+
 # Save one bootstrap_all dataframe containing merged bootstrap datasets
-df_all.to_csv(os.path.join(output_dir, 'bootstrap_all.csv'), index=False)
+df_all.to_csv(os.path.join(output_dir, 'bootstrap_all.csv'), index=True)
 
 print("Done: generata_bootstrap.py")
