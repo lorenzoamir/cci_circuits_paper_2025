@@ -12,10 +12,11 @@ SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5
 DESEQ=0
 WGCNA=0
 NETWORK=0
-HUBS=1
+HUBS=0
 RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
+SCORE_INTS=1
 ENRICHMENT=0
 STATS=0
 
@@ -48,7 +49,7 @@ NETWORK_MEMORY=32gb
 HUBS_MEMORY=20gb
 RANK_ADJ_MEMORY=16gb # Failed with 12gb
 COEVOLUTION_MEMORY=18gb
-INTERACTIONS_MEMORY=7gb
+INTERACTIONS_MEMORY=8gb
 ENRICHMENT_MEMORY=6gb
 STATS_MEMORY=24gb # Failed with 16gb, succeeded with 24gb
 
@@ -257,6 +258,32 @@ for file in "${files[@]}"; do
 
         echo ""
     fi 
+
+    # ----- SCORE INTERACTIONS -----
+    if [ $SCORE_INTS -eq 1 ]; then
+        echo "SCORE INTERACTIONS"
+
+        # Create job script
+        score_ints_name=score_ints_"$job_name"
+        score_ints_script=$(dirname "$file")/scripts/$score_ints_name.sh
+
+        # Wait for wgcna and interactions jobs to finish
+        waiting_list=""
+        [ $WGCNA -eq 1 ] && waiting_list="$waiting_list:$wgcna_id"
+        echo "Waiting list: $waiting_list"
+
+        score_ints_id=$(fsub \
+            -p "$score_ints_script" \
+            -n "$score_ints_name" \
+            -nc "$INTERACTIONS_NCPUS" \
+            -m "$INTERACTIONS_MEMORY" \
+            -q "$INTERACTIONS_QUEUE" \
+            -e "WGCNA" \
+            -w "$waiting_list" \
+            -c "python score_interactions.py --input ${wgcnafile}")
+
+        echo ""
+    fi
 
     # ----- Enrichment analysis -----
     if [ $ENRICHMENT -eq 1 ]; then

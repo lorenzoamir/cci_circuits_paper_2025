@@ -47,56 +47,10 @@ outcome_cat = []
 counts = []
 colors = []
 
-cancer_types = {
-    'Acute Myeloid Leukemia': 'LAML',
-    'Adrenocortical carcinoma': 'ACC',
-    'Adrenocortical cancer': 'ACC',
-    'Bladder Urothelial Carcinoma': 'BLCA',
-    'Brain Lower Grade Glioma': 'LGG',
-    'Breast invasive carcinoma': 'BRCA',
-    'Cervical squamous cell carcinoma and endocervical adenocarcinoma': 'CESC',
-    'Cholangiocarcinoma': 'CHOL',
-    'Chronic Myelogenous Leukemia': 'LCML',
-    'Colon adenocarcinoma': 'COAD',
-    'Controls': 'CNTL',
-    'Esophageal carcinoma': 'ESCA',
-    'FFPE Pilot Phase II': 'FPPP',
-    'Glioblastoma multiforme': 'GBM',
-    'Head and Neck squamous cell carcinoma': 'HNSC',
-    'Kidney Chromophobe': 'KICH',
-    'Kidney renal clear cell carcinoma': 'KIRC',
-    'Kidney clear cell carcinoma': 'KIRC',
-    'Kidney renal papillary cell carcinoma': 'KIRP',
-    'Kidney papillary cell carcinoma': 'KIRP',
-    'Liver hepatocellular carcinoma': 'LIHC',
-    'Lung adenocarcinoma': 'LUAD',
-    'Lung squamous cell carcinoma': 'LUSC',
-    'Lymphoid Neoplasm Diffuse Large B-cell Lymphoma': 'DLBC',
-    'Mesothelioma': 'MESO',
-    'Miscellaneous': 'MISC',
-    'Ovarian serous cystadenocarcinoma': 'OV',
-    'Pancreatic adenocarcinoma': 'PAAD',
-    'Pheochromocytoma and Paraganglioma': 'PCPG',
-    'Prostate adenocarcinoma': 'PRAD',
-    'Rectum adenocarcinoma': 'READ',
-    'Sarcoma': 'SARC',
-    'Skin Cutaneous Melanoma': 'SKCM',
-    'Stomach adenocarcinoma': 'STAD',
-    'Testicular Germ Cell Tumors': 'TGCT',
-    'Thymoma': 'THYM',
-    'Thyroid carcinoma': 'THCA',
-    'Uterine Carcinosarcoma': 'UCS',
-    'Uterine Corpus Endometrial Carcinoma': 'UCEC',
-    'Uveal Melanoma': 'UVM'
-}
-
 all_interactions = pd.read_csv('/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv', index_col='interaction')
 all_interactions['both_score'] = 0
 all_interactions['normal_score'] = 0
 all_interactions['tumor_score'] = 0
-
-# Make keys lowercase
-cancer_types = {k.lower(): v for k, v in cancer_types.items()}
 
 def format_string(string, newline=False):
     '''
