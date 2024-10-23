@@ -12,45 +12,80 @@ ncolor     = '#00728e'
 graycolor  = '#4D4E4F'
 graycolor2 = '#C8CAD4'
 
-# Parse arguments
-parser = argparse.ArgumentParser(description='Generate parallel categories (alluvial) plot of LR pairs')
+data_dir='/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/'
 
-# list of tumor and normal directories
-parser.add_argument('--tissues', type=str, help='List of tissue directories separated by space', required=True)
+# Find all subdirectories of datadir, those are the tissues
+tissue_dirs = [os.path.join(data_dir, x) for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))]
+print('Tissues:', len(tissue_dirs))
 
-args = parser.parse_args()
-
-# Inside each tissue directory, there are two directories: normal and tumor. Find all subdirectories of normal and tumor
-print('Input tissues:', args.tissues)
-
+# Tissue directories have tumor and normal subdirectories, each has subdirectories with subtissues
 tumor_dirs = {}
 normal_dirs = {}
 
-all_tissues = args.tissues.split(" ")
-
-# Remove empty strings and trailing characters
-all_tissues = [x.strip() for x in all_tissues if x.strip() != '']
-
-for tissue_dir in all_tissues:
+for tissue_dir in tissue_dirs:
     # Get tissue name from path
     tissue_name = tissue_dir.split("/")[-1]
-
-    # Get tumor subdirectories
+    
+    # Find normal and tumor subdirectories
     tumor_dirs[tissue_name] = [os.path.join(tissue_dir, 'tumor', x) for x in os.listdir(os.path.join(tissue_dir, 'tumor'))]
-    # Get normal subdirectories
     normal_dirs[tissue_name] = [os.path.join(tissue_dir, 'normal', x) for x in os.listdir(os.path.join(tissue_dir, 'normal'))]
+    
+    # Exclude empty subtissues dirs that don't have any files inside
+    tumor_dirs[tissue_name] = [x for x in tumor_dirs[tissue_name] if os.listdir(x)]
+    normal_dirs[tissue_name] = [x for x in normal_dirs[tissue_name] if os.listdir(x)]
 
-tissues_cat = []
-normal_cat = []
-tumor_cat = []
-outcome_cat = []
-counts = []
-colors = []
+# Make a dataframe with tissue, subtissue, condition
+tissues_df = pd.DataFrame(columns=['tissue', 'subtissue', 'condition'])
+tissues_df = tissues_df.append([{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'tumor'} for tissue_name in tumor_dirs for subtissue in tumor_dirs[tissue_name]])
+tissues_df = tissues_df.append([{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'normal'} for tissue_name in normal_dirs for subtissue in normal_dirs[tissue_name]])
 
-all_interactions = pd.read_csv('/projects/bioinformatics/DB/CellCellCommunication/WithEnzymes/cpdb_cellchat_enz.csv', index_col='interaction')
-all_interactions['both_score'] = 0
-all_interactions['normal_score'] = 0
-all_interactions['tumor_score'] = 0
+# Store directories in all_tissues
+tissues_df['path'] = tissues_df.subtissue
+
+# Print each path and whether it exists
+for path in tissues_df['path']:
+    print(path, os.path.exists(path))
+
+print('Tissues dataframe:', tissues_df.shape)
+print(tissues_df.head())
+
+# Find tissues that have both tumor and normal conditions
+tissues = tissues_df.groupby('tissue').condition.nunique()
+tissues = tissues[tissues == 2].index
+print('Tissues with both tumor and normal:', len(tissues))
+
+# Remove normal testis subtissues
+tissues_df = tissues_df[~((tissues_df.tissue == 'testis') & (tissues_df.condition == 'normal'))]
+tissues = [x for x in tissues if x != 'testis']
+
+# Join thyroid_gland and thyroid subtissues into the same tissue
+tissues_df.loc[tissues_df.tissue == 'thyroid_gland', 'tissue'] = 'thyroid'
+
+# Set all subtissues that don't have both tumor and normal to 'other_tissues'
+tissues_df.loc[~tissues_df.tissue.isin(tissues), 'tissue'] = 'other_tissues'
+
+# Print all tissues with corresponding number of tumor and normal subtissues
+print('Tissues:', tissues_df.groupby('tissue').subtissue.nunique())
+
+print(tissues_df.head())
+print(tissues_df['path'].head())
+
+# Make new normal and tumor dirs with new tissue names as keys and paths as values
+tumor_dirs = {}
+normal_dirs = {}
+
+for i, row in tissues_df.iterrows():
+    if row.condition == 'tumor':
+        if row.tissue not in tumor_dirs:
+            tumor_dirs[row.tissue] = []
+        tumor_dirs[row.tissue].append(row.path)
+    else:
+        if row.tissue not in normal_dirs:
+            normal_dirs[row.tissue] = []
+        normal_dirs[row.tissue].append(row.path)
+
+print('Tumor dirs:', tumor_dirs)
+print('Normal dirs:', normal_dirs)
 
 def format_string(string, newline=False):
     '''
@@ -77,177 +112,182 @@ def format_string(string, newline=False):
 
     return string
 
-#for tumor_dir, normal_dir in zip(all_tumor_dirs, all_normal_dirs):
-for tissue_dir in all_tissues:
-    # Testis has an extremely low modularity, so the modules are not informative
-    if 'testis' in tissue_dir:
-        continue
+interactions_files = ['ccc.csv', 'intact_direct.csv']
+metrics = ['same_module', 'min_adj', 'mean_adj', 'min_kme_corr', 'mean_kme_corr']
 
-    tissue_name = tissue_dir.split("/")[-1] 
-    print(tissue_name)
+for filename in interactions_files:
+    print('filename:', filename)
+
+    all_interactions = pd.read_csv(os.path.join('/home/lnemati/pathway_crosstalk/data/interactions', filename), index_col='interaction')
     
-    tissue_interactions = all_interactions.copy() 
-    tissue_interactions['same_module'] = False
+    # Init columns for each metric
+    for metric in metrics:
+        all_interactions[f'both_{metric}_score'] = 0
+        all_interactions[f'normal_{metric}_score'] = 0
+        all_interactions[f'tumor_{metric}_score'] = 0
 
-    # Find all interactions.csv files in the normal and tumor directories
-    normal_dfs = [os.path.join(n_dir, 'interactions.csv') for n_dir in normal_dirs[tissue_name]]
-    tumor_dfs = [os.path.join(t_dir, 'interactions.csv') for t_dir in tumor_dirs[tissue_name]]
+    tissues_cat = {k: [] for k in metrics}
+    normal_cat = {k: [] for k in metrics}
+    tumor_cat = {k: [] for k in metrics}
+    outcome_cat = {k: [] for k in metrics}
+    counts = {k: [] for k in metrics}
+    colors = {k: [] for k in metrics}
 
-    print('Normal tissues:', len(normal_dfs))
-    print('Tumor tissues:', len(tumor_dfs))
-    
-    # Read the dataframes
-    normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
-    tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
+    normal_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
+    tumor_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
 
-    # Print shapes
-    print('Normal shapes:', [df.shape for df in normal_dfs])
-    print('Tumor shapes:', [df.shape for df in tumor_dfs])
-   
-    print('Normal same module:', [sum(df['same_module']) for df in normal_dfs])
-    print('Tumor same module:', [sum(df['same_module']) for df in tumor_dfs])
+    for metric in metrics:
+        for tissue in tissues_df.tissue.unique():
+            tissue_name = tissue
+            print('tissue:', tissue_name)
+       
+            tissue_interactions = all_interactions.copy() 
+            tissue_interactions[metric] = 0
 
-    ## Only keep interactions that are in same module in at least one of the normal or tumor networks
-    #keep = set()
+            # Find all interactions.csv files in the normal and tumor directories
+            normal_dfs = [os.path.join(n_dir, 'interactions', filename) for n_dir in normal_dirs[tissue_name]]   
+            tumor_dfs = [os.path.join(t_dir, 'interactions', filename) for t_dir in tumor_dirs[tissue_name]]
 
-    #for df in normal_dfs + tumor_dfs:
-    #    keep |= set(df[df['same_module']].index)
-   
-    #print('Found', len(keep), 'interactions to keep')
-    #print('Subsetting')
-    ## Subset the tissue_interactions
-    #tissue_interactions = tissue_interactions.loc[keep]
+            print('Normal tissues:', len(normal_dfs))
+            print('Tumor tissues:', len(tumor_dfs))
+            
+            # Read the dataframes
+            normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
+            tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
 
-    # Merge normal and tumor interactions with the full interaction network
-    print('Merging')
-    new_dfs = []
-    for df in normal_dfs:
-        n_tmp = tissue_interactions.copy()
-        n_tmp.loc[df.index, 'same_module'] = df['same_module']
-        new_dfs.append(n_tmp)
-    normal_dfs = new_dfs
+            # Print shapes
+            print('Normal shapes:', [df.shape for df in normal_dfs])
+            print('Tumor shapes:', [df.shape for df in tumor_dfs])
 
-    new_dfs = []
-    for df in tumor_dfs:
-        t_tmp = tissue_interactions.copy()
-        t_tmp.loc[df.index, 'same_module'] = df['same_module']
-        new_dfs.append(t_tmp)
-    tumor_dfs = new_dfs
-   
-    # Make sure all dfs follow the same order
-    normal_dfs = [df.loc[tissue_interactions.index] for df in normal_dfs]
-    tumor_dfs = [df.loc[tissue_interactions.index] for df in tumor_dfs]
+            # Merge normal and tumor interactions with the full interaction network
+            print('Merging')
+            new_dfs = []
+            for df in normal_dfs:
+                n_tmp = tissue_interactions.copy()
+                n_tmp.loc[df.index, metric] = df[metric]
+                new_dfs.append(n_tmp)
+            normal_dfs = new_dfs
 
-    print('Normal shapes:', [df.shape for df in normal_dfs])
-    print('Tumor shapes:', [df.shape for df in tumor_dfs])
+            new_dfs = []
+            for df in tumor_dfs:
+                t_tmp = tissue_interactions.copy()
+                t_tmp.loc[df.index, metric] = df[metric]
+                new_dfs.append(t_tmp)
+            tumor_dfs = new_dfs
+           
+            # Make sure all dfs follow the same order
+            normal_dfs = [df.loc[tissue_interactions.index] for df in normal_dfs]
+            tumor_dfs = [df.loc[tissue_interactions.index] for df in tumor_dfs]
 
-    print('Normal same module:', [sum(df['same_module']) for df in normal_dfs])
-    print('Tumor same module:', [sum(df['same_module']) for df in tumor_dfs])
+            print('Normal shapes:', [df.shape for df in normal_dfs])
+            print('Tumor shapes:', [df.shape for df in tumor_dfs])
 
-    # Sum the number of times the interaction is in the same module in the normal and tumor networks
-    tissue_interactions['tot_normal'] = sum([df['same_module'] for df in normal_dfs])
-    tissue_interactions['tot_tumor'] = sum([df['same_module'] for df in tumor_dfs])
+            # Sum the value of the metric in the normal and tumor networks
+            tissue_interactions[f'tot_{metric}_normal'] = sum([df[metric] for df in normal_dfs])
+            tissue_interactions[f'tot_{metric}_tumor'] = sum([df[metric] for df in tumor_dfs])
 
-    # Also get the fraction of times the interaction is in the same module
-    tissue_interactions['frac_normal'] = tissue_interactions['tot_normal'] / len(normal_dfs)
-    tissue_interactions['frac_tumor'] = tissue_interactions['tot_tumor'] / len(tumor_dfs)
-    
-    print('First 5 interactions:')
-    print('Aggregated:')
-    print(tissue_interactions[['tot_normal', 'tot_tumor', 'frac_normal', 'frac_tumor']].head())
-    
-    print('Normal:')
-    print([normal_df['same_module'].head() for normal_df in normal_dfs])
+            # Average the value of the metric in the normal and tumor networks
+            tissue_interactions[f'avg_{metric}_normal'] = tissue_interactions[f'tot_{metric}_normal'] / len(normal_dfs)
+            tissue_interactions[f'avg_{metric}_tumor'] = tissue_interactions[f'tot_{metric}_tumor'] / len(tumor_dfs)
 
-    print('Tumor:')
-    print([tumor_df['same_module'].head() for tumor_df in tumor_dfs])
+            # Add avg values to normal_vals and tumor_vals, use nans for missing
+            # Rows are interactions, columns are tissues
+            normal_vals[metric][tissue_name] = np.nan
+            tumor_vals[metric][tissue_name] = np.nan
+            normal_vals[metric].loc[tissue_interactions.index, tissue_name] = tissue_interactions[f'avg_{metric}_normal']
+            tumor_vals[metric].loc[tissue_interactions.index, tissue_name] = tissue_interactions[f'avg_{metric}_tumor']
 
-    # Get flow for each outcome
-    tissues_cat += [format_string(tissue_name, newline=False)] * 3
-    normal_cat += ['Same<br>Module', 'Same<br>Module', 'Different<br>Modules']
-    tumor_cat += ['Same<br>Module', 'Different<br>Modules', 'Same<br>Module']
-    outcome_cat += ['Both', 'Normal<br>Only', 'Tumor<br>Only']
-    
-    # Both is the fraction of tissues in which the interaction is in the same module in both normal and tumor
-    # So its the minimum of the two fractions
-    both = tissue_interactions[['frac_normal', 'frac_tumor']].min(axis=1)
-    normal_only = tissue_interactions['frac_normal'] - both
-    tumor_only = tissue_interactions['frac_tumor'] - both
-    
-    # Save fractions to all_interactions
-    all_interactions.loc[tissue_interactions.index, 'both_score'] += both
-    all_interactions.loc[tissue_interactions.index, 'normal_score'] += normal_only
-    all_interactions.loc[tissue_interactions.index, 'tumor_score'] += tumor_only
+            # Get flow for each outcome
+            tissues_cat[metric] += [format_string(tissue_name, newline=False)] * 3
+            normal_cat[metric] += ['Same<br>Module', 'Same<br>Module', 'Different<br>Modules']
+            tumor_cat[metric] += ['Same<br>Module', 'Different<br>Modules', 'Same<br>Module']
+            outcome_cat[metric] += ['Both', 'Normal<br>Only', 'Tumor<br>Only']
+            
+            # Both is the fraction of tissues in which the interaction is in the same module in both normal and tumor
+            # So its the minimum of the two fractions
+            both = tissue_interactions[[f'avg_{metric}_normal', f'avg_{metric}_tumor']].min(axis=1)
+            normal_only = tissue_interactions[f'avg_{metric}_normal'] - both
+            tumor_only = tissue_interactions[f'avg_{metric}_tumor'] - both
+            
+            # Save fractions to all_interactions
+            all_interactions.loc[tissue_interactions.index, f'both_{metric}_score'] += both
+            all_interactions.loc[tissue_interactions.index, f'normal_{metric}_score'] += normal_only
+            all_interactions.loc[tissue_interactions.index, f'tumor_{metric}_score'] += tumor_only
 
-    # Sum values
-    both = both.sum()
-    normal_only = normal_only.sum()
-    tumor_only = tumor_only.sum()
+            # Sum values
+            both = both.sum()
+            normal_only = normal_only.sum()
+            tumor_only = tumor_only.sum()
 
-    counts += [both, normal_only, tumor_only]
-    colors += [graycolor2, ncolor, tcolor]
+            counts[metric] += [both, normal_only, tumor_only]
+            colors[metric] += [graycolor2, ncolor, tcolor]
 
-n_tissues = len(tissues_cat) // 3
+        # After reading all tissues and make the actual plots
+        # Normalize counts
+        counts[metric] = np.array(counts[metric]) / sum(counts[metric])
 
-# Save categories and counts as a csv file
-df = pd.DataFrame({'Tissue': tissues_cat, 'Normal': normal_cat, 'Tumor': tumor_cat, 'Outcome': outcome_cat, 'Counts': counts})
-df.to_csv('/home/lnemati/pathway_crosstalk/results/flow/flow_diagram_data.csv', index=False)
+        # Get number of tissues
+        n_tissues = len(tissues_cat[metric]) // 3
 
-# Define index that measures the rewiring of the interaction
-#sums = all_interactions['tumor_only'] + all_interactions['normal_only'] + all_interactions['both']
-#all_interactions = all_interactions[sums > 0]
+        # Save categories and counts as a csv file
+        df = pd.DataFrame({'Tissue': tissues_cat[metric], 'Normal': normal_cat[metric], 'Tumor': tumor_cat[metric], 'Outcome': outcome_cat[metric], 'Counts': counts[metric]})
+        # Make output dir with the name of the file
+        outdir = os.path.join('/home/lnemati/pathway_crosstalk/results/flow', filename.replace('.csv', ''), metric)
+        os.makedirs(outdir, exist_ok=True)
+       
+        # Save the values per tissue to a csv file
+        print('Saving: ', f'{outdir}/normal_values.csv')
+        normal_vals[metric].to_csv(f'{outdir}/normal_values.csv')
+        print('Saving: ', f'{outdir}/tumor_values.csv')
+        tumor_vals[metric].to_csv(f'{outdir}/tumor_values.csv')
 
-# Rewiring index is T**2 - N**2 / N_tissues**2
-# 1 if all tumor, -1 if all normal, 0 if equal
-# also close to 0 if T and N are smaller than N_tissues
-#all_interactions['rewiring_index'] = (all_interactions['tumor_only']**2 - all_interactions['normal_only']**2) / n_tissues**2
+        print('Saving: ', f'{outdir}/flow_diagram_data.csv')
+        df.to_csv(f'{outdir}/flow_diagram_data.csv', index=False)
 
-# Save the interactions
-#all_interactions = all_interactions.sort_values('rewiring_index', ascending=False)
+        # Remove interactions that only have 0 values
+        # keep = all_interactions[(all_interactions[f'both_{metric}_score'] > 0) | (all_interactions[f'normal_{metric}_score'] > 0) | (all_interactions[f'tumor_{metric}_score'] > 0)].index
+        # all_interactions = all_interactions.loc[keep]
+        all_interactions[f'diff_{metric}'] = all_interactions[f'tumor_{metric}_score'] - all_interactions[f'normal_{metric}_score']
 
-# Remove interactions that only have 0 values
-keep = all_interactions[(all_interactions['both_score'] > 0) | (all_interactions['normal_score'] > 0) | (all_interactions['tumor_score'] > 0)].index
-all_interactions = all_interactions.loc[keep]
-all_interactions['diff'] = all_interactions['tumor_score'] - all_interactions['normal_score']
+        # Sort by difference between tumor and normal
+        sorted_interactions = all_interactions.sort_values(f'diff_{metric}', ascending=False)
+        # Only save scores
+        sorted_interactions = sorted_interactions[[f'both_{metric}_score', f'normal_{metric}_score', f'tumor_{metric}_score']]
+        print('Saving: ', f'{outdir}/interactions_with_counts.csv')
+        sorted_interactions.to_csv(f'{outdir}/interactions_with_counts.csv')
+        
+        if metric == 'same_module':
 
-# Sort by difference between tumor and normal
-all_interactions = all_interactions.sort_values('diff', ascending=False)
-# Only save scores
-all_interactions = all_interactions[['both_score', 'normal_score', 'tumor_score']]
-all_interactions.to_csv('/home/lnemati/pathway_crosstalk/results/flow/interactions_with_counts.csv')
+            # Make parallel categories plot, use colors to distinguish between normal and tumor
+            fig = go.Figure(data=[go.Parcats(
+                dimensions=[
+                    {'label': 'Tissue',
+                     'values': tissues_cat[metric]},
+                    {'label': 'Normal',
+                     'values': normal_cat[metric]},
+                    {'label': 'Tumor',
+                     'values': tumor_cat[metric]},
+                    {'label': 'Outcome',
+                     'values': outcome_cat[metric]}
+                ],
+                counts=counts[metric],
+                line={'shape': 'hspline', 'color': colors[metric]},
+                )]
+            )
 
-# Make parallel categories plot, use colors to distinguish between normal and tumor
-fig = go.Figure(data=[go.Parcats(
-    dimensions=[
-        {'label': 'Tissue',
-         'values': tissues_cat},
-        {'label': 'Normal',
-         'values': normal_cat},
-        {'label': 'Tumor',
-         'values': tumor_cat},
-        {'label': 'Outcome',
-         'values': outcome_cat}
-    ],
-    counts=counts,
-    line={'shape': 'hspline', 'color': colors},
-    )]
-)
+            # Larger margins, larger font, black font color
+            fig.update_layout(
+                #title_text='Flow of LR pairs',
+                margin=dict(l=250, r=120, t=50, b=50),
+                font_size=45,
+                font_color='black'
+            )
 
-# Larger margins, larger font, black font color
-fig.update_layout(
-    #title_text='Flow of LR pairs',
-    margin=dict(l=250, r=120, t=50, b=50),
-    font_size=45,
-    font_color='black'
-)
+            # Save figure make the figure big
+            print('Saving image to:', outdir)
+            fig.write_image(os.path.join(outdir, "flow.pdf"), width=3000, height=1800)
+            fig.write_image(os.path.join(outdir, "flow.png"), width=3000, height=1800)
 
-# Save figure
-output_dir = '/home/lnemati/pathway_crosstalk/results/flow'
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-
-# Save figure make the figure big
-fig.write_image(os.path.join(output_dir, "flow.pdf"), width=3000, height=1800)
-fig.write_image(os.path.join(output_dir, "flow.png"), width=3000, height=1800)
+            print()
 
 print("Done: flow.py")

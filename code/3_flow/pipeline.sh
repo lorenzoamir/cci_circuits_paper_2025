@@ -5,10 +5,10 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-FLOW=0
-GENERATE=1 # Generate bootstrap interactions
-BOOTSTRAP=1 # Get same_module for bootstrap interactions 
-AGGREGATE=1 # Aggregate bootstrap results
+FLOW=1
+GENERATE=0 # Generate bootstrap interactions
+BOOTSTRAP=0 # Get same_module for bootstrap interactions 
+AGGREGATE=0 # Aggregate bootstrap results
 SANKEY=0
 
 FLOW_QUEUE='q02anacreon'

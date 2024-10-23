@@ -41,36 +41,37 @@ for name, interaction_path in interactions_resources.items():
 
     result = interactions.copy()
 
+    # TODO: define here the different scores
     result["module"] = None
-    result["same_module"] = None
+    result["same_module"] = 0
     result["min_adj"] = None
-    result["median_adj"] = None
+    result["mean_adj"] = None
     result["min_kme_corr"] = None
-    result["median_kme_corr"] = None
+    result["mean_kme_corr"] = None
+    result["missing_genes"] = False
 
     for i, row in interactions.iterrows():
         all_genes = row["all_genes"]
         # Check if all genes are in the WGCNA object
         genes_in_wgcna = [gene for gene in all_genes if gene in wgcna_genes.index]
-
-        if wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1 and genes_in_wgcna == all_genes:
+        
+        if genes_in_wgcna != all_genes:
+            result.loc[i, "missing_genes"] = True
+        elif wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
             result.loc[i, "same_module"] = 1
             result.loc[i, "module"] = wgcna_genes.loc[all_genes[0], "moduleLabels"]
-        else:
-            result.loc[i, "same_module"] = 0
-            result.loc[i, "module"] = None
 
         # Add adjacency to interactions, use 0 value to fill for genes not in the WGCNA object
         adj = wgcna.adjacency.reindex(index=all_genes, columns=all_genes, fill_value=0)
         idxs_x, idxs_y = np.triu_indices(adj.shape[0], 1)
-        result.loc[i, "median_adj"] = np.median(adj.values[idxs_x, idxs_y])
+        result.loc[i, "mean_adj"] = np.mean(adj.values[idxs_x, idxs_y])
         result.loc[i, "min_adj"] = np.min(adj.values[idxs_x, idxs_y])
 
         # Add KME correlation to interactions, use 0 value to fill for genes not in the WGCNA object
         kme = wgcna.signedKME.loc[genes_in_wgcna]
         corr = kme.T.corr().reindex(index=all_genes, columns=all_genes, fill_value=0)
         idxs_x, idxs_y = np.triu_indices(corr.shape[0], 1)
-        result.loc[i, "median_kme_corr"] = np.median(corr.values[idxs_x, idxs_y])
+        result.loc[i, "mean_kme_corr"] = np.mean(corr.values[idxs_x, idxs_y])
         result.loc[i, "min_kme_corr"] = np.min(corr.values[idxs_x, idxs_y])
     
     # Show results
