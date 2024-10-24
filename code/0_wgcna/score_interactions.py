@@ -25,8 +25,9 @@ print("output_path", output_path)
 print("filename", filename)
 
 interactions_resources = {
-    'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
-    'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
+    #'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
+    #'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
+    'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
 }
 
 for name, interaction_path in interactions_resources.items():
