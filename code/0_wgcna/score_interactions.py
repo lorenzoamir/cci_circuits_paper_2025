@@ -27,7 +27,8 @@ print("filename", filename)
 interactions_resources = {
     #'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
     #'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
-    'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
+    #'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
+    'all_ccc_gene_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_gene_pairs.csv',
 }
 
 for name, interaction_path in interactions_resources.items():
@@ -45,10 +46,12 @@ for name, interaction_path in interactions_resources.items():
     # TODO: define here the different scores
     result["module"] = None
     result["same_module"] = 0
-    result["min_adj"] = None
-    result["mean_adj"] = None
-    result["min_kme_corr"] = None
-    result["mean_kme_corr"] = None
+    result['adj'] = None
+    #result["min_adj"] = None
+    #result["mean_adj"] = None
+    result['kme_corr'] = None
+    #result["min_kme_corr"] = None
+    #result["mean_kme_corr"] = None
     result["missing_genes"] = False
 
     for i, row in interactions.iterrows():
@@ -61,19 +64,25 @@ for name, interaction_path in interactions_resources.items():
         elif wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
             result.loc[i, "same_module"] = 1
             result.loc[i, "module"] = wgcna_genes.loc[all_genes[0], "moduleLabels"]
+            result.loc[i, 'adj'] = wgcna.adjacency.loc[all_genes[0], all_genes[1]]
+            kme1 = wgcna.signedKME.loc[all_genes[0]]
+            kme2 = wgcna.signedKME.loc[all_genes[1]]
+            result.loc[i, 'kme_corr'] = kme1.corr(kme2)
+        
+        # This made sense when considering interactions, now that we use pairs, we don't need it
 
         # Add adjacency to interactions, use 0 value to fill for genes not in the WGCNA object
-        adj = wgcna.adjacency.reindex(index=all_genes, columns=all_genes, fill_value=0)
-        idxs_x, idxs_y = np.triu_indices(adj.shape[0], 1)
-        result.loc[i, "mean_adj"] = np.mean(adj.values[idxs_x, idxs_y])
-        result.loc[i, "min_adj"] = np.min(adj.values[idxs_x, idxs_y])
-
+        #adj = wgcna.adjacency.reindex(index=all_genes, columns=all_genes, fill_value=0)
+        #idxs_x, idxs_y = np.triu_indices(adj.shape[0], 1)
+        #result.loc[i, "mean_adj"] = np.mean(adj.values[idxs_x, idxs_y])
+        #result.loc[i, "min_adj"] = np.min(adj.values[idxs_x, idxs_y])
+        
         # Add KME correlation to interactions, use 0 value to fill for genes not in the WGCNA object
-        kme = wgcna.signedKME.loc[genes_in_wgcna]
-        corr = kme.T.corr().reindex(index=all_genes, columns=all_genes, fill_value=0)
-        idxs_x, idxs_y = np.triu_indices(corr.shape[0], 1)
-        result.loc[i, "mean_kme_corr"] = np.mean(corr.values[idxs_x, idxs_y])
-        result.loc[i, "min_kme_corr"] = np.min(corr.values[idxs_x, idxs_y])
+        #kme = wgcna.signedKME.loc[genes_in_wgcna]
+        #corr = kme.T.corr().reindex(index=all_genes, columns=all_genes, fill_value=0)
+        #idxs_x, idxs_y = np.triu_indices(corr.shape[0], 1)
+        #result.loc[i, "mean_kme_corr"] = np.mean(corr.values[idxs_x, idxs_y])
+        #result.loc[i, "min_kme_corr"] = np.min(corr.values[idxs_x, idxs_y])
     
     # Show results
     print("Showing the first 10 interactions")
