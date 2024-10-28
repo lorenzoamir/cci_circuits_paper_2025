@@ -18,6 +18,15 @@ wgcna = PyWGCNA.readWGCNA(filename)
 wgcna.CalculateSignedKME()
 wgcna_genes = wgcna.datExpr.var
 
+# Get adjacency matrix and normalize it so that the maximum degree is 1
+adj = wgcna.adjacency
+degree = adj.sum(axis=1)
+adj = adj / degree.max()
+
+# Get correlation matrix
+corr = np.corrcoef(wgcna.datExpr.X.T)
+corr = pd.DataFrame(corr, index=wgcna_genes.index, columns=wgcna_genes.index)
+
 # output_path is the path to the folder
 output_path = "/".join(filename.split("/")[:-1]) + "/"
 
@@ -46,6 +55,7 @@ for name, interaction_path in interactions_resources.items():
     # TODO: define here the different scores
     result["module"] = None
     result["same_module"] = 0
+    result['corr'] = None
     result['adj'] = None
     #result["min_adj"] = None
     #result["mean_adj"] = None
@@ -60,14 +70,19 @@ for name, interaction_path in interactions_resources.items():
         genes_in_wgcna = [gene for gene in all_genes if gene in wgcna_genes.index]
         
         if genes_in_wgcna != all_genes:
+            # Check for missing genes
             result.loc[i, "missing_genes"] = True
-        elif wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
-            result.loc[i, "same_module"] = 1
-            result.loc[i, "module"] = wgcna_genes.loc[all_genes[0], "moduleLabels"]
-            result.loc[i, 'adj'] = wgcna.adjacency.loc[all_genes[0], all_genes[1]]
+        else: 
+            # If all genes are present, calculate the scores
+            result.loc[i, 'corr'] = corr.loc[all_genes[0], all_genes[1]]
+            result.loc[i, 'adj'] = adj.loc[all_genes[0], all_genes[1]]
             kme1 = wgcna.signedKME.loc[all_genes[0]]
             kme2 = wgcna.signedKME.loc[all_genes[1]]
             result.loc[i, 'kme_corr'] = kme1.corr(kme2)
+            if wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
+                # If all genes are present and in the same module add module
+                result.loc[i, "same_module"] = 1
+                result.loc[i, "module"] = wgcna_genes.loc[all_genes[0], "moduleLabels"]
         
         # This made sense when considering interactions, now that we use pairs, we don't need it
 

@@ -41,6 +41,7 @@ tissues_df = tissues_df.append([{'tissue': tissue_name, 'subtissue': subtissue, 
 
 # Store directories in all_tissues
 tissues_df['path'] = tissues_df.subtissue
+tissues_df['subtissue'] = tissues_df.subtissue.apply(lambda x: x.split('/')[-1])
 
 # Print each path and whether it exists
 for path in tissues_df['path']:
@@ -49,26 +50,29 @@ for path in tissues_df['path']:
 print('Tissues dataframe:', tissues_df.shape)
 print(tissues_df.head())
 
+# Save tissues_df to a csv file
+tissues_df.to_csv('/home/lnemati/pathway_crosstalk/data/tissues.csv', index=False)
+
 # Find tissues that have both tumor and normal conditions
-tissues = tissues_df.groupby('tissue').condition.nunique()
-tissues = tissues[tissues == 2].index
-print('Tissues with both tumor and normal:', len(tissues))
+#tissues = tissues_df.groupby('tissue').condition.nunique()
+#tissues = tissues[tissues == 2].index
+#print('Tissues with both tumor and normal:', len(tissues))
 
 # Remove normal testis subtissues
-tissues_df = tissues_df[~((tissues_df.tissue == 'testis') & (tissues_df.condition == 'normal'))]
-tissues = [x for x in tissues if x != 'testis']
+# tissues_df = tissues_df[~((tissues_df.tissue == 'testis') & (tissues_df.condition == 'normal'))]
+# tissues = [x for x in tissues if x != 'testis']
 
 # Join thyroid_gland and thyroid subtissues into the same tissue
-tissues_df.loc[tissues_df.tissue == 'thyroid_gland', 'tissue'] = 'thyroid'
+# tissues_df.loc[tissues_df.tissue == 'thyroid_gland', 'tissue'] = 'thyroid'
 
 # Set all subtissues that don't have both tumor and normal to 'other_tissues'
-tissues_df.loc[~tissues_df.tissue.isin(tissues), 'tissue'] = 'other_tissues'
+# tissues_df.loc[~tissues_df.tissue.isin(tissues), 'tissue'] = 'other_tissues'
 
 # Print all tissues with corresponding number of tumor and normal subtissues
-print('Tissues:', tissues_df.groupby('tissue').subtissue.nunique())
+#print('Tissues:', tissues_df.groupby('tissue').subtissue.nunique())
 
-print(tissues_df.head())
-print(tissues_df['path'].head())
+#print(tissues_df.head())
+#print(tissues_df['path'].head())
 
 # Make new normal and tumor dirs with new tissue names as keys and paths as values
 tumor_dirs = {}
@@ -126,50 +130,67 @@ for metric in metrics:
 
 normal_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
 tumor_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
+missing_genes = pd.DataFrame(index=all_interactions.index)
 
 for metric in metrics:
-    for tissue in tissues_df.tissue.unique():
-        tissue_name = tissue
-        print('tissue:', tissue_name)
+    for i, row in tissues_df.iterrows():
+        tissue = row.tissue
+        path = row.path
+        subtissue = row.subtissue
+        condition = row.condition
+        path = row.path
+
+        print('tissue:', tissue)
+        print('subtissue:', subtissue)
 
         # Make a copy of all_interactions for this tissue
         tissue_interactions = all_interactions.copy() 
         tissue_interactions[metric] = 0
+    
+        # Read the interactions table for this subtissue
+        df = pd.read_csv(os.path.join(path, 'interactions', filename), index_col='interaction')
+        # Fill nan values with 0
+        df = df.fillna(0)
+        #normal_dfs = [df.fillna(0) for df in normal_dfs]
+        #tumor_dfs = [df.fillna(0) for df in tumor_dfs]
 
-        # Find all interactions tables in the normal and tumor interactions directories
-        normal_dfs = [os.path.join(n_dir, 'interactions', filename) for n_dir in normal_dirs[tissue_name]]   
-        tumor_dfs = [os.path.join(t_dir, 'interactions', filename) for t_dir in tumor_dirs[tissue_name]]
+        ## Find all interactions tables in the normal and tumor interactions directories
+        #normal_dfs = [os.path.join(n_dir, 'interactions', filename) for n_dir in normal_dirs[tissue_name]]   
+        #tumor_dfs = [os.path.join(t_dir, 'interactions', filename) for t_dir in tumor_dirs[tissue_name]]
 
-        # Read the dataframes
-        normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
-        tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
+        ## Read the dataframes
+        #normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
+        #tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
 
-        # Print shapes
-        print('Normal shapes:', [df.shape for df in normal_dfs])
-        print('Tumor shapes:', [df.shape for df in tumor_dfs])
-       
         # Make sure all dfs follow the same order
-        normal_dfs = [df.loc[tissue_interactions.index] for df in normal_dfs]
-        tumor_dfs = [df.loc[tissue_interactions.index] for df in tumor_dfs]
+        #normal_dfs = [df.loc[tissue_interactions.index] for df in normal_dfs]
+        #tumor_dfs = [df.loc[tissue_interactions.index] for df in tumor_dfs]
 
-        # For each tissue count how many interactions have missing genes
-        missing_genes = pd.DataFrame(0, index=tissue_interactions.index, columns=['normal', 'tumor'])
-        missing_genes['normal'] = sum([df['missing_genes'].astype(int) for df in normal_dfs])
-        missing_genes['tumor'] = sum([df['missing_genes'].astype(int) for df in tumor_dfs])
-
-        print('Normal shapes:', [df.shape for df in normal_dfs])
-        print('Tumor shapes:', [df.shape for df in tumor_dfs])
-
+        #print('Normal shapes:', [df.shape for df in normal_dfs])
+        #print('Tumor shapes:', [df.shape for df in tumor_dfs])
+        
+        # Add the metric values to the tissue_interactions dataframe
+        tissue_interactions[metric] = df[metric]
+        
         # Average over all normal and tumor subtissues
-        tissue_interactions[f'avg_{metric}_normal'] = sum([df[metric] for df in normal_dfs]) / len(normal_dfs)
-        tissue_interactions[f'avg_{metric}_tumor'] = sum([df[metric] for df in tumor_dfs]) / len(tumor_dfs)
+        #tissue_interactions[f'avg_{metric}_normal'] = sum([df[metric] for df in normal_dfs]) / len(normal_dfs)
+        #tissue_interactions[f'avg_{metric}_tumor'] = sum([df[metric] for df in tumor_dfs]) / len(tumor_dfs)
 
         # Add avg values to normal_vals and tumor_vals, use nans for missing
         # Rows are interactions, columns are tissues
-        normal_vals[metric][tissue_name] = np.nan
-        tumor_vals[metric][tissue_name] = np.nan
-        normal_vals[metric].loc[tissue_interactions.index, tissue_name] = tissue_interactions[f'avg_{metric}_normal']
-        tumor_vals[metric].loc[tissue_interactions.index, tissue_name] = tissue_interactions[f'avg_{metric}_tumor']
+        if condition == 'normal':
+            normal_vals[metric][subtissue] = np.nan
+            normal_vals[metric].loc[tissue_interactions.index, subtissue] = tissue_interactions[metric]
+        elif condition == 'tumor':
+            tumor_vals[metric][subtissue] = np.nan
+            tumor_vals[metric].loc[tissue_interactions.index, subtissue] = tissue_interactions[metric]
+        else:
+            print('Error: condition not tumor or normal')
+            print('Error: condition not tumor or normal', file=sys.stderr)
+            sys.exit(1)
+
+        # For each tissue count how many interactions have missing genes and add it to the dataframe
+        missing_genes[subtissue] = df['missing_genes']
 
     # Make output dir with the name of the file
     outdir = os.path.join('/home/lnemati/pathway_crosstalk/results/breakpoints', filename.replace('.csv', ''), metric)
@@ -180,5 +201,7 @@ for metric in metrics:
     normal_vals[metric].to_csv(f'{outdir}/normal_values.csv')
     print('Saving: ', f'{outdir}/tumor_values.csv')
     tumor_vals[metric].to_csv(f'{outdir}/tumor_values.csv')
+    print('Saving: ', f'{outdir}/missing_genes.csv')
+    missing_genes.to_csv(f'{outdir}/missing_genes.csv')
         
 print("Done: breakpoints.py")
