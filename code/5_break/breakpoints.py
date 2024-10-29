@@ -117,7 +117,7 @@ def format_string(string, newline=False):
     return string
 
 filename = 'all_ccc_gene_pairs.csv'
-metrics = ['adj', 'kme_corr']
+metrics = ['adj', 'kme_corr', 'corr']
 
 print('filename:', filename)
 
