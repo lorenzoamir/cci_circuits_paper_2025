@@ -35,9 +35,12 @@ print("filename", filename)
 
 interactions_resources = {
     #'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
-    #'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
     #'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
-    'all_ccc_gene_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_gene_pairs.csv',
+    #'all_ccc_gene_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_gene_pairs.csv',
+    'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
+    'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
+    'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
+    'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
 }
 
 for name, interaction_path in interactions_resources.items():
