@@ -72,7 +72,8 @@ def get_all_corrs(paths, genes):
     triu_indices = np.triu_indices(len(genes), k=1)
     for path in paths:
         wgcna = PyWGCNA.readWGCNA(path)
-        corr = np.corrcoef(wgcna.datExpr.X.T)
+        # calculate correlation matrix
+        corr = pd.DataFrame(np.corrcoef(wgcna.datExpr.X.T), index=wgcna.datExpr.var.index, columns=wgcna.datExpr.var.index)
         # reindex to include all genes
         corr = corr.reindex(index=genes, columns=genes, fill_value=0)
         corrs.append(corr.values[triu_indices])
@@ -90,7 +91,7 @@ for metric, function in [('tom', get_all_toms), ('adj', get_all_adjs), ('corr', 
     median[triu_indices] = flat
     median = median + median.T
     median = pd.DataFrame(median, index=genes, columns=genes)
-    median.to_csv(os.path.join(output, 'median', 'median_{}.csv'.format(metric)))
+    median.to_csv(os.path.join(output, 'median_{}.csv'.format(metric)))
 
 print('Done: consensus.py ({})'.format(condition))
 

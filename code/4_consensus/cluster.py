@@ -7,16 +7,17 @@ import sys
 import os
 import argparse
 
-parser = argparse.ArgumentParser(description='Find consensus modules from dissimilarity matrix')
+parser = argparse.ArgumentParser(description='Find consensus modules from consensus tom matrix')
 
-parser.add_argument('-i', '--inputdir', type=str, help='path to directory containing dissimilarity.csv', required=True)
+parser.add_argument('-i', '--inputfile', type=str, help='path to tom matrix', required=True)
 
 args = parser.parse_args()
 
-inputdir = args.inputdir
+inputfile = args.inputfile
+inputdir = os.path.dirname(inputfile)
 
 #link = pd.read_csv(os.path.join(inputdir, 'linkage.csv'), index_col=0).values
-distances = pd.read_csv(os.path.join(inputdir, 'dissimilarity.csv'), index_col=0)
+distances = 1 - pd.read_csv(os.path.join(inputfile), index_col=0)
 # Fill diagonal with 0s
 np.fill_diagonal(distances.values, 0)
 

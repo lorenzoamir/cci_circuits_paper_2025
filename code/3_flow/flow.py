@@ -116,14 +116,6 @@ metrics = ['same_module', 'adj', 'corr', 'kme_corr'] #, 'min_adj', 'mean_adj', '
 
 for filename in interactions_files:
     print('filename:', filename)
-
-    all_interactions = pd.read_csv(os.path.join('/home/lnemati/pathway_crosstalk/data/interactions', filename), index_col='interaction')
-    
-    # Init columns for each metric
-    for metric in metrics:
-        all_interactions['avg_normal'] = 0
-        all_interactions['avg_tumor'] = 0
-
     tissues_cat = {k: [] for k in metrics}
     normal_cat = {k: [] for k in metrics}
     tumor_cat = {k: [] for k in metrics}
@@ -131,11 +123,19 @@ for filename in interactions_files:
     counts = {k: [] for k in metrics}
     colors = {k: [] for k in metrics}
 
-    normal_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
-    tumor_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
+    interactions_index = pd.read_csv(os.path.join('/home/lnemati/pathway_crosstalk/data/interactions', filename), index_col='interaction').index
 
+    normal_vals = {k: pd.DataFrame(index=interactions_index) for k in metrics}
+    tumor_vals = {k: pd.DataFrame(index=interactions_index) for k in metrics}
+    
     for metric in metrics:
         print('metric:', metric)
+
+        all_interactions = pd.read_csv(os.path.join('/home/lnemati/pathway_crosstalk/data/interactions', filename), index_col='interaction')
+        
+        # Init columns for each metric
+        all_interactions['avg_normal'] = 0
+        all_interactions['avg_tumor'] = 0
 
         for tissue in tissues_df.tissue.unique():
             tissue_name = tissue
@@ -148,13 +148,20 @@ for filename in interactions_files:
             normal_dfs = [os.path.join(n_dir, 'interactions', filename) for n_dir in normal_dirs[tissue_name]]   
             tumor_dfs = [os.path.join(t_dir, 'interactions', filename) for t_dir in tumor_dirs[tissue_name]]
 
-            # Read the dataframes
-            normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
-            tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
+            # Read the dataframes, fill nans with 0
+            normal_dfs = [pd.read_csv(df, index_col='interaction').fillna(0) for df in normal_dfs]
+            tumor_dfs = [pd.read_csv(df, index_col='interaction').fillna(0) for df in tumor_dfs]
 
             # Merge normal and tumor interactions with the full interaction network
             new_dfs = []
             for df in normal_dfs:
+                # DEBUG: if any df has any value outside of the range -1 to 1, print the path
+                if (df[metric] > 1).any() or (df[metric] < -1).any():
+                    print('!!! Value outside of range -1 to 1 !!!')
+                    print('normal df:', df[metric].max(), df[metric].min())
+                    print(metric)
+                    print('path:', df)
+                    print()
                 n_tmp = tissue_interactions.copy()
                 n_tmp['metric'] = 0
                 n_tmp.loc[df.index, metric] = df[metric] # Add the values of the metric to the interaction network
@@ -163,6 +170,13 @@ for filename in interactions_files:
 
             new_dfs = []
             for df in tumor_dfs:
+                # DEBUG: if any df has any value outside of the range -1 to 1, print the path
+                if (df[metric] > 1).any() or (df[metric] < -1).any():
+                    print('!!! Value outside of range -1 to 1 !!!')
+                    print('tumor df:', df[metric].max(), df[metric].min())
+                    print(metric)
+                    print('path:', df)
+                    print()
                 t_tmp = tissue_interactions.copy()
                 t_tmp['metric'] = 0
                 t_tmp.loc[df.index, metric] = df[metric] # Add the values of the metric to the interaction network
@@ -208,6 +222,19 @@ for filename in interactions_files:
             #all_interactions.loc[tissue_interactions.index, f'both_score'] += both
             all_interactions.loc[tissue_interactions.index, 'avg_normal'] += tissue_interactions['avg_normal'] / tissues_df.tissue.nunique()
             all_interactions.loc[tissue_interactions.index, 'avg_tumor'] += tissue_interactions['avg_tumor'] / tissues_df.tissue.nunique()
+
+            # DEBUG: if any tumor - normal difference has absolute value greater than 2, print the tissue name
+            if (tissue_interactions['avg_tumor'] - tissue_interactions['avg_normal']).abs().max() > 2:
+                print('!!! Difference greater than 2 !!!')
+                print('tissue:', tissue_name)
+                print('max diff:', (tissue_interactions['avg_tumor'] - tissue_interactions['avg_normal']).abs().max())
+                print('max normal:', tissue_interactions['avg_normal'].max())
+                print('max tumor:', tissue_interactions['avg_tumor'].max())
+                print('min normal:', tissue_interactions['avg_normal'].min())
+                print('min tumor:', tissue_interactions['avg_tumor'].min())
+                print('diff:', tissue_interactions['avg_tumor'] - tissue_interactions['avg_normal'])
+                print()
+
             print()
 
             print(f'tissue {tissue_name} max and min of avg_normal and avg_tumor:')
@@ -246,12 +273,6 @@ for filename in interactions_files:
         sorted_interactions = all_interactions.sort_values('diff', ascending=False)
         sorted_interactions = sorted_interactions[['avg_tumor', 'avg_normal', 'diff']]
         print('Saving: ', f'{outdir}/interactions_with_scores.csv')
-
-        # DEBUG print max and min of scores and diff
-        print('line 247:', sorted_interactions['avg_tumor'].max(), sorted_interactions['avg_tumor'].min())
-        print('line 248:', sorted_interactions['avg_normal'].max(), sorted_interactions['avg_normal'].min())
-        print('line 249:', sorted_interactions['diff'].max(), sorted_interactions['diff'].min())
-
 
         sorted_interactions.to_csv(f'{outdir}/interactions_with_scores.csv')
         
