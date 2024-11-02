@@ -135,6 +135,8 @@ for filename in interactions_files:
     tumor_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
 
     for metric in metrics:
+        print('metric:', metric)
+
         for tissue in tissues_df.tissue.unique():
             tissue_name = tissue
             print('tissue:', tissue_name)
@@ -150,12 +152,7 @@ for filename in interactions_files:
             normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
             tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
 
-            # Print shapes
-            print('Normal shapes:', [df.shape for df in normal_dfs])
-            print('Tumor shapes:', [df.shape for df in tumor_dfs])
-
             # Merge normal and tumor interactions with the full interaction network
-            print('Merging')
             new_dfs = []
             for df in normal_dfs:
                 n_tmp = tissue_interactions.copy()
@@ -175,9 +172,6 @@ for filename in interactions_files:
             # Make sure all dfs follow the same order
             normal_dfs = [df.loc[tissue_interactions.index] for df in normal_dfs]
             tumor_dfs = [df.loc[tissue_interactions.index] for df in tumor_dfs]
-
-            print('Normal shapes:', [df.shape for df in normal_dfs])
-            print('Tumor shapes:', [df.shape for df in tumor_dfs])
 
             # Average the value of the metric in the normal and tumor networks on all subtissues
             tissue_interactions['avg_normal'] = sum([df[metric] for df in normal_dfs]) / len(normal_dfs)
@@ -214,6 +208,16 @@ for filename in interactions_files:
             #all_interactions.loc[tissue_interactions.index, f'both_score'] += both
             all_interactions.loc[tissue_interactions.index, 'avg_normal'] += tissue_interactions['avg_normal'] / tissues_df.tissue.nunique()
             all_interactions.loc[tissue_interactions.index, 'avg_tumor'] += tissue_interactions['avg_tumor'] / tissues_df.tissue.nunique()
+            print()
+
+            print(f'tissue {tissue_name} max and min of avg_normal and avg_tumor:')
+            print('avg_normal:', tissue_interactions['avg_normal'].max(), tissue_interactions['avg_normal'].min())
+            print('avg_tumor:', tissue_interactions['avg_tumor'].max(), tissue_interactions['avg_tumor'].min())
+
+        # DEBUG print max and min of scores
+        print(f'metric {metric} max and min of avg_normal and avg_tumor:')
+        print('avg_normal:', all_interactions['avg_normal'].max(), all_interactions['avg_normal'].min())
+        print('avg_tumor:', all_interactions['avg_tumor'].max(), all_interactions['avg_tumor'].min())
 
         # After reading all tissues and make the actual plots
         # Normalize counts
@@ -242,6 +246,13 @@ for filename in interactions_files:
         sorted_interactions = all_interactions.sort_values('diff', ascending=False)
         sorted_interactions = sorted_interactions[['avg_tumor', 'avg_normal', 'diff']]
         print('Saving: ', f'{outdir}/interactions_with_scores.csv')
+
+        # DEBUG print max and min of scores and diff
+        print('line 247:', sorted_interactions['avg_tumor'].max(), sorted_interactions['avg_tumor'].min())
+        print('line 248:', sorted_interactions['avg_normal'].max(), sorted_interactions['avg_normal'].min())
+        print('line 249:', sorted_interactions['diff'].max(), sorted_interactions['diff'].min())
+
+
         sorted_interactions.to_csv(f'{outdir}/interactions_with_scores.csv')
         
         if metric == 'same_module':
@@ -277,5 +288,8 @@ for filename in interactions_files:
             fig.write_image(os.path.join(outdir, "flow.png"), width=3000, height=1800)
 
             print()
+
+        print()
+    print()
 
 print("Done: flow.py")
