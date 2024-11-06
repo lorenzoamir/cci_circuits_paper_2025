@@ -151,31 +151,10 @@ for metric in metrics:
         df = pd.read_csv(os.path.join(path, 'interactions', filename), index_col='interaction')
         # Fill nan values with 0
         df = df.fillna(0)
-        #normal_dfs = [df.fillna(0) for df in normal_dfs]
-        #tumor_dfs = [df.fillna(0) for df in tumor_dfs]
-
-        ## Find all interactions tables in the normal and tumor interactions directories
-        #normal_dfs = [os.path.join(n_dir, 'interactions', filename) for n_dir in normal_dirs[tissue_name]]   
-        #tumor_dfs = [os.path.join(t_dir, 'interactions', filename) for t_dir in tumor_dirs[tissue_name]]
-
-        ## Read the dataframes
-        #normal_dfs = [pd.read_csv(df, index_col='interaction') for df in normal_dfs]
-        #tumor_dfs = [pd.read_csv(df, index_col='interaction') for df in tumor_dfs]
-
-        # Make sure all dfs follow the same order
-        #normal_dfs = [df.loc[tissue_interactions.index] for df in normal_dfs]
-        #tumor_dfs = [df.loc[tissue_interactions.index] for df in tumor_dfs]
-
-        #print('Normal shapes:', [df.shape for df in normal_dfs])
-        #print('Tumor shapes:', [df.shape for df in tumor_dfs])
         
         # Add the metric values to the tissue_interactions dataframe
         tissue_interactions[metric] = df[metric]
         
-        # Average over all normal and tumor subtissues
-        #tissue_interactions[f'avg_{metric}_normal'] = sum([df[metric] for df in normal_dfs]) / len(normal_dfs)
-        #tissue_interactions[f'avg_{metric}_tumor'] = sum([df[metric] for df in tumor_dfs]) / len(tumor_dfs)
-
         # Add avg values to normal_vals and tumor_vals, use nans for missing
         # Rows are interactions, columns are tissues
         if condition == 'normal':
