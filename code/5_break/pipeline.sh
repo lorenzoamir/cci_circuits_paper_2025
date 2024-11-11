@@ -7,11 +7,11 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 BREAK=1
 
-BREAK_QUEUE='q02anacreon'
+BREAK_QUEUE='q02gaia'
 
-BREAK_NCPUS=8
+BREAK_NCPUS=32
 
-BREAK_MEMORY=16gb
+BREAK_MEMORY=100gb
 
 cd /home/lnemati/pathway_crosstalk/code/5_break
 script_dir="/home/lnemati/pathway_crosstalk/code/5_break/scripts"

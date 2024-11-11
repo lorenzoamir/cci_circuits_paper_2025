@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N bkp
-#PBS -l select=1:ncpus=8:ngpus=0:mem=16gb
-#PBS -q q02anacreon
+#PBS -l select=1:ncpus=32:ngpus=0:mem=100gb
+#PBS -q q02gaia
 mkdir -p /home/lnemati/pathway_crosstalk/code/5_break
 cd /home/lnemati/pathway_crosstalk/code/5_break
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"

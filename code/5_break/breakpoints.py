@@ -4,7 +4,7 @@ import numpy as np
 import PyWGCNA
 import gseapy as gp
 import argparse
-import plotly.graph_objects as go
+from multiprocessing import Pool
 import sys
 
 tcolor     = '#ab3502'
@@ -91,33 +91,10 @@ for i, row in tissues_df.iterrows():
 print('Tumor dirs:', tumor_dirs)
 print('Normal dirs:', normal_dirs)
 
-def format_string(string, newline=False):
-    '''
-    replaces _ with space and capitalizes the first letter of each word.
-    finds which of the spaces can be replaced with a newline as to make the
-    two resulting lines of text as close to equal length as possible.
-    '''
-    # Replace _ with space
-    string = string.replace('_', ' ').title()
-    
-    if newline:
-        # If string has less than 20 characters, don't bother
-        if len(string) < 10:
-            return string
-        # Find the space that makes the two lines of text as close to equal length as possible
-        diffs = []
-
-        for i, words in enumerate(string.split()):
-            diffs.append(abs(len(' '.join(string.split()[:i])) - len(' '.join(string.split()[i:]))))
-            
-        # Find which space corresponds to the minimum difference and replace it with <br>
-        n_space = diffs.index(min(diffs)) # e.g. the second ' ' in the string
-        string = ' '.join(string.split()[:n_space]) + '<br>' + ' '.join(string.split()[n_space:])
-
-    return string
-
-filename = 'all_ccc_gene_pairs.csv'
-metrics = ['adj', 'kme_corr', 'corr']
+#filename = 'all_ccc_gene_pairs.csv'
+filename = 'all_ccc_complex_pairs.csv'
+#metrics = ['adj', 'kme_corr', 'corr']
+metrics = ['adj']
 
 print('filename:', filename)
 
@@ -132,55 +109,117 @@ normal_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
 tumor_vals = {k: pd.DataFrame(index=all_interactions.index) for k in metrics}
 missing_genes = pd.DataFrame(index=all_interactions.index)
 
-for metric in metrics:
-    for i, row in tissues_df.iterrows():
-        tissue = row.tissue
-        path = row.path
-        subtissue = row.subtissue
-        condition = row.condition
-        path = row.path
+def process_tissue(row, metric, filename, all_interactions):
+    tissue = row.tissue
+    path = row.path
+    subtissue = row.subtissue
+    condition = row.condition
 
-        print('tissue:', tissue)
-        print('subtissue:', subtissue)
+    # Make a copy of all_interactions for this tissue
+    tissue_interactions = all_interactions.copy()
+    tissue_interactions[metric] = 0
 
-        # Make a copy of all_interactions for this tissue
-        tissue_interactions = all_interactions.copy() 
-        tissue_interactions[metric] = 0
-    
-        # Read the interactions table for this subtissue
-        df = pd.read_csv(os.path.join(path, 'interactions', filename), index_col='interaction')
-        # Fill nan values with 0
-        df = df.fillna(0)
-        
-        # Add the metric values to the tissue_interactions dataframe
-        tissue_interactions[metric] = df[metric]
-        
-        # Add avg values to normal_vals and tumor_vals, use nans for missing
-        # Rows are interactions, columns are tissues
+    # Read the interactions table for this subtissue
+    df = pd.read_csv(os.path.join(path, 'interactions', filename), index_col='interaction')
+    df = df.fillna(0)
+
+    # Add the metric values to the tissue_interactions dataframe
+    tissue_interactions[metric] = df[metric]
+
+    # Prepare result dictionary to update main data structures in parent process
+    result = {
+        'tissue': tissue,
+        'subtissue': subtissue,
+        'condition': condition,
+        'metric_values': tissue_interactions[metric],
+        'missing_genes': df['missing_genes']
+    }
+    return result
+
+def parallel_process(metric, tissues_df, filename, all_interactions):
+    ncpus = os.environ.get('NCPUS')
+    with Pool(int(ncpus)) as pool:
+        results = pool.starmap(
+            process_tissue,
+            [(row, metric, filename, all_interactions) for _, row in tissues_df.iterrows()]
+        )
+
+    # Aggregate results into normal_vals, tumor_vals, and missing_genes
+    for result in results:
+        subtissue = result['subtissue']
+        condition = result['condition']
+        metric_values = result['metric_values']
+        missing_genes[subtissue] = result['missing_genes']
+
         if condition == 'normal':
             normal_vals[metric][subtissue] = np.nan
-            normal_vals[metric].loc[tissue_interactions.index, subtissue] = tissue_interactions[metric]
+            normal_vals[metric].loc[metric_values.index, subtissue] = metric_values
         elif condition == 'tumor':
             tumor_vals[metric][subtissue] = np.nan
-            tumor_vals[metric].loc[tissue_interactions.index, subtissue] = tissue_interactions[metric]
-        else:
-            print('Error: condition not tumor or normal')
-            print('Error: condition not tumor or normal', file=sys.stderr)
-            sys.exit(1)
+            tumor_vals[metric].loc[metric_values.index, subtissue] = metric_values
 
-        # For each tissue count how many interactions have missing genes and add it to the dataframe
-        missing_genes[subtissue] = df['missing_genes']
-
-    # Make output dir with the name of the file
+    # Save the values per tissue to a csv file
     outdir = os.path.join('/home/lnemati/pathway_crosstalk/results/breakpoints', filename.replace('.csv', ''), metric)
     os.makedirs(outdir, exist_ok=True)
-   
-    # Save the values per tissue to a csv file
     print('Saving: ', f'{outdir}/normal_values.csv')
     normal_vals[metric].to_csv(f'{outdir}/normal_values.csv')
     print('Saving: ', f'{outdir}/tumor_values.csv')
     tumor_vals[metric].to_csv(f'{outdir}/tumor_values.csv')
     print('Saving: ', f'{outdir}/missing_genes.csv')
     missing_genes.to_csv(f'{outdir}/missing_genes.csv')
-        
+
+# Main loop to parallelize over metrics
+for metric in metrics:
+    parallel_process(metric, tissues_df, filename, all_interactions)
+
 print("Done: breakpoints.py")
+
+
+# OLD CODE: no multiprocessing
+#
+#for metric in metrics:
+#    for i, row in tissues_df.iterrows():
+#        tissue = row.tissue
+#        path = row.path
+#        subtissue = row.subtissue
+#        condition = row.condition
+#        path = row.path
+#
+#        print('tissue:', tissue)
+#        print('subtissue:', subtissue)
+#
+#        # Make a copy of all_interactions for this tissue
+#        tissue_interactions = all_interactions.copy()
+#        tissue_interactions[metric] = 0
+#
+#        # Read the interactions table for this subtissue
+#        df = pd.read_csv(os.path.join(path, 'interactions', filename), index_col='interaction')
+#        # Fill nan values with 0
+#        df = df.fillna(0)
+#
+#        # Add the metric values to the tissue_interactions dataframe
+#        tissue_interactions[metric] = df[metric]
+#
+#        # Add avg values to normal_vals and tumor_vals, use nans for missing
+#        # Rows are interactions, columns are tissues
+#        if condition == 'normal':
+#            normal_vals[metric][subtissue] = np.nan
+#            normal_vals[metric].loc[tissue_interactions.index, subtissue] = tissue_interactions[metric]
+#        elif condition == 'tumor':
+#            tumor_vals[metric][subtissue] = np.nan
+#            tumor_vals[metric].loc[tissue_interactions.index, subtissue] = tissue_interactions[metric]
+#
+#        # For each tissue count how many interactions have missing genes and add it to the dataframe
+#        missing_genes[subtissue] = df['missing_genes']
+#
+#    # Make output dir with the name of the file
+#    outdir = os.path.join('/home/lnemati/pathway_crosstalk/results/breakpoints', filename.replace('.csv', ''), metric)
+#    os.makedirs(outdir, exist_ok=True)
+#
+#    # Save the values per tissue to a csv file
+#    print('Saving: ', f'{outdir}/normal_values.csv')
+#    normal_vals[metric].to_csv(f'{outdir}/normal_values.csv')
+#    print('Saving: ', f'{outdir}/tumor_values.csv')
+#    tumor_vals[metric].to_csv(f'{outdir}/tumor_values.csv')
+#    print('Saving: ', f'{outdir}/missing_genes.csv')
+#    missing_genes.to_csv(f'{outdir}/missing_genes.csv')

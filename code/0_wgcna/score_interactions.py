@@ -7,7 +7,7 @@ import ast
 import os
 import argparse
 
-parser = argparse.ArgumentParser(description='Find interactions in WGCNA results')
+parser = argparse.ArgumentParser(description='Score interactions in WGCNA results')
 
 parser.add_argument('-i', '--input', type=str, help='path to input wgcna file')
 
@@ -37,10 +37,11 @@ interactions_resources = {
     #'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
     #'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
     #'all_ccc_gene_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_gene_pairs.csv',
-    'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
-    'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
-    'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
-    'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
+    #'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
+    #'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
+    #'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
+    #'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
+    'all_ccc_complex_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv',
 }
 
 for name, interaction_path in interactions_resources.items():
@@ -73,15 +74,16 @@ for name, interaction_path in interactions_resources.items():
         genes_in_wgcna = [gene for gene in all_genes if gene in wgcna_genes.index]
         
         if genes_in_wgcna != all_genes:
-            # Check for missing genes
+            # Check for missing genes, if genes are missing leave nans, you can fill with 0 later
             result.loc[i, "missing_genes"] = True
         else: 
             # If all genes are present, calculate the scores
-            result.loc[i, 'corr'] = corr.loc[all_genes[0], all_genes[1]]
-            result.loc[i, 'adj'] = adj.loc[all_genes[0], all_genes[1]]
+            # Aggregate multiple values by taking the minimum
+            result.loc[i, 'corr'] = corr.loc[all_genes[0], all_genes[1]].min()
+            result.loc[i, 'adj'] = adj.loc[all_genes[0], all_genes[1]].min()
             kme1 = wgcna.signedKME.loc[all_genes[0]]
             kme2 = wgcna.signedKME.loc[all_genes[1]]
-            result.loc[i, 'kme_corr'] = kme1.corr(kme2)
+            result.loc[i, 'kme_corr'] = kme1.corr(kme2).min()
             if wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
                 # If all genes are present and in the same module add module
                 result.loc[i, "same_module"] = 1
