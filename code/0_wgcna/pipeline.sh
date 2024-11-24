@@ -12,11 +12,12 @@ SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5
 DESEQ=0
 WGCNA=0
 NETWORK=0
+GPCR=1
 HUBS=0
 RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
-SCORE_INTS=1
+SCORE_INTS=0
 ENRICHMENT=0
 STATS=0
 
@@ -24,6 +25,7 @@ SEPARATE_QUEUE="q02anacreon"
 DESEQ_QUEUE="q02anacreon"
 WGCNA_QUEUE="q02anacreon"
 NETWORK_QUEUE="q02gaia"
+GPCR_QUEUE="q02gaia"
 HUBS_QUEUE="q02anacreon"
 RANK_ADJ_QUEUE="q02anacreon"
 COEVOLUTION_QUEUE="q02anacreon"
@@ -35,6 +37,7 @@ SEP_NCPUS=16
 DESEQ_NCPUS=8
 WGCNA_NCPUS=4
 NETWORK_NCPUS=2
+GPCR_NCPUS=1
 HUBS_NCPUS=2
 RANK_ADJ_NCPUS=2
 COEVOLUTION_NCPUS=8
@@ -46,6 +49,7 @@ SEP_MEMORY=64gb
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
 NETWORK_MEMORY=32gb
+GPCR_MEMORY=8gb
 HUBS_MEMORY=20gb
 RANK_ADJ_MEMORY=16gb # Failed with 12gb
 COEVOLUTION_MEMORY=18gb
@@ -177,6 +181,32 @@ for file in "${files[@]}"; do
             -e "WGCNA" \
             -w "$waiting_list" \
             -c "python network.py --input ${wgcnafile}")
+
+        echo ""
+    fi
+
+    # ----- GPCR -----
+    if [ $GPCR -eq 1 ]; then
+        echo "GPCR"
+
+        # Create job script
+        gpcr_name=gpcr_"$job_name"
+        gpcr_script=$(dirname "$file")/scripts/$gpcr_name.sh
+
+        # Wait for wgcna job to finish
+        waiting_list=""
+        [ $WGCNA -eq 1 ] && waiting_list="$waiting_list:$wgcna_id"
+        echo "Waiting list: $waiting_list"
+
+        gpcr_id=$(fsub \
+            -p "$gpcr_script" \
+            -n "$gpcr_name" \
+            -nc "$GPCR_NCPUS" \
+            -m "$GPCR_MEMORY" \
+            -q "$GPCR_QUEUE" \
+            -e "WGCNA" \
+            -w "$waiting_list" \
+            -c "python gpcrs.py --input ${wgcnafile}")
 
         echo ""
     fi

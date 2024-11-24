@@ -8,18 +8,20 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 COMPARE=0
 COEVOLUTION=0
 NODES=0
+AVG=1
 INT_NETWORK=0
 INT_PAIRS=0
 RANK_INT=0
 LR_PAIRS=0
 PW_NETWORK=0
 RANK_PWS=0
-CONSESUS=1
+CONSESUS=0
 CORR_CONS=0
 
 COMPARE_QUEUE='q02anacreon'
 COEVOLUTION_QUEUE='q02anacreon'
 NODES_QUEUE='q02gaia'
+AVG_QUEUE='q02anacreon'
 INT_NETWORK_QUEUE='q02anacreon'
 INT_PAIRS_QUEUE='q02anacreon'
 RANK_INT_QUEUE='q02gaia'
@@ -32,6 +34,7 @@ CORR_CONS_QUEUE='q02gaia'
 COMPARE_NCPUS=8
 COEVOLUTION_NCPUS=50
 NODES_NCPUS=8
+AVG_NCPUS=4
 INT_NETWORK_NCPUS=8
 INT_PAIRS_NCPUS=40
 RANK_INT_NCPUS=32
@@ -44,6 +47,7 @@ CORR_CONS_NCPUS=8
 COMPARE_MEMORY=8gb
 COEVOLUTION_MEMORY=64gb # Generating the full tensor requires 150gb
 NODES_MEMORY=8gb
+AVG_MEMORY=8gb
 INT_NETWORK_MEMORY=16gb
 INT_PAIRS_MEMORY=24gb
 RANK_INT_MEMORY=24gb #Succeded with 24gb
@@ -113,6 +117,21 @@ if [ $NODES -eq 1 ]; then
         -e "WGCNA" \
         -q "$NODES_QUEUE" \
         -c "python node_metrics.py --dir-list $all_directories")
+fi
+
+if [ $AVG -eq 1 ]; then
+    echo 'Average'
+    avg_name="avg"
+    avg_script="/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/average.sh"
+
+    avg_id=$(fsub \
+        -p "$avg_script" \
+        -n "$avg_name" \
+        -nc "$AVG_NCPUS" \
+        -m "$AVG_MEMORY" \
+        -e "WGCNA" \
+        -q "$AVG_QUEUE" \
+        -c "python averages.py --dir-list $all_directories")
 fi
 
 if [ $INT_NETWORK -eq 1 ]; then
