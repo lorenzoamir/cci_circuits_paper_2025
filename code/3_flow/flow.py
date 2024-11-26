@@ -35,11 +35,19 @@ for tissue_dir in tissue_dirs:
 
 # Make a dataframe with tissue, subtissue, condition
 tissues_df = pd.DataFrame(columns=['tissue', 'subtissue', 'condition'])
-tissues_df = tissues_df.append([{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'tumor'} for tissue_name in tumor_dirs for subtissue in tumor_dirs[tissue_name]])
-tissues_df = tissues_df.append([{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'normal'} for tissue_name in normal_dirs for subtissue in normal_dirs[tissue_name]])
+
+# Create dataframes for tumor and normal conditions
+tumor_data = [{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'tumor'}
+              for tissue_name in tumor_dirs for subtissue in tumor_dirs[tissue_name]]
+normal_data = [{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'normal'}
+               for tissue_name in normal_dirs for subtissue in normal_dirs[tissue_name]]
+
+# Concatenate the dataframes
+tissues_df = pd.concat([tissues_df, pd.DataFrame(tumor_data), pd.DataFrame(normal_data)], ignore_index=True)
 
 # Store directories in all_tissues
 tissues_df['path'] = tissues_df.subtissue
+tissues_df['subtissue'] = tissues_df.subtissue.apply(lambda x: x.split('/')[-1])
 
 # Print each path and whether it exists
 for path in tissues_df['path']:
@@ -112,7 +120,7 @@ def format_string(string, newline=False):
     return string
 
 interactions_files = ['ccc_lr_pairs.csv', 'intact_direct.csv', 'intact_physical.csv', 'intact_association.csv']
-metrics = ['same_module', 'adj', 'corr', 'kme_corr'] #, 'min_adj', 'mean_adj', 'min_kme_corr', 'mean_kme_corr']
+metrics = ['same_module', 'kme_cos'] #, 'min_adj', 'mean_adj', 'min_kme_corr', 'mean_kme_corr']
 
 for filename in interactions_files:
     print('filename:', filename)
@@ -136,7 +144,10 @@ for filename in interactions_files:
         # Init columns for each metric
         all_interactions['avg_normal'] = 0
         all_interactions['avg_tumor'] = 0
-
+        
+        # Take all_interactions columns and add tissue and condition columns
+        columns = list(all_interactions.columns) + ['tissue', 'condition']
+        
         for tissue in tissues_df.tissue.unique():
             tissue_name = tissue
             print('tissue:', tissue_name)
@@ -218,33 +229,10 @@ for filename in interactions_files:
             counts[metric] += [both, normal_only, tumor_only]
             colors[metric] += [graycolor2, ncolor, tcolor]
             
-            # Save fractions to all_interactions
-            #all_interactions.loc[tissue_interactions.index, f'both_score'] += both
+            # Save fractions to all_interactions, average over tissues
             all_interactions.loc[tissue_interactions.index, 'avg_normal'] += tissue_interactions['avg_normal'] / tissues_df.tissue.nunique()
             all_interactions.loc[tissue_interactions.index, 'avg_tumor'] += tissue_interactions['avg_tumor'] / tissues_df.tissue.nunique()
-
-            # DEBUG: if any tumor - normal difference has absolute value greater than 2, print the tissue name
-            if (tissue_interactions['avg_tumor'] - tissue_interactions['avg_normal']).abs().max() > 2:
-                print('!!! Difference greater than 2 !!!')
-                print('tissue:', tissue_name)
-                print('max diff:', (tissue_interactions['avg_tumor'] - tissue_interactions['avg_normal']).abs().max())
-                print('max normal:', tissue_interactions['avg_normal'].max())
-                print('max tumor:', tissue_interactions['avg_tumor'].max())
-                print('min normal:', tissue_interactions['avg_normal'].min())
-                print('min tumor:', tissue_interactions['avg_tumor'].min())
-                print('diff:', tissue_interactions['avg_tumor'] - tissue_interactions['avg_normal'])
-                print()
-
-            print()
-
-            print(f'tissue {tissue_name} max and min of avg_normal and avg_tumor:')
-            print('avg_normal:', tissue_interactions['avg_normal'].max(), tissue_interactions['avg_normal'].min())
-            print('avg_tumor:', tissue_interactions['avg_tumor'].max(), tissue_interactions['avg_tumor'].min())
-
-        # DEBUG print max and min of scores
-        print(f'metric {metric} max and min of avg_normal and avg_tumor:')
-        print('avg_normal:', all_interactions['avg_normal'].max(), all_interactions['avg_normal'].min())
-        print('avg_tumor:', all_interactions['avg_tumor'].max(), all_interactions['avg_tumor'].min())
+            
 
         # After reading all tissues and make the actual plots
         # Normalize counts
@@ -312,5 +300,6 @@ for filename in interactions_files:
 
         print()
     print()
+
 
 print("Done: flow.py")

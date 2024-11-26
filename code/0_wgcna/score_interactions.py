@@ -3,6 +3,7 @@ import sys
 import scanpy as sc
 import PyWGCNA
 import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 import ast
 import os
 import argparse
@@ -37,11 +38,11 @@ interactions_resources = {
     #'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
     #'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
     #'all_ccc_gene_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_gene_pairs.csv',
-    #'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
-    #'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
-    #'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
-    #'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
-    'all_ccc_complex_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv',
+    'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
+    'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
+    'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
+    'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
+    #'all_ccc_complex_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv',
 }
 
 for name, interaction_path in interactions_resources.items():
@@ -64,6 +65,7 @@ for name, interaction_path in interactions_resources.items():
     #result["min_adj"] = None
     #result["mean_adj"] = None
     result['kme_corr'] = None
+    result['kme_cos'] = None # cosine similarity
     #result["min_kme_corr"] = None
     #result["mean_kme_corr"] = None
     result["missing_genes"] = False
@@ -84,6 +86,7 @@ for name, interaction_path in interactions_resources.items():
             kme1 = wgcna.signedKME.loc[all_genes[0]]
             kme2 = wgcna.signedKME.loc[all_genes[1]]
             result.loc[i, 'kme_corr'] = kme1.corr(kme2).min()
+            result.loc[i, 'kme_cos'] = cosine_similarity(kme1.values.reshape(1, -1), kme2.values.reshape(1, -1)).min()
             if wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
                 # If all genes are present and in the same module add module
                 result.loc[i, "same_module"] = 1

@@ -48,7 +48,6 @@ normal_data = [{'tissue': tissue_name, 'subtissue': subtissue, 'condition': 'nor
 # Concatenate the dataframes
 tissues_df = pd.concat([tissues_df, pd.DataFrame(tumor_data), pd.DataFrame(normal_data)], ignore_index=True)
 
-
 # Store directories in all_tissues
 tissues_df['path'] = tissues_df.subtissue
 tissues_df['subtissue'] = tissues_df.subtissue.apply(lambda x: x.split('/')[-1])
@@ -225,6 +224,20 @@ network['std'] = normal_vals.merge(tumor_vals, left_index=True, right_index=True
 network['n_median'] = normal_vals.median(axis=1)
 network['t_median'] = tumor_vals.median(axis=1)
 
+# Add all genes and complex1, complex2
+network['all_genes'] = network.index.str.replace('+', '_').str.split('_')
+network['all_genes'] = network['all_genes'].apply(lambda x: tuple(sorted(x)))
+network.insert(0, 'complex1', network.index.str.split('+', expand=True).get_level_values(0))
+network.insert(1, 'complex2', network.index.str.split('+', expand=True).get_level_values(1))
+
+# Add ccc information
+ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
+# convert: string -> list -> set
+ccc['all_genes'] = ccc['all_genes'].apply(lambda x: ast.literal_eval(x)).apply(set)
+ccc_gene_sets = set(tuple(sorted(gene_set)) for gene_set in ccc['all_genes'])
+# find the complex pairs that are actual ccc interactions
+network['ccc'] = network['all_genes'].apply(lambda genes: tuple(genes) in ccc_gene_sets)
+
 # Correct pvalues, don't consider those that have genes in common
 common_interactions = common[common].index
 no_std = network[std <= min_std].index
@@ -234,30 +247,49 @@ yes_test = network.index.difference(no_test)
 
 # Set pval of common and no_std interactions to None, correct the rest
 network.loc[no_test, 'pval'] = None
+
+# first test actual ccc interactions
+print('Testing CCC interactions')
+ccc_pairs = network.query('ccc').index
+ccc_network = network.loc[ccc_pairs]
+print('Found a total of {} CCC pairs'.format(ccc_network.shape[0]))
+# only consider those that are in the yes_test set for correction
+ccc_test = ccc_pairs.intersection(yes_test)
+# pvalues are already in network
+ccc_pvals = ccc_network.loc[ccc_test, 'pval']
+ccc_pvals_adj = false_discovery_control(ccc_pvals)
+ccc_network.loc[ccc_test, 'pval_adj'] = ccc_pvals_adj
+print('Number of significant CCC pairs:', (ccc_pvals_adj < 0.05).sum())
+print('Saving CCC network')
+ccc_network.to_csv(os.path.join(outdir, 'ccc_network_unfiltered.csv'))
+ccc_significant = ccc_network.query('pval_adj < 0.05')
+ccc_significant.to_csv(os.path.join(outdir, 'ccc_network_filtered.csv'))
+# Make a set with all complexes that are in CCC pairs and significant
+all_ccc_complexes = set(ccc_significant['complex1']).union(ccc_significant['complex2'])
+
+# test pairs containing at least one ccc complex
+print('Testing Crosstalk pairs')
+crosstalk_pairs = network.query('complex1 in @all_ccc_complexes or complex2 in @all_ccc_complexes').index
+crosstalk_network = network.loc[crosstalk_pairs]
+print('Found a total of {} Crosstalk pairs'.format(crosstalk_network.shape[0]))
+# only consider those that are in the yes_test set for correction
+crosstalk_test = crosstalk_pairs.intersection(yes_test)
+# pvalues are already in network
+crosstalk_pvals = crosstalk_network.loc[crosstalk_test, 'pval']
+crosstalk_pvals_adj = false_discovery_control(crosstalk_pvals)
+crosstalk_network.loc[crosstalk_test, 'pval_adj'] = crosstalk_pvals_adj
+print('Number of significant Crosstalk pairs:', (crosstalk_pvals_adj < 0.05).sum())
+print('Saving Crosstalk network')
+crosstalk_network.to_csv(os.path.join(outdir, 'crosstalk_network_unfiltered.csv'))
+crosstalk_network.query('pval_adj < 0.05').to_csv(os.path.join(outdir, 'crosstalk_network_filtered.csv'))
+
+# Now test everything together without considering which pairs are CCC or not
 network.loc[no_test, 'pval_adj'] = None
 network.loc[yes_test, 'pval_adj'] = false_discovery_control(network.loc[yes_test, 'pval'])
-#network['pval_adj'] = false_discovery_control(pvals)
-network.head()
-
-network['all_genes'] = network.index.str.replace('+', '_').str.split('_')
-network['all_genes'] = network['all_genes'].apply(lambda x: tuple(sorted(x)))
-
-network.insert(0, 'complex1', network.index.str.split('+', expand=True).get_level_values(0))
-network.insert(1, 'complex2', network.index.str.split('+', expand=True).get_level_values(1))
 
 # Significant pairs
 significant_pairs = network.query('pval_adj < 0.05').index
 print('Number of significant pairs:', len(significant_pairs))
-
-# Add ccc information
-ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
-
-# convert: string -> list -> set
-ccc['all_genes'] = ccc['all_genes'].apply(lambda x: ast.literal_eval(x)).apply(set)
-ccc_gene_sets = set(tuple(sorted(gene_set)) for gene_set in ccc['all_genes'])
-
-# find the complex pairs that are actual ccc interactions
-network['ccc'] = network['all_genes'].apply(lambda genes: tuple(genes) in ccc_gene_sets)
 
 print('Number of CCC pairs (significant and not):', network.query('ccc').shape[0])
 
@@ -268,7 +300,8 @@ print('probability of other complex pairs being significant')
 print(network.query('(not ccc) and pval_adj < 0.05').shape[0] / network.query('not ccc').shape[0])
 
 # Save network
-
 network = network.sort_values(by='pval')
 network.to_csv(os.path.join(outdir, 'network_unfiltered.csv.gz'), index=False)
 network.query('pval_adj < 0.05').to_csv(os.path.join(outdir, 'network_filtered.csv'), index=False)
+
+print('Done: coexp.py')

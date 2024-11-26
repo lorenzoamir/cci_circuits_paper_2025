@@ -5,8 +5,8 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-COEXP=0 # make co-expression of complexes network
-MOTIFS=1 # find motifs in the network
+COEXP=1 # make co-expression of complexes network
+MOTIFS=0 # find motifs in the network
 
 COEXP_QUEUE='q02anacreon'
 MOTIFS_QUEUE='q02anacreon'
