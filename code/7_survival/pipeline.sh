@@ -5,13 +5,13 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-ALL=1 # run survial analysis for all ccc and crosstalk pairs
+SURV=1 # run survial analysis for all ccc and crosstalk pairs
 
-ALL_QUEUE='q02anacreon'
+SURV_QUEUE='q02anacreon'
 
-ALL_NCPUS=2
+SURV_NCPUS=1
 
-ALL_MEMORY=8gb
+SURV_MEMORY=6gb
 
 cd /home/lnemati/pathway_crosstalk/code/7_survival
 script_dir="/home/lnemati/pathway_crosstalk/code/7_survival/scripts"
@@ -35,18 +35,18 @@ for tissue_file in $tissue_files; do
     tissue=$(basename $tissue_file | sed 's/.csv//')
 
     # create job script for each tissue
-    all_name="all_$tissue"
-    all_script="$script_dir/$all_name.sh"
+    surv_name="surv_$tissue"
+    surv_script="$script_dir/$surv_name.sh"
 
-    all_id=$(fsub \
-        -p "$all_script" \
-        -n "$all_name" \
-        -nc "$ALL_NCPUS" \
-        -m "$ALL_MEMORY" \
-        -e "WGCNA" \
-        -q "$ALL_QUEUE" \
+    surv_id=$(fsub \
+        -p "$surv_script" \
+        -n "$surv_name" \
+        -nc "$SURV_NCPUS" \
+        -m "$SURV_MEMORY" \
+        -e "r_survival" \
+        -q "$SURV_QUEUE" \
         -w "$waiting_list" \
-        -c "python survival_all.py --tissuefile $tissue_file"
+	-c "Rscript survival.R $tissue_file"
     )
 done
 
