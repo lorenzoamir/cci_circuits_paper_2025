@@ -30,7 +30,8 @@ cat('Number of patients:', nrow(df), '\n')
 motifs <- read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv', col_types = cols())
 # DEBUG
 #motifs <- motifs %>% filter(Type %in% c("3_clique") %>% pull(Interaction))
-motifs <- motifs %>% filter(Type %in% c("3_clique", "4_clique", "4_no_crosstalk")) %>% pull(Interaction)
+#motifs <- motifs %>% filter(Type %in% c("3_clique", "4_clique", "4_no_crosstalk")) %>% pull(Interaction)
+motifs <- motifs %>% pull(Interaction)
 
 # Subset the motifs for testing purposes
 cat('Number of cliques (subset):', length(motifs), '\n')
@@ -44,13 +45,13 @@ survival_analysis <- function(interaction, df) {
 
   genes <- unique(unlist(str_split(interaction, '[+&_]')))
   
-  # Check if multiple tissues are present
-  pan_cancer <- length(unique(df$tissue)) > 1
+  # Check if multiple conditions are present
+  multiple <- length(unique(df$condition)) > 1
 
-  # Select relevant columns (OS.time, OS, tissue, and the genes of interest)
-  cols <- c("OS.time", "OS", "tissue", genes)
-  if (!pan_cancer) {
-    cols <- setdiff(cols, "tissue")
+  # Select relevant columns (OS.time, OS, condition, and the genes of interest)
+  cols <- c("OS.time", "OS", "condition", genes)
+  if (!multiple) {
+    cols <- setdiff(cols, "condition")
   }
   df <- df %>% select(all_of(cols))
 
@@ -61,11 +62,11 @@ survival_analysis <- function(interaction, df) {
   high_expression_group <- data.frame()
   low_expression_group <- data.frame()
 
-  # If multiple tissues are present, split by tissue
+  # If multiple tumors are present, split by condition
   print('Splitting')
-  if (pan_cancer) {
-    for (tissue in unique(df$tissue)) {
-      tissue_df <- df %>% filter(tissue == tissue)
+  if (multiple) {
+    for (condition in unique(df$condition)) {
+      tissue_df <- df %>% filter(condition == condition)
       medians <- sapply(genes, function(gene) median(tissue_df[[gene]], na.rm = TRUE))
       
       # Create binary flags for above/below median for each gene
@@ -127,23 +128,23 @@ survival_analysis <- function(interaction, df) {
     ))
   }
 
-  # Make sure the group and tissue columns are factors
+  # Make sure the group and condition columns are factors
   print('Converting')
   df$group <- as.factor(df$group)
-  if (pan_cancer) {
-    df$tissue <- as.factor(df$tissue)
+  if (multiple) {
+    df$condition <- as.factor(df$condition)
   }
 
   # Remove all columns that are not needed and run the Cox model
-  if (pan_cancer) {
-    df <- df %>% select(OS.time, OS, group, tissue)
+  if (multiple) {
+    df <- df %>% select(OS.time, OS, group, condition)
   } else {
     df <- df %>% select(OS.time, OS, group)
   }
   
   result <- tryCatch({
-    if (pan_cancer) {
-      model <- coxph(formula = Surv(OS.time, OS) ~ group + strata(tissue), data = df)
+    if (multiple) {
+      model <- coxph(formula = Surv(OS.time, OS) ~ group + strata(condition), data = df)
     } else {
       model <- coxph(formula = Surv(OS.time, OS) ~ group, data = df)
     }
