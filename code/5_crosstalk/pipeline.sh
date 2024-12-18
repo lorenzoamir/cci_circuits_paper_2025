@@ -5,17 +5,21 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-COEXP=1 # make co-expression of complexes network
-MOTIFS=0 # find motifs in the network
+COEXP=0 # make co-expression of complexes network
+MOTIFS=1 # find motifs in the network
+DENS=1 # density
 
 COEXP_QUEUE='q02anacreon'
 MOTIFS_QUEUE='q02anacreon'
+DENS_QUEUE='q02anacreon'
 
 COEXP_NCPUS=32
 MOTIFS_NCPUS=50
+DENS_NCPUS=24
 
 COEXP_MEMORY=100gb
 MOTIFS_MEMORY=90gb
+DENS_MEMORY=32gb
 
 cd /home/lnemati/pathway_crosstalk/code/5_crosstalk
 script_dir="/home/lnemati/pathway_crosstalk/code/5_crosstalk/scripts"
@@ -65,6 +69,27 @@ if [ $MOTIFS -eq 1 ]; then
         -q "$MOTIFS_QUEUE" \
         -w "$waiting_list" \
         -c "python motifs.py" )
+fi
+
+if [ $DENS -eq 1 ]; then
+    echo 'Dens'
+
+    # create job script for all tissues
+    dens_name="dens"
+    dens_script="$script_dir/$dens_name.sh"
+    
+    [[ $COEXP -eq 1 ]] && waiting_list="$coexp_id"
+    [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
+
+    dens_id=$(fsub \
+        -p "$dens_script" \
+        -n "$dens_name" \
+        -nc "$DENS_NCPUS" \
+        -m "$DENS_MEMORY" \
+        -e "WGCNA" \
+        -q "$DENS_QUEUE" \
+        -w "$waiting_list" \
+        -c "python density.py" )
 fi
 
 echo "Done: pipeline.sh"

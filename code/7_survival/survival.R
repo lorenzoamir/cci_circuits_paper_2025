@@ -10,6 +10,7 @@ MIN_PATIENTS <- 10
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
 tissuefile <- args[1]
+output_dir <- args[2]
 
 # Read the survival data
 cat('Reading survival data\n')
@@ -123,8 +124,8 @@ survival_analysis <- function(interaction, df) {
       logrank_pval = NA,
       concordance_index = NA,
       ci_low = NA,
-      ci_high = NA
-      #zph = NA
+      ci_high = NA,
+      se = NA
     ))
   }
 
@@ -141,14 +142,14 @@ survival_analysis <- function(interaction, df) {
   } else {
     df <- df %>% select(OS.time, OS, group)
   }
-  
+
   result <- tryCatch({
     if (multiple) {
       model <- coxph(formula = Surv(OS.time, OS) ~ group + strata(condition), data = df)
     } else {
       model <- coxph(formula = Surv(OS.time, OS) ~ group, data = df)
     }
-    
+
     # Extract the metrics
     hr <- exp(coef(model)["group1"])
     logrank_pval <- summary(model)$sctest["pvalue"]
@@ -156,24 +157,14 @@ survival_analysis <- function(interaction, df) {
     print('Getting confidence intervals')
     ci_low <- exp(confint(model)["group1", 1])
     ci_high <- exp(confint(model)["group1", 2])
-    
+    se <- summary(model)$coefficients["group1", "se(coef)"]
+    print(summary(model)$coefficients)
+    # Propagate error:
+    # hr = exp(coef) => err_hr = exp(coef) * se(coef) = hr * se(coef)
+    se <- hr * se
+
     print('Model summary')
     print(summary(model))
-  
-    print('hr')
-    print(hr)
-    print('n_patients_low')
-    print(n_below_all)
-    print('n_patients_high')
-    print(n_above_all)
-    print('logrank_pval')
-    print(logrank_pval)
-    print('concordance_index')
-    print(concordance)
-    print('ci_low')
-    print(ci_low)
-    print('ci_high')
-    print(ci_high)
 
     return(list(
       hr = hr,
@@ -182,7 +173,8 @@ survival_analysis <- function(interaction, df) {
       logrank_pval = logrank_pval,
       concordance_index = concordance,
       ci_low = ci_low,
-      ci_high = ci_high
+      ci_high = ci_high,
+      se = se
     ))
   }, warning = function(w) {
     print("Warning occurred during Cox model fitting. Returning NAs.")
@@ -193,7 +185,8 @@ survival_analysis <- function(interaction, df) {
       logrank_pval = NA,
       concordance_index = NA,
       ci_low = NA,
-      ci_high = NA
+      ci_high = NA,
+      se = NA
     ))
   })
 
@@ -215,6 +208,7 @@ for (interaction in ccc) {
     concordance_index = result$concordance_index,
     ci_low = result$ci_low,
     ci_high = result$ci_high,
+    se=result$se,
     #zph = result$zph,
     type = "ccc"
   )
@@ -238,6 +232,7 @@ for (interaction in motifs) {
     concordance_index = result$concordance_index,
     ci_low = result$ci_low,
     ci_high = result$ci_high,
+    se=result$se,
     #zph = result$zph,
     type = "crosstalk"
   )
@@ -251,7 +246,6 @@ all_results <- bind_rows(ccc_results, crosstalk_results) %>%
   arrange(logrank_pval)  # Sorting by logrank pval
 
 # Save results
-output_dir <- '/home/lnemati/pathway_crosstalk/results/survival/tissues'
 tissue_name <- tools::file_path_sans_ext(basename(tissuefile))
 output_file <- file.path(output_dir, paste0(tissue_name, '.csv'))
 
