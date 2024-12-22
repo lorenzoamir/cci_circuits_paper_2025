@@ -6,7 +6,7 @@
 source /projects/bioinformatics/snsutils/snsutils.sh
 
 COEXP=0 # make co-expression of complexes network
-MOTIFS=1 # find motifs in the network
+MOTIFS=0 # find motifs in the network
 DENS=1 # density
 
 COEXP_QUEUE='q02anacreon'

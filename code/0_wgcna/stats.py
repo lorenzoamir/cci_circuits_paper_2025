@@ -86,20 +86,21 @@ print("Number of interacting genes: ", len(all_interacting_genes))
 
 print("Generating ROC curves")
 
-adj = WGCNA.adjacency
-print("Adjacency has shape: ", adj.shape)
+corr = np.corrcoef(WGCNA.datExpr.X.T)
+corr = pd.DataFrame(corr, index=WGCNA.datExpr.var.index, columns=WGCNA.datExpr.var.index)
+print("Correlation has shape: ", corr.shape)
 
 # flatten matrix, remove diagonal and duplicated values
 print("Flattening matrix")
 all_pairs = pd.DataFrame(
-    adj.where(
+    corr.where(
         np.tri(
-            adj.shape[0],
+            corr.shape[0],
             dtype=bool,
             k=-1
         ),
         np.nan
-    ).stack(dropna=True), columns=["adj"]
+    ).stack(dropna=True), columns=["corr"]
 )
 print("all_pairs has now shape: ", all_pairs.shape)
 print(all_pairs.head())
@@ -126,7 +127,7 @@ if "/normal/" in args.inputfile:
 fpr, tpr, ths = generate_roc_curve(
     data=all_pairs,
     target_col="interaction",
-    feature_col="adj",
+    feature_col="corr",
     file=stats_file,
     name=name
 )
@@ -146,8 +147,8 @@ print("Performing test")
 
 # Perform test: do interacting pairs have higher connectivity than other pairs?
 U_all, p_all = mannwhitneyu(
-    all_pairs.loc[all_pairs['interaction'] == True, "adj"],
-    all_pairs.loc[all_pairs['interaction'] == False, "adj"],
+    all_pairs.loc[all_pairs['interaction'] == True, "corr"],
+    all_pairs.loc[all_pairs['interaction'] == False, "corr"],
     alternative="greater"
 )
 print("Writing result to: " + stats_file)

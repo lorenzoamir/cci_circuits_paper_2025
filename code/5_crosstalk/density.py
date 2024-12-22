@@ -18,18 +18,21 @@ paths = [
     '/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/normal/motifs.csv',
 ]
 
-network = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/network_filtered.csv')
+network = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/network_filtered.csv')[['complex1', 'complex2', 'auroc']]
+
+# Add a mirrored version of the network to make it symmetric
+network_mirrored = network.copy()
+network_mirrored.columns = ['complex2', 'complex1', 'auroc']
+network = pd.concat([network, network_mirrored], ignore_index=True)
+
 adj = network.pivot(index='complex1', columns='complex2', values='auroc').fillna(0)
-# make symmetric
-adj = adj.add(adj.T, fill_value=0).fillna(0)
-print(adj.head())
 
 def get_density(interaction, adj):
     # Get the density (sum of weights / N possible edges)
     # for the nodes in the interaction
 
     # Get the nodes in the interaction
-    nodes = re.split('[_+&]', interaction)
+    nodes = re.split('[+&]', interaction)
     n_nodes = len(nodes)
     n_edges = n_nodes * (n_nodes - 1) / 2
 
@@ -45,17 +48,21 @@ def get_density(interaction, adj):
     return density
 
 for path in paths:
-    motifs = pd.read_csv(path)['Interaction']
+    motifs = pd.read_csv(path)
     
     # Use multiprocessing to get the density for each motif
     ncpus = int(os.getenv('NCPUS', default=1))
     pool = Pool(ncpus) 
-    densities = pool.starmap(get_density, [(motif, adj) for motif in motifs])
+    densities = pool.starmap(get_density, [(motif, adj) for motif in motifs['Interaction']])
     pool.close()
 
     # Add the densities to the motifs dataframe
-    motifs['Density'] = densities
-    #motifs.to_csv(path, index=False)
-    print(motifs.head())
+    motifs['density'] = densities
+
+    # Sort based on motif type and then density
+    motifs = motifs.sort_values(by=['Type', 'density'], ascending=[True, False])
+
+    motifs.to_csv(path, index=False)
+
 
 print('Done: density.py')
