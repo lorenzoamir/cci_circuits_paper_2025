@@ -5,21 +5,25 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-COEXP=0 # make co-expression of complexes network
-MOTIFS=0 # find motifs in the network
-DENS=1 # density
+NETWORKS=1 # aggregate subtissue networks into tissue networks
+#COEXP=0 # make co-expression of complexes network
+#MOTIFS=0 # find motifs in the network
+#DENS=0 # density
 
-COEXP_QUEUE='q02anacreon'
-MOTIFS_QUEUE='q02anacreon'
-DENS_QUEUE='q02anacreon'
+NETWORKS_QUEUE='q02anacreon'
+#COEXP_QUEUE='q02anacreon'
+#MOTIFS_QUEUE='q02anacreon'
+#DENS_QUEUE='q02anacreon'
 
-COEXP_NCPUS=32
-MOTIFS_NCPUS=50
-DENS_NCPUS=24
+NETWORKS_NCPUS=2
+#COEXP_NCPUS=32
+#MOTIFS_NCPUS=50
+#DENS_NCPUS=24
 
-COEXP_MEMORY=100gb
-MOTIFS_MEMORY=90gb
-DENS_MEMORY=32gb
+NETWORKS_MEMORY=16gb
+#COEXP_MEMORY=100gb
+#MOTIFS_MEMORY=90gb
+#DENS_MEMORY=32gb
 
 cd /home/lnemati/pathway_crosstalk/code/5_TEST_crosstalk/
 script_dir="/home/lnemati/pathway_crosstalk/code/5_TEST_crosstalk/scripts"
@@ -32,7 +36,36 @@ eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
 waiting_list=""
 
-# FLOW takes all tissues at once
+# Find directories with depth 2 in data_dir, this correspond to tissue/condition combinations (e.g. pancreas/tumor)
+# Exclude empty directories
+tissue_condition_dirs=$(find $data_dir -mindepth 2 -maxdepth 2 -type d -not -empty)
+
+# Loop over all tissue/condition directories
+for tissue_condition_dir in $tissue_condition_dirs; do
+    tissue=$(basename $(dirname $tissue_condition_dir))
+    condition=$(basename $tissue_condition_dir)
+
+    echo "$tissue $condition"
+    
+    if [ $NETWORKS -eq 1 ]; then
+        echo 'Networks'
+
+        # create job script
+        networks_name="net_${tissue}_${condition}"
+        networks_script="$script_dir/$networks_name.sh"
+
+        networks_id=$(fsub \
+            -p "$networks_script" \
+            -n "$networks_name" \
+            -nc "$NETWORKS_NCPUS" \
+            -m "$NETWORKS_MEMORY" \
+            -e "WGCNA" \
+            -q "$NETWORKS_QUEUE" \
+            -c "python aggregate_networks.py --inputdir $tissue_condition_dir"
+        )
+    fi
+done
+
 if [ $COEXP -eq 1 ]; then
     echo 'Coexp'
 
