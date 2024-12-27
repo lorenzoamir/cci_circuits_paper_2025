@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import sys
+import ast
 import argparse
 
 # Parse arguments
@@ -24,38 +25,44 @@ subtissue_dirs = [f for f in os.listdir(inputdir) if os.path.isdir(os.path.join(
 print('Subtissues: ' + ', '.join(subtissue_dirs))
 
 # Initialize empty adjacency matrix
-print('Initializing adjacency matrix')
-adj = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv', index_col=['complex1', 'complex2'], usecols=['complex1', 'complex2'])
-# Make symmetric by concatenating with a df with complex1 and complex2 (multi index) swapped
-adj = pd.concat([adj, adj.reset_index().rename(columns={'complex1': 'complex2', 'complex2': 'complex1'}).set_index(['complex1', 'complex2'])])
-adj['adj'] = 0
-adj = adj['adj'].unstack(fill_value=0).fillna(0)
-print('Initialized adjacency matrix:')
-print(adj.head())
+print('Initializing network')
+net = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv', index_col=['complex1', 'complex2'], usecols=['complex1', 'complex2', 'all_genes'])
+net['all_genes'] = net['all_genes'].apply(lambda x: ast.literal_eval(x))
+net['adj'] = 0
+print('Initialized network:')
+print(net.head())
 print()
+
+# Read list of ccc interactions and mark them in the network
+ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
+# convert: string -> list -> set
+ccc['all_genes'] = ccc['all_genes'].apply(lambda x: ast.literal_eval(x)).apply(set)
+ccc_gene_sets = set(tuple(sorted(gene_set)) for gene_set in ccc['all_genes'])
+# find the complex pairs that are actual ccc interactions
+net['ccc'] = net['all_genes'].apply(lambda genes: tuple(genes) in ccc_gene_sets)
+print('Number of CCC interactions: ' + str(net['ccc'].sum()))
 
 # Read and average all networks in each subtissue directory
 for subtissue in subtissue_dirs:
     print('Reading network for ' + subtissue)
-    # Read network and convert to adjacency matrix
-    df = pd.read_csv(os.path.join(inputdir, subtissue, 'interactions', 'all_ccc_complex_pairs.csv'), index_col=['complex1', 'complex2'], usecols=['complex1', 'complex2', 'adj'])
-    # Make symmetric
-    df_swp = df.reset_index().rename(columns={'complex1': 'complex2', 'complex2': 'complex1'}).set_index(['complex1', 'complex2'])
-    print(df.head())
-    print(df_swp.head())
-    df = pd.concat([df, df_swp])
-    df = df['adj'].unstack(fill_value=0).fillna(0)
-    print(df.head())
-    # Add to aggregate adjacency matrix
-    adj = adj.add(df, fill_value=0)
+    # Read subtissue network
+    df = pd.read_csv(os.path.join(inputdir, subtissue, 'interactions', 'all_ccc_complex_pairs.csv'), index_col=['complex1', 'complex2'], usecols=['complex1', 'complex2', 'all_genes', 'corr'])
+    # Rename corr to adj
+    df = df.rename(columns={'corr': 'adj'})
+    # Fill nans in adj column with 0
+    df['adj'] = df['adj'].fillna(0)
+    # Sum adj columns
+    net['adj'] += df['adj']
 
 print()
 
 # From sum to average
-adj = adj / len(subtissue_dirs)
+net['adj'] /= len(subtissue_dirs)
 
-print('Aggregated adjacency matrix:')
-print(adj.head())
+print('Aggregated network:')
+print(net.head())
+
+net.index.name = None
 
 # Save to file
 outputdir = '/home/lnemati/pathway_crosstalk/data/networks'
@@ -67,6 +74,6 @@ if not os.path.exists(outputdir):
 outputfile = os.path.join(outputdir, tissue + '.csv.gz')
 print('Saving to ' + outputfile)
 
-adj.to_csv(outputfile, compression='gzip')
+net.to_csv(outputfile, compression='gzip')
 
 print('Done: aggregate_networks.py')

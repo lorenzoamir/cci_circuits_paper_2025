@@ -5,22 +5,26 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-NETWORKS=1 # aggregate subtissue networks into tissue networks
+NETWORKS=0 # aggregate subtissue networks into tissue networks
+MOTIFS=1 # detect motifs in each tissue
 #COEXP=0 # make co-expression of complexes network
 #MOTIFS=0 # find motifs in the network
 #DENS=0 # density
 
 NETWORKS_QUEUE='q02anacreon'
+MOTIFS_QUEUE='q02anacreon'
 #COEXP_QUEUE='q02anacreon'
 #MOTIFS_QUEUE='q02anacreon'
 #DENS_QUEUE='q02anacreon'
 
 NETWORKS_NCPUS=2
+MOTIFS_NCPUS=8
 #COEXP_NCPUS=32
 #MOTIFS_NCPUS=50
 #DENS_NCPUS=24
 
 NETWORKS_MEMORY=16gb
+MOTIFS_MEMORY=10gb
 #COEXP_MEMORY=100gb
 #MOTIFS_MEMORY=90gb
 #DENS_MEMORY=32gb
@@ -40,7 +44,10 @@ waiting_list=""
 # Exclude empty directories
 tissue_condition_dirs=$(find $data_dir -mindepth 2 -maxdepth 2 -type d -not -empty)
 
-# Loop over all tissue/condition directories
+# Init waiting list
+waiting_list=""
+
+# Loop over all subtissue/condition directories
 for tissue_condition_dir in $tissue_condition_dirs; do
     tissue=$(basename $(dirname $tissue_condition_dir))
     condition=$(basename $tissue_condition_dir)
@@ -63,66 +70,106 @@ for tissue_condition_dir in $tissue_condition_dirs; do
             -q "$NETWORKS_QUEUE" \
             -c "python aggregate_networks.py --inputdir $tissue_condition_dir"
         )
+
+        waiting_list="$waiting_list:$networks_id"
     fi
 done
 
-if [ $COEXP -eq 1 ]; then
-    echo 'Coexp'
+# Directory containing normal and tumor directories with all the tissue networks
+tissue_nets_dir="/home/lnemati/pathway_crosstalk/data/networks"
+# Find all files in the tissue_nets_dir
+networks=$(find $tissue_nets_dir -type f -name *.csv.gz)
 
-    # create job script for all tissues
-    coexp_name="coexp"
-    coexp_script="$script_dir/$coexp_name.sh"
+# Loop over all tissue networks
+for network in $networks; do
+    tissue=$(sed 's/.csv.gz//' <<< $(basename $network))
+    condition=$(basename $(dirname $network))
 
-    coexp_id=$(fsub \
-        -p "$coexp_script" \
-        -n "$coexp_name" \
-        -nc "$COEXP_NCPUS" \
-        -m "$COEXP_MEMORY" \
-        -e "WGCNA" \
-        -q "$COEXP_QUEUE" \
-        -c "python coexp.py" )
-fi
-
-if [ $MOTIFS -eq 1 ]; then
-    echo 'Motifs'
-
-    # create job script for all tissues
-    motifs_name="motifs"
-    motifs_script="$script_dir/$motifs_name.sh"
+    echo "$tissue $condition"
+    echo "$network"
     
-    # if coexp is 1, add coexp to the waiting list 
-    [[ $COEXP -eq 1 ]] && waiting_list="$coexp_id"
+    if [ $MOTIFS -eq 1 ]; then
+        echo 'Motifs'
 
-    motifs_id=$(fsub \
-        -p "$motifs_script" \
-        -n "$motifs_name" \
-        -nc "$MOTIFS_NCPUS" \
-        -m "$MOTIFS_MEMORY" \
-        -e "WGCNA" \
-        -q "$MOTIFS_QUEUE" \
-        -w "$waiting_list" \
-        -c "python motifs.py" )
-fi
+        # create job script
+        motifs_name="motifs_${tissue}_${condition}"
+        motifs_script="$script_dir/$motifs_name.sh"
 
-if [ $DENS -eq 1 ]; then
-    echo 'Dens'
+        motifs_id=$(fsub \
+            -p "$motifs_script" \
+            -n "$motifs_name" \
+            -nc "$MOTIFS_NCPUS" \
+            -m "$MOTIFS_MEMORY" \
+            -e "WGCNA" \
+            -q "$MOTIFS_QUEUE" \
+            -w "$waiting_list" \
+            -c "python motifs.py --inputfile $network"
+        )
+    fi 
+done
 
-    # create job script for all tissues
-    dens_name="dens"
-    dens_script="$script_dir/$dens_name.sh"
-    
-    [[ $COEXP -eq 1 ]] && waiting_list="$coexp_id"
-    [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
 
-    dens_id=$(fsub \
-        -p "$dens_script" \
-        -n "$dens_name" \
-        -nc "$DENS_NCPUS" \
-        -m "$DENS_MEMORY" \
-        -e "WGCNA" \
-        -q "$DENS_QUEUE" \
-        -w "$waiting_list" \
-        -c "python density.py" )
-fi
+
+
+
+
+#if [ $COEXP -eq 1 ]; then
+#    echo 'Coexp'
+#
+#    # create job script for all tissues
+#    coexp_name="coexp"
+#    coexp_script="$script_dir/$coexp_name.sh"
+#
+#    coexp_id=$(fsub \
+#        -p "$coexp_script" \
+#        -n "$coexp_name" \
+#        -nc "$COEXP_NCPUS" \
+#        -m "$COEXP_MEMORY" \
+#        -e "WGCNA" \
+#        -q "$COEXP_QUEUE" \
+#        -c "python coexp.py" )
+#fi
+#
+#if [ $MOTIFS -eq 1 ]; then
+#    echo 'Motifs'
+#
+#    # create job script for all tissues
+#    motifs_name="motifs"
+#    motifs_script="$script_dir/$motifs_name.sh"
+#    
+#    # if coexp is 1, add coexp to the waiting list 
+#    [[ $COEXP -eq 1 ]] && waiting_list="$coexp_id"
+#
+#    motifs_id=$(fsub \
+#        -p "$motifs_script" \
+#        -n "$motifs_name" \
+#        -nc "$MOTIFS_NCPUS" \
+#        -m "$MOTIFS_MEMORY" \
+#        -e "WGCNA" \
+#        -q "$MOTIFS_QUEUE" \
+#        -w "$waiting_list" \
+#        -c "python motifs.py" )
+#fi
+#
+#if [ $DENS -eq 1 ]; then
+#    echo 'Dens'
+#
+#    # create job script for all tissues
+#    dens_name="dens"
+#    dens_script="$script_dir/$dens_name.sh"
+#    
+#    [[ $COEXP -eq 1 ]] && waiting_list="$coexp_id"
+#    [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
+#
+#    dens_id=$(fsub \
+#        -p "$dens_script" \
+#        -n "$dens_name" \
+#        -nc "$DENS_NCPUS" \
+#        -m "$DENS_MEMORY" \
+#        -e "WGCNA" \
+#        -q "$DENS_QUEUE" \
+#        -w "$waiting_list" \
+#        -c "python density.py" )
+#fi
 
 echo "Done: pipeline.sh"

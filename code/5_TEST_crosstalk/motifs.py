@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 import numpy as np
-import gseapy as gp
 import argparse
 import igraph as ig
 from igraph import Graph
@@ -10,7 +9,16 @@ from multiprocessing import Pool
 import ast
 import sys
 
-n_permutations = 5000
+# Parse arguments
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--inputfile', type=str, help='Input file with adjacency matrix')
+
+args = parser.parse_args()
+
+inputfile = args.inputfile
+
+n_permutations = 1000
 ncpus = os.environ['NCPUS']
 
 # Get actual interactions
@@ -104,46 +112,74 @@ def permutation_test(args):
     _, fake_counts = find_motifs(network, adj, fake_ccc_gene_sets)
     return fake_counts  
 
-# Run code 3 times, one for tumor (positive), one for normal (negative), and one for both
-for condition in ['tumor', 'normal', 'both']:
-    print('Condition:', condition)
-    network = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/network_filtered.csv')
-    network['all_genes'] = network['all_genes'].apply(lambda x: ast.literal_eval(x))
+def remove_weak(series, frac=0.1):
+    # Remove weak interactions that sum to less than frac of the total
+
+    # Flatten the matrix
+    flat = series.values
+    flat = flat[flat > 0]
+    flat = np.sort(flat)
+
+    # Get total and cutoff values
+    total = np.sum(flat)
+    cutoff = frac * total
+
+    # Get weakest link to keep
+    cum_sum = np.cumsum(flat)
+    num_to_remove = np.searchsorted(cum_sum, cutoff, side='right')
+    weakest_link = flat[num_to_remove]
+
+    # Create new series
+    thresholded_vals = np.where(series.values >= weakest_link, series.values, 0)
+    result = pd.Series(thresholded_vals, index=series.index)
     
-    if condition == 'tumor': # Only keep auroc > 0.5
-        network = network.query('auroc > 0.5')
-    elif condition == 'normal': # Only keep auroc < 0.5
-        network = network.query('auroc < 0.5')
+    return result
 
-    edges = list(zip(network['complex1'], network['complex2']))
-    G = Graph.TupleList(edges, directed=False)
+network = pd.read_csv(inputfile)
 
-    nodes = G.vs['name']
-    adj = pd.DataFrame(G.get_adjacency(), index=nodes, columns=nodes)
+# Only select positive correlations
+network = network.query('adj > 0')
+network['all_genes'] = network['all_genes'].apply(lambda x: ast.literal_eval(x))
 
-    # Find motifs
-    motifs, counts = find_motifs(network, adj, ccc_gene_sets)
+# Remove weak interactions
+network['adj'] = remove_weak(network['adj'], frac=0.1)
+network = network.query('adj > 0')
 
-    # Save results
-    outdir = '/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/' + condition
-    os.makedirs(outdir, exist_ok=True)
-    # set counts columns to motif and number
-    counts = counts.reset_index()
-    counts.columns = ['motif', 'number']
-    counts.to_csv(os.path.join(outdir, 'counts.csv'), index=False)
-    # Motifs is a dictionary of lists of interactions that form each motif,
-    # make a dataframe with one row per interaction and one column for motif type
-    data = [(motif_type, interaction) for motif_type, interactions in motifs.items() for interaction in interactions]
-    df = pd.DataFrame(data, columns=['Type', 'Interaction'])
-    df.to_csv(os.path.join(outdir, 'motifs.csv'), index=False)
-    print('Actual motifs detected:', counts)
+edges = list(zip(network['complex1'], network['complex2']))
+G = Graph.TupleList(edges, directed=False)
 
-    # Permutation testing using multiprocessing
-    print('Running permutations')
-    with Pool(int(ncpus)) as p:
-        fake_counts = pd.DataFrame(p.map(permutation_test, [(i, ccc, network) for i in range(n_permutations)]))
+nodes = G.vs['name']
+adj = pd.DataFrame(G.get_adjacency(), index=nodes, columns=nodes)
 
-    print('Saving results')
-    fake_counts.to_csv(os.path.join(outdir, 'motifs_permutations.csv'), index=False)
+# Find motifs
+motifs, counts = find_motifs(network, adj, ccc_gene_sets)
+
+# Save results
+tissue = os.path.basename(inputfile).split('.')[0]
+condition = os.path.basename(os.path.dirname(inputfile))
+print('Tissue:', tissue)
+print('Condition:', condition)
+outdir = '/home/lnemati/pathway_crosstalk/results/crosstalk/motifs_per_tissue'
+outdir = os.path.join(outdir, condition, tissue)
+os.makedirs(outdir, exist_ok=True)
+print('Saving results to:', outdir)
+# set counts columns to motif and number
+counts = counts.reset_index()
+counts.columns = ['motif', 'counts']
+counts.to_csv(os.path.join(outdir, 'counts.csv'), index=False)
+# Motifs is a dictionary of lists of interactions that form each motif,
+# make a dataframe with one row per interaction and one column for motif type
+data = [(motif_type, interaction) for motif_type, interactions in motifs.items() for interaction in interactions]
+df = pd.DataFrame(data, columns=['motif', 'interaction'])
+df.to_csv(os.path.join(outdir, 'motifs.csv'), index=False)
+print('Actual motifs detected:', counts)
+
+# Permutation testing using multiprocessing
+print('Running permutations')
+with Pool(int(ncpus)) as p:
+    fake_counts = pd.DataFrame(p.map(permutation_test, [(i, ccc, network) for i in range(n_permutations)]))
+
+print('Saving results')
+fake_counts.to_csv(os.path.join(outdir, 'motifs_permutations.csv'), index=False)
 
 print('Done: motifs.py')
