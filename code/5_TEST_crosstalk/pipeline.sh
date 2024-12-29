@@ -5,26 +5,31 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-NETWORKS=0 # aggregate subtissue networks into tissue networks
-MOTIFS=1 # detect motifs in each tissue
+NETWORKS=0 # aggregate subtissues into tissue networks
+MOTIFS=0 # detect motifs in each tissue
+DENS=0 # density
+SURV=1 # survival analysis
 #COEXP=0 # make co-expression of complexes network
 #MOTIFS=0 # find motifs in the network
-#DENS=0 # density
 
 NETWORKS_QUEUE='q02anacreon'
 MOTIFS_QUEUE='q02anacreon'
+DENS_QUEUE='q02anacreon'
+SURV_QUEUE='q02gaia'
 #COEXP_QUEUE='q02anacreon'
 #MOTIFS_QUEUE='q02anacreon'
-#DENS_QUEUE='q02anacreon'
 
 NETWORKS_NCPUS=2
 MOTIFS_NCPUS=8
+DENS_NCPUS=8
+SURV_NCPUS=1
 #COEXP_NCPUS=32
 #MOTIFS_NCPUS=50
-#DENS_NCPUS=24
 
 NETWORKS_MEMORY=16gb
 MOTIFS_MEMORY=10gb
+DENS_MEMORY=10gb
+SURV_MEMORY=6gb
 #COEXP_MEMORY=100gb
 #MOTIFS_MEMORY=90gb
 #DENS_MEMORY=32gb
@@ -106,6 +111,61 @@ for network in $networks; do
             -c "python motifs.py --inputfile $network"
         )
     fi 
+
+    if [ $DENS -eq 1 ]; then
+        echo 'Dens'
+       
+        motifs_file="/home/lnemati/pathway_crosstalk/results/crosstalk/motifs_per_tissue/${condition}/${tissue}/motifs.csv"
+
+        # create job script
+        dens_name="dns_${tissue}_${condition}"
+        dens_script="$script_dir/$dens_name.sh"
+
+        # Add motifs to waiting list
+        [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
+
+        dens_id=$(fsub \
+            -p "$dens_script" \
+            -n "$dens_name" \
+            -nc "$DENS_NCPUS" \
+            -m "$DENS_MEMORY" \
+            -e "WGCNA" \
+            -q "$DENS_QUEUE" \
+            -w "$waiting_list" \
+            -c "python density.py --motifs $motifs_file --network $network"
+        )
+    fi
+
+    if [ $SURV -eq 1 ]; then
+        # SURV shouold only run on tumor tissues
+        if [[ $condition == "tumor" ]]; then
+            echo 'Surv'
+            
+            motifs_file="/home/lnemati/pathway_crosstalk/results/crosstalk/motifs_per_tissue/${condition}/${tissue}/motifs.csv"
+            survival_file=$(find /home/lnemati/pathway_crosstalk/data/survival_data -name "${tissue}.csv")
+            
+
+            # create job script
+            surv_name="srv_${tissue}_${condition}"
+            surv_script="$script_dir/$surv_name.sh"
+
+            # wait for motif
+            [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
+            
+            surv_id=$(fsub \
+                -p "$surv_script" \
+                -n "$surv_name" \
+                -nc "$SURV_NCPUS" \
+                -m "$SURV_MEMORY" \
+                -e "r_survival" \
+                -q "$SURV_QUEUE" \
+                -w "$waiting_list" \
+                -c "Rscript survival.R $survival_file $motifs_file"
+            ) 
+
+
+        fi 
+    fi
 done
 
 

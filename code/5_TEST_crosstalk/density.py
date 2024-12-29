@@ -11,21 +11,28 @@ import ast
 import sys
 import re
 
-# Read list of motifs
-paths = [
-    '/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/both/motifs.csv',
-    '/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv',
-    '/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/normal/motifs.csv',
-]
+# Parse arguments
+parser = argparse.ArgumentParser()
 
-network = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/network_filtered.csv')[['complex1', 'complex2', 'auroc']]
+parser.add_argument('--motifs', type=str, help='Path to motifs.csv file')
+parser.add_argument('--network', type=str, help='Path to co-expression network file')
+
+args = parser.parse_args()
+
+motifs_path = args.motifs
+network_path = args.network
+
+network = pd.read_csv(
+    network_path,
+    usecols=['complex1', 'complex2', 'adj']
+)
 
 # Add a mirrored version of the network to make it symmetric
 network_mirrored = network.copy()
-network_mirrored.columns = ['complex2', 'complex1', 'auroc']
+network_mirrored.columns = ['complex2', 'complex1', 'adj']
 network = pd.concat([network, network_mirrored], ignore_index=True)
 
-adj = network.pivot(index='complex1', columns='complex2', values='auroc').fillna(0)
+adj = network.pivot(index='complex1', columns='complex2', values='adj').fillna(0)
 
 def get_density(interaction, adj):
     # Get the density (sum of weights / N possible edges)
@@ -47,22 +54,19 @@ def get_density(interaction, adj):
     
     return density
 
-for path in paths:
-    motifs = pd.read_csv(path)
-    
-    # Use multiprocessing to get the density for each motif
-    ncpus = int(os.getenv('NCPUS', default=1))
-    pool = Pool(ncpus) 
-    densities = pool.starmap(get_density, [(motif, adj) for motif in motifs['Interaction']])
-    pool.close()
+motifs = pd.read_csv(motifs_path)
 
-    # Add the densities to the motifs dataframe
-    motifs['density'] = densities
+# Use multiprocessing to get the density for each motif
+ncpus = int(os.getenv('NCPUS', default=1))
+pool = Pool(ncpus) 
+densities = pool.starmap(get_density, [(motif, adj) for motif in motifs['interaction']])
+pool.close()
 
-    # Sort based on motif type and then density
-    motifs = motifs.sort_values(by=['Type', 'density'], ascending=[True, False])
+# Add the densities to the motifs dataframe
+motifs['density'] = densities
 
-    motifs.to_csv(path, index=False)
-
+# Sort based on motif type and then density
+motifs = motifs.sort_values(by=['motif', 'density'], ascending=[True, False])
+motifs.to_csv(motifs_path, index=False)
 
 print('Done: density.py')
