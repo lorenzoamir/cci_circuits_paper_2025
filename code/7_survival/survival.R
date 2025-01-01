@@ -34,7 +34,6 @@ motifs <- read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_co
 #motifs <- motifs %>% filter(Type %in% c("3_clique", "4_clique", "4_no_crosstalk")) %>% pull(Interaction)
 motifs <- motifs %>% pull(Interaction)
 
-# Subset the motifs for testing purposes
 cat('Number of cliques (subset):', length(motifs), '\n')
 
 # Extract ccc interactions from motifs by splitting and flattening the list

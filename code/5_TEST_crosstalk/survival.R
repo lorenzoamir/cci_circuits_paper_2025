@@ -15,6 +15,10 @@ motifsfile <- args[2] # File with motifs
 # Output directory is the directory that contains the motifs.csv file
 output_dir <- dirname(motifsfile)
 
+# Get the number of CPUs from the environment variable
+num_cpus <- as.integer(Sys.getenv("NCPUS", unset = 1))
+cat('Number of CPUs:', num_cpus, '\n')
+
 # Print arguments to screen
 cat('Tissue file:', tissuefile, '\n')
 cat('Motifs file:', motifsfile, '\n')
@@ -39,10 +43,6 @@ cat('Number of patients:', nrow(df), '\n')
 motifs <- read_csv(motifsfile, col_types = cols())
 motifs <- motifs %>% pull(interaction)
 
-# DEBUG: for testing only use first 30 motifs
-motifs <- motifs[1:10]
-
-# Subset the motifs for testing purposes
 cat('Number of motifs:', length(motifs), '\n')
 
 # Extract ccc interactions from motifs by splitting and flattening the list
@@ -255,7 +255,7 @@ all_results <- bind_rows(ccc_results, crosstalk_results) %>%
 
 # Save results
 tissue_name <- tools::file_path_sans_ext(basename(tissuefile))
-output_file <- file.path(output_dir, paste0('survival', '.csv'))
+output_file <- file.path(output_dir, paste0(tissue_name, '.csv'))
 
 cat('Saving results to:', output_file, '\n')
 write_csv(all_results, output_file)
