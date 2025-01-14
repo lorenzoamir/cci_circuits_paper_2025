@@ -34,6 +34,7 @@ lr = lr[lr.receptor.isin(gpcrs)]
 # Read G-Proteins coupling
 print("Reading G-Proteins")
 gprots_couplings = pd.read_csv('/home/lnemati/resources/gpcr_couplings/gpcr_couplings.csv')
+#gprots_couplings = gprots_couplings.query('n_sources >=3')
 gprots_couplings = gprots_couplings.query('type != "precogx_only"')
 gprots_couplings.set_index('gpcr', inplace=True, drop=False)
 gprots_couplings.index.name = None

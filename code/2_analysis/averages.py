@@ -5,7 +5,7 @@ import os
 import sys
 import argparse
 
-parser = argparse.ArgumentParser(description='Compare hub genes from WGCNAs')
+parser = argparse.ArgumentParser(description='Get average correlation for ccc and intact')
 
 parser.add_argument('--dir-list', type=str, help='List of directories to compare, delimited by commas')
 

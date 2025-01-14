@@ -15,11 +15,11 @@ DENS_QUEUE='q02anacreon'
 
 COEXP_NCPUS=32
 MOTIFS_NCPUS=50
-DENS_NCPUS=24
+DENS_NCPUS=16
 
 COEXP_MEMORY=100gb
 MOTIFS_MEMORY=90gb
-DENS_MEMORY=32gb
+DENS_MEMORY=10gb
 
 cd /home/lnemati/pathway_crosstalk/code/5_crosstalk
 script_dir="/home/lnemati/pathway_crosstalk/code/5_crosstalk/scripts"
@@ -32,7 +32,6 @@ eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 data_dir=/projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/
 waiting_list=""
 
-# FLOW takes all tissues at once
 if [ $COEXP -eq 1 ]; then
     echo 'Coexp'
 
@@ -71,25 +70,36 @@ if [ $MOTIFS -eq 1 ]; then
         -c "python motifs.py" )
 fi
 
+# Find all correlation networks
+motifs_files=$(find /home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/ -type f -name motifs.csv)
+echo "motifs_files: $motifs_files"
+
 if [ $DENS -eq 1 ]; then
-    echo 'Dens'
+    echo 'Density'
 
-    # create job script for all tissues
-    dens_name="dens"
-    dens_script="$script_dir/$dens_name.sh"
+    # Run density.py on each of the 3 motifs files
+    for motif_file in $motifs_files; do
+        echo "motif_file: $motif_file"
+        # get condition
+        condition=$(basename $(dirname $motif_file))
+        echo "condition: $condition"
+
+        # create job script
+        dens_name="dns_${condition}"
+        dens_script="$script_dir/$dens_name.sh"
+
+        # Add motifs to waiting list
+        [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
     
-    [[ $COEXP -eq 1 ]] && waiting_list="$coexp_id"
-    [[ $MOTIFS -eq 1 ]] && waiting_list="$motifs_id"
-
-    dens_id=$(fsub \
-        -p "$dens_script" \
-        -n "$dens_name" \
-        -nc "$DENS_NCPUS" \
-        -m "$DENS_MEMORY" \
-        -e "WGCNA" \
-        -q "$DENS_QUEUE" \
-        -w "$waiting_list" \
-        -c "python density.py" )
+        dens_id=$(fsub \
+            -p "$dens_script" \
+            -n "$dens_name" \
+            -nc "$DENS_NCPUS" \
+            -m "$DENS_MEMORY" \
+            -e "WGCNA" \
+            -q "$DENS_QUEUE" \
+            -w "$waiting_list" \
+            -c "python density.py --motifs $motif_file" )
+        done
 fi
-
 echo "Done: pipeline.sh"
