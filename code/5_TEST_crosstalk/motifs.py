@@ -6,17 +6,32 @@ import igraph as ig
 from igraph import Graph
 from itertools import combinations
 from multiprocessing import Pool
+import PyWGCNA
 import ast
 import sys
+import re
 
 # Parse arguments
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--inputfile', type=str, help='Input file with adjacency matrix')
+parser.add_argument('--inputfile', type=str, help='Network csv file', required=True)
 
 args = parser.parse_args()
 
 inputfile = args.inputfile
+wgcnadir = inputfile.split('interactions')[0]
+
+# find file wgcna_*.p in wgcnadir
+wgcna = [f for f in os.listdir(wgcnadir) if f.startswith('wgcna_') and f.endswith('.p')][0]
+
+# also read module_info.csv for module names conversion
+module_info = pd.read_csv(os.path.join(wgcnadir, 'module_info.csv'), usecols=['module', 'rank'])
+
+# get tissue and condition
+tissue = inputfile.split('/')[-3]
+condition = inputfile.split('/')[-4]
+print('Tissue:', tissue)
+print('Condition:', condition)
 
 n_permutations = 1000
 ncpus = os.environ['NCPUS']
@@ -81,6 +96,7 @@ def find_motifs(
         '4_clique' :g6,
     }
 
+    # Get all interactions for each motif type
     for k in possible_motifs.keys():
         motifs[k] = []
         
@@ -136,14 +152,24 @@ def remove_weak(series, frac=0.1):
     return result
 
 network = pd.read_csv(inputfile)
+wgcna = PyWGCNA.readWGCNA(os.path.join(wgcnadir, wgcna))
+module_membership = wgcna.datExpr.var['moduleLabels']
+
+# Read all_genes as a list
+network['all_genes'] = network['all_genes'].apply(ast.literal_eval)
+# find the complex pairs that are actual ccc interactions
+network['ccc'] = network['all_genes'].apply(lambda genes: tuple(genes) in ccc_gene_sets)
+print('Number of CCC interactions: ' + str(network['ccc'].sum()))
 
 # Only select positive correlations
-network = network.query('adj > 0')
-network['all_genes'] = network['all_genes'].apply(lambda x: ast.literal_eval(x))
+network = network.query('corr > 0')
 
 # Remove weak interactions
-network['adj'] = remove_weak(network['adj'], frac=0.1)
-network = network.query('adj > 0')
+network['corr'] = remove_weak(network['corr'], frac=0.05)
+network = network.query('corr > 0')
+
+# Only keep those in same module
+network = network.query('same_module == 1')
 
 edges = list(zip(network['complex1'], network['complex2']))
 G = Graph.TupleList(edges, directed=False)
@@ -155,24 +181,30 @@ adj = pd.DataFrame(G.get_adjacency(), index=nodes, columns=nodes)
 motifs, counts = find_motifs(network, adj, ccc_gene_sets)
 
 # Save results
-tissue = os.path.basename(inputfile).split('.')[0]
-condition = os.path.basename(os.path.dirname(inputfile))
-print('Tissue:', tissue)
-print('Condition:', condition)
 outdir = '/home/lnemati/pathway_crosstalk/results/crosstalk/motifs_per_tissue'
 outdir = os.path.join(outdir, condition, tissue)
 os.makedirs(outdir, exist_ok=True)
 print('Saving results to:', outdir)
+
 # set counts columns to motif and number
 counts = counts.reset_index()
 counts.columns = ['motif', 'counts']
 counts.to_csv(os.path.join(outdir, 'counts.csv'), index=False)
+print('Actual motifs detected:', counts)
+
 # Motifs is a dictionary of lists of interactions that form each motif,
 # make a dataframe with one row per interaction and one column for motif type
 data = [(motif_type, interaction) for motif_type, interactions in motifs.items() for interaction in interactions]
 df = pd.DataFrame(data, columns=['motif', 'interaction'])
+# get genes in each interaction split with re.split([+_&])
+df['genes'] = df['interaction'].apply(lambda x: re.split('[+_&]', x))
+df['module_original_label'] = df['genes'].apply(lambda x: module_membership.loc[x].values[0]) # take first value, they are the same
+# if condition is tumor add T to the module rank and use that as the module name
+ranks = module_info.set_index('module')['rank'].to_dict()
+if condition == 'tumor':
+    # Convert module names to rank
+    df['module'] = df['module_original_label'].apply(lambda x: 'T' + str(ranks[x]))
 df.to_csv(os.path.join(outdir, 'motifs.csv'), index=False)
-print('Actual motifs detected:', counts)
 
 # Permutation testing using multiprocessing
 print('Running permutations')

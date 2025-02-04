@@ -6,5 +6,5 @@ mkdir -p /home/lnemati/pathway_crosstalk/code/5_TEST_crosstalk
 cd /home/lnemati/pathway_crosstalk/code/5_TEST_crosstalk
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 conda activate WGCNA
-python motifs.py --inputfile /home/lnemati/pathway_crosstalk/data/networks/normal/adrenal_gland.csv.gz
+python motifs.py --inputfile /projects/bioinformatics/DB/Xena/TCGA_GTEX/by_tissue_primary_vs_normal/adrenal_gland/normal/adrenal_gland/interactions/all_ccc_complex_pairs.csv
 exit 0

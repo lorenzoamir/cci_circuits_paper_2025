@@ -18,20 +18,20 @@ df <- read_csv(tissuefile, col_types = cols())
 
 # Check and fix column names if needed
 if (names(df)[1] == "") {
-  names(df)[1] <- "PatientID"  # Rename if the first column has no name
+  names(df)[1] <- "sample"  # Rename if the first column has no name
 }
 
 # Set the first column as row names
 df <- df %>% column_to_rownames(var = names(df)[1])
+
+# The ids are like this TCGA-3M-AB46-01, the last number after last - represents samples, remove it to get patient id
+df$patient <- sapply(strsplit(rownames(df), '-'), function(x) paste(x[1:4], collapse = '-'))
 
 # Print number of patients (rows) in the dataset
 cat('Number of patients:', nrow(df), '\n')
 
 # Read motifs file and filter for specific types
 motifs <- read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv', col_types = cols())
-# DEBUG
-#motifs <- motifs %>% filter(Type %in% c("3_clique") %>% pull(Interaction))
-#motifs <- motifs %>% filter(Type %in% c("3_clique", "4_clique", "4_no_crosstalk")) %>% pull(Interaction)
 motifs <- motifs %>% pull(Interaction)
 
 cat('Number of cliques (subset):', length(motifs), '\n')
@@ -49,7 +49,7 @@ survival_analysis <- function(interaction, df) {
   multiple <- length(unique(df$condition)) > 1
 
   # Select relevant columns (OS.time, OS, condition, and the genes of interest)
-  cols <- c("OS.time", "OS", "condition", genes)
+  cols <- c("patient", "OS.time", "OS", "condition", genes)
   if (!multiple) {
     cols <- setdiff(cols, "condition")
   }
@@ -97,14 +97,29 @@ survival_analysis <- function(interaction, df) {
     high_expression_group <- df[above_all_genes, ]
     low_expression_group <- df[below_all_genes, ]
   }
-                                 
+  
+  # If patients appears in both groups, remove them
+  patients_in_both_groups <- intersect(high_expression_group$patient, low_expression_group$patient)
+  high_expression_group <- high_expression_group %>% filter(!patient %in% patients_in_both_groups)
+  low_expression_group <- low_expression_group %>% filter(!patient %in% patients_in_both_groups)
+  
   # Add a 'group' column to indicate high (1) or low (0) expression groups
   high_expression_group <- high_expression_group %>% mutate(group = 1)
   low_expression_group <- low_expression_group %>% mutate(group = 0)
 
   # Combine the high and low expression groups into one dataframe
   df <- bind_rows(high_expression_group, low_expression_group)
-  
+ 
+  # Patient column is not needed anymore
+  df <- df %>% select(-patient)
+
+  # Save the ids (rownames) in each group
+  high_expression_ids <- rownames(high_expression_group)
+  low_expression_ids <- rownames(low_expression_group)
+  # Convert to a ; delimited string of ids
+  high_expression_ids <- paste(high_expression_ids, collapse = ";")
+  low_expression_ids <- paste(low_expression_ids, collapse = ";")
+
   # Remove any rows that are not part of the high or low expression groups
   print('Subsetting')
   df <- df %>% filter(group %in% c(0, 1))
@@ -124,7 +139,9 @@ survival_analysis <- function(interaction, df) {
       concordance_index = NA,
       ci_low = NA,
       ci_high = NA,
-      se = NA
+      se = NA,
+      high_expression_ids = high_expression_ids,
+      low_expression_ids = low_expression_ids
     ))
   }
 
@@ -173,7 +190,9 @@ survival_analysis <- function(interaction, df) {
       concordance_index = concordance,
       ci_low = ci_low,
       ci_high = ci_high,
-      se = se
+      se = se,
+      high_expression_ids = high_expression_ids,
+      low_expression_ids = low_expression_ids
     ))
   }, warning = function(w) {
     print("Warning occurred during Cox model fitting. Returning NAs.")
@@ -185,7 +204,9 @@ survival_analysis <- function(interaction, df) {
       concordance_index = NA,
       ci_low = NA,
       ci_high = NA,
-      se = NA
+      se = NA,
+      high_expression_ids = high_expression_ids,
+      low_expression_ids = low_expression_ids
     ))
   })
 
@@ -208,7 +229,8 @@ for (interaction in ccc) {
     ci_low = result$ci_low,
     ci_high = result$ci_high,
     se=result$se,
-    #zph = result$zph,
+    high_expression_ids = result$high_expression_ids,
+    low_expression_ids = result$low_expression_ids,
     type = "ccc"
   )
   
@@ -232,7 +254,8 @@ for (interaction in motifs) {
     ci_low = result$ci_low,
     ci_high = result$ci_high,
     se=result$se,
-    #zph = result$zph,
+    high_expression_ids = result$high_expression_ids,
+    low_expression_ids = result$low_expression_ids,
     type = "crosstalk"
   )
   

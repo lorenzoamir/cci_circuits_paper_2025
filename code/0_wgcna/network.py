@@ -151,9 +151,6 @@ degree_df["betweenness"] = g.betweenness(weights=g.es['distance'])
 # save degree_df as csv
 degree_df.to_csv(os.path.join(output_path, "degree_df.csv.gz"))
 
-# Maybe add assortativity?
-
-
 # ----- General info ------
 
 # If general_info.txt exists, overwrite it

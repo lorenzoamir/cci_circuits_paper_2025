@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import PyWGCNA
 import os
 import sys
 import ast
@@ -29,6 +30,7 @@ print('Initializing network')
 net = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv', index_col=['complex1', 'complex2'], usecols=['complex1', 'complex2', 'all_genes'])
 net['all_genes'] = net['all_genes'].apply(lambda x: ast.literal_eval(x))
 net['adj'] = 0
+net['same_module_frac_subtissues'] = 0
 print('Initialized network:')
 print(net.head())
 print()
@@ -53,11 +55,23 @@ for subtissue in subtissue_dirs:
     df['adj'] = df['adj'].fillna(0)
     # Sum adj columns
     net['adj'] += df['adj']
+    # Read wgcna file, it starts with wgcna_ and ends with .p
+    wgcna = [f for f in os.listdir(os.path.join(inputdir, subtissue)) if f.startswith('wgcna_') and f.endswith('.p')][0]
+    wgcna = PyWGCNA.readWGCNA(os.path.join(inputdir, subtissue, wgcna))
+    # Get module memberships
+    module_membership = wgcna.datExpr.var['moduleLabels']
+    all_genes = set(module_membership.index)
+    # If all genes are present in module_membership and are in the same module increment same_module_frac_subtissues
+    for idx, net_row in net.iterrows(): 
+        if all_genes.issuperset(net_row['all_genes']):
+            if module_membership.loc[net_row['all_genes']].nunique() == 1:
+                net.loc[idx, 'same_module_frac_subtissues'] += 1
 
 print()
 
 # From sum to average
 net['adj'] /= len(subtissue_dirs)
+net['same_module_frac_subtissues'] /= len(subtissue_dirs)
 
 print('Aggregated network:')
 print(net.head())

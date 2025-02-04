@@ -176,30 +176,6 @@ if [ $AGGREGATE -eq 1 ]; then
 fi
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Run pipeline for each tissue
 for i in "${!tumors[@]}"; do
     tumordir="${tumors[$i]}"

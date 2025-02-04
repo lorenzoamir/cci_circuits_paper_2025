@@ -159,8 +159,8 @@ module_changes.index = "N" + module_changes.index.astype(str)
 module_changes.columns = "T" + module_changes.columns.astype(str)
 
 # Strip .0 if ends with it
-module_changes.index = module_changes.index.str.replace("\.0", "")
-module_changes.columns = module_changes.columns.str.replace("\.0", "")
+module_changes.index = module_changes.index.str.replace(".0", "")
+module_changes.columns = module_changes.columns.str.replace(".0", "")
 
 print(module_changes.head())
 

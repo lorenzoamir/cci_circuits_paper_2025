@@ -22,6 +22,7 @@ def extract_values(col):
     df[col+'2'] = rawdf.loc[int2,       col].values
 
 for file in os.listdir(path):
+    print('Reading', os.path.join(path, file))
     rawdf = pd.read_csv(os.path.join(path, file), index_col='interaction')
     #rawdf = rawdf.dropna()
     tissue = file.replace('.csv', '').title()
@@ -30,11 +31,16 @@ for file in os.listdir(path):
     rawdf['tissue'] = tissue
     rawdfs.append(rawdf)
     
-    pairs = rawdf.query('(type == "crosstalk")').index
+    # If type is not in the columns, determine it by checking if there is & in the index 
+    if 'type' not in rawdf.columns:
+        print('Determining CCC vs Crosstalk')
+        rawdf['type'] = np.where(rawdf.index.str.contains('&'), 'crosstalk', 'ccc')
+
+    pairs = rawdf.query('type == "crosstalk"').index
     
     if len(pairs) == 0:
         continue
-    
+
     int1 = pairs.str.split('&', expand=True).get_level_values(0)
     int2 = pairs.str.split('&', expand=True).get_level_values(1)
     
@@ -47,23 +53,28 @@ for file in os.listdir(path):
         'n_patients_high',
         'concordance_index',
         'logrank_pval',
+        'lik_pval',
         'se',
-        #'ci_low',
-        #'ci_high',
+        'ci_low',
+        'ci_high',
     ]
-    
+   
+    print('Extracting values')
     for col in cols:
-        extract_values(col)
-    
-    df = df.drop(columns=['tissue1', 'tissue2', 'se1', 'se2'])
+        if col in rawdf.columns:
+            extract_values(col)
+   
+    print('Cleaning dataframe')
+    df = df.drop(columns=['tissue1', 'tissue2'])
     
     df['min_patients']  = df[['n_patients_low', 'n_patients_high']].min(1)
-    df['min_patients1'] = df[['n_patients_low1', 'n_patients_high2']].min(1)
-    df['min_patients2'] = df[['n_patients_low1', 'n_patients_high2']].min(1)
+    df['min_patients1'] = df[['n_patients_low1', 'n_patients_high1']].min(1)
+    df['min_patients2'] = df[['n_patients_low2', 'n_patients_high2']].min(1)
     
     df = df.drop(columns=['n_patients_low', 'n_patients_low1', 'n_patients_low2', 'n_patients_high', 'n_patients_high1', 'n_patients_high2'])
     
     dfs.append(df)
+    print()
 
 rawdf =  pd.concat(rawdfs).reset_index().set_index(['interaction', 'tissue'])
 pairdf = pd.concat(dfs).reset_index().set_index(['interaction', 'tissue'])

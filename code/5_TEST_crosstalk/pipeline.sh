@@ -5,28 +5,28 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-NETWORKS=0 # aggregate subtissues into tissue networks
-MOTIFS=0 # detect motifs in each tissue
+#NETWORKS=0 # aggregate subtissues into tissue networks
+MOTIFS=1 # detect motifs in each tissue
 DENS=0 # density
-SURV=1 # survival analysis
+SURV=0 # survival analysis
 #COEXP=0 # make co-expression of complexes network
 #MOTIFS=0 # find motifs in the network
 
-NETWORKS_QUEUE='q02anacreon'
+#NETWORKS_QUEUE='q02anacreon'
 MOTIFS_QUEUE='q02anacreon'
 DENS_QUEUE='q02anacreon'
 SURV_QUEUE='q02gaia'
 #COEXP_QUEUE='q02anacreon'
 #MOTIFS_QUEUE='q02anacreon'
 
-NETWORKS_NCPUS=2
+#NETWORKS_NCPUS=1
 MOTIFS_NCPUS=8
 DENS_NCPUS=8
 SURV_NCPUS=1
 #COEXP_NCPUS=32
 #MOTIFS_NCPUS=50
 
-NETWORKS_MEMORY=16gb
+#NETWORKS_MEMORY=12gb
 MOTIFS_MEMORY=10gb
 DENS_MEMORY=10gb
 SURV_MEMORY=6gb
@@ -52,47 +52,56 @@ tissue_condition_dirs=$(find $data_dir -mindepth 2 -maxdepth 2 -type d -not -emp
 # Init waiting list
 waiting_list=""
 
-# Loop over all subtissue/condition directories
-for tissue_condition_dir in $tissue_condition_dirs; do
-    tissue=$(basename $(dirname $tissue_condition_dir))
-    condition=$(basename $tissue_condition_dir)
+## Loop over all subtissue/condition directories
+#for tissue_condition_dir in $tissue_condition_dirs; do
+#    tissue=$(basename $(dirname $tissue_condition_dir))
+#    condition=$(basename $tissue_condition_dir)
+#
+#    echo "$tissue $condition"
+#    
+#    if [ $NETWORKS -eq 1 ]; then
+#        echo 'Networks'
+#
+#        # create job script
+#        networks_name="net_${tissue}_${condition}"
+#        networks_script="$script_dir/$networks_name.sh"
+#
+#        networks_id=$(fsub \
+#            -p "$networks_script" \
+#            -n "$networks_name" \
+#            -nc "$NETWORKS_NCPUS" \
+#            -m "$NETWORKS_MEMORY" \
+#            -e "WGCNA" \
+#            -q "$NETWORKS_QUEUE" \
+#            -c "python aggregate_networks.py --inputdir $tissue_condition_dir"
+#        )
+#
+#        waiting_list="$waiting_list:$networks_id"
+#    fi
+#done
+#
+## Directory containing normal and tumor directories with all the tissue networks
+#tissue_nets_dir="/home/lnemati/pathway_crosstalk/data/networks"
+## Find all files in the tissue_nets_dir
+#networks=$(find $tissue_nets_dir -type f -name *.csv.gz)
 
-    echo "$tissue $condition"
-    
-    if [ $NETWORKS -eq 1 ]; then
-        echo 'Networks'
-
-        # create job script
-        networks_name="net_${tissue}_${condition}"
-        networks_script="$script_dir/$networks_name.sh"
-
-        networks_id=$(fsub \
-            -p "$networks_script" \
-            -n "$networks_name" \
-            -nc "$NETWORKS_NCPUS" \
-            -m "$NETWORKS_MEMORY" \
-            -e "WGCNA" \
-            -q "$NETWORKS_QUEUE" \
-            -c "python aggregate_networks.py --inputdir $tissue_condition_dir"
-        )
-
-        waiting_list="$waiting_list:$networks_id"
-    fi
-done
-
-# Directory containing normal and tumor directories with all the tissue networks
-tissue_nets_dir="/home/lnemati/pathway_crosstalk/data/networks"
-# Find all files in the tissue_nets_dir
-networks=$(find $tissue_nets_dir -type f -name *.csv.gz)
+# find all all_ccc_complex_pairs.csv files in the data_dir
+networks=$(find $data_dir -type f -name all_ccc_complex_pairs.csv)
 
 # Loop over all tissue networks
 for network in $networks; do
-    tissue=$(sed 's/.csv.gz//' <<< $(basename $network))
-    condition=$(basename $(dirname $network))
+    # tissue is the second to last dir in the path
+    tissue=$(basename $(dirname $(dirname $network)))
+    condition=$(basename $(dirname $(dirname $(dirname $network))))
 
     echo "$tissue $condition"
     echo "$network"
-    
+   
+    # Only run if condition is tumor 
+    if [ $condition != "tumor" ]; then
+        continue
+    fi
+
     if [ $MOTIFS -eq 1 ]; then
         echo 'Motifs'
 

@@ -166,13 +166,6 @@ for filename in interactions_files:
             # Merge normal and tumor interactions with the full interaction network
             new_dfs = []
             for df in normal_dfs:
-                # DEBUG: if any df has any value outside of the range -1 to 1, print the path
-                if (df[metric] > 1).any() or (df[metric] < -1).any():
-                    print('!!! Value outside of range -1 to 1 !!!')
-                    print('normal df:', df[metric].max(), df[metric].min())
-                    print(metric)
-                    print('path:', df)
-                    print()
                 n_tmp = tissue_interactions.copy()
                 n_tmp['metric'] = 0
                 n_tmp.loc[df.index, metric] = df[metric] # Add the values of the metric to the interaction network
@@ -181,13 +174,6 @@ for filename in interactions_files:
 
             new_dfs = []
             for df in tumor_dfs:
-                # DEBUG: if any df has any value outside of the range -1 to 1, print the path
-                if (df[metric] > 1).any() or (df[metric] < -1).any():
-                    print('!!! Value outside of range -1 to 1 !!!')
-                    print('tumor df:', df[metric].max(), df[metric].min())
-                    print(metric)
-                    print('path:', df)
-                    print()
                 t_tmp = tissue_interactions.copy()
                 t_tmp['metric'] = 0
                 t_tmp.loc[df.index, metric] = df[metric] # Add the values of the metric to the interaction network

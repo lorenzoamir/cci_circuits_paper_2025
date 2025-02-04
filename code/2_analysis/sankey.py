@@ -10,7 +10,7 @@ tcolor     = '#ab3502'
 ncolor     = '#00728e'
 graycolor2 = '#C8CAD4'
 
-def hex_to_rgba(hex_color, alpha=0.5):
+def hex_to_rgba(hex_color, alpha=0.7):
     """
     Convert a hex color to an RGBA string with specified transparency.
 
@@ -162,30 +162,38 @@ module_changes = module_changes.fillna(0)
 print('Module changes:')
 print(module_changes.head())
 
+# Strip .0 if ends with it
+print("Stripping .0 from module names")
+module_changes.index = module_changes.index.str.replace(".0", "")
+module_changes.columns = module_changes.columns.str.replace(".0", "")
+
 # Reorder index and columns so that "Different<br>Modules" is the first columns, the rest are sorted by their rank
+# NOT ALPHABETICALLY, so 1,2,3,4... not 10,11,12...
+print('Sorting modules')
+# Convert to float for sorting, but then go back to strings
+t_sorted = sorted([int(col) for col in module_changes.columns if col != "Different<br>Tumor<br>Modules"])
+t_sorted = [str(int(col)) for col in t_sorted]
 module_changes = module_changes[
-    ["Different<br>Tumor<br>Modules"] + sorted([col for col in module_changes.columns if col != "Different<br>Tumor<br>Modules"])
+    ["Different<br>Tumor<br>Modules"] + t_sorted
 ]
-module_changes = module_changes.reindex(
-    ["Different<br>Normal<br>Modules"] + sorted([idx for idx in module_changes.index if idx != "Different<br>Normal<br>Modules"])
-)
 
-
+n_sorted = sorted([float(idx) for idx in module_changes.index if idx != "Different<br>Normal<br>Modules"])
+n_sorted = [str(int(idx)) for idx in n_sorted]
+module_changes = module_changes.loc[
+    ["Different<br>Normal<br>Modules"] + n_sorted
+]
 # Add N and T to the index and columns (only if they are not "Different<br>Modules")
-module_changes.index = np.where(
-    module_changes.index == "Different<br>Normal<br>Modules",
-    "Different<br>Normal<br>Modules",
-    "N" + module_changes.index.astype(str)
-)
 module_changes.columns = np.where(
     module_changes.columns == "Different<br>Tumor<br>Modules",
     "Different<br>Tumor<br>Modules",
     "T" + module_changes.columns.astype(str)
 )
 
-# Strip .0 if ends with it
-module_changes.index = module_changes.index.str.replace("\.0", "")
-module_changes.columns = module_changes.columns.str.replace("\.0", "")
+module_changes.index = np.where(
+    module_changes.index == "Different<br>Normal<br>Modules",
+    "Different<br>Normal<br>Modules",
+    "N" + module_changes.index.astype(str)
+)
 
 print(module_changes.head())
 
@@ -196,54 +204,60 @@ source = []
 target = []
 value = []
 
+# Set to 0 the cell corresponding to both in different modules
+print('Discardin different modules in both conditions')
+module_changes.loc["Different<br>Normal<br>Modules", "Different<br>Tumor<br>Modules"] = 0
+
 for i, row in module_changes.iterrows():
     for j, val in row.items():
-        if val > 0:
-            source.append(labels.index(i))
-            target.append(labels.index(j))
-            value.append(val)
+        source.append(labels.index(i))
+        target.append(labels.index(j))
+        value.append(val)
 
 print("Setting colors")
-opacity = 0.5  # Set the fixed opacity value
-#t_color = (255, 0, 0) + (opacity,)  # Red
-#n_color = (0, 0, 255) + (opacity,)  # Blue
-#nan_color = (100, 100, 100) + (opacity,) # Gray
-
 colors = []
 
 for norm, row in module_changes.iterrows():
     for tum, val in row.items():
-        if val > 0:
-            if (norm != "Different<br>Normal<br>Modules") & (tum != "Different<br>Tumor<br>Modules"):
+        if (norm != "Different<br>Normal<br>Modules") & (tum != "Different<br>Tumor<br>Modules"):
+            #r, g, b, a = nan_color
+            #colors.append(f"rgba({r},{g},{b},{a})")
+            colors.append(graycolor2)
+        else:
+            if (norm == "Different<br>Normal<br>Modules") & (tum == "Different<br>Tumor<br>Modules"):
                 #r, g, b, a = nan_color
                 #colors.append(f"rgba({r},{g},{b},{a})")
-                colors.append(graycolor2)
-            else:
-                if (norm == "Different<br>Normal<br>Modules") & (tum == "Different<br>Tumor<br>Modules"):
-                    #r, g, b, a = nan_color
-                    #colors.append(f"rgba({r},{g},{b},{a})")
-	                colors.append(graycolor2)	
-                elif (norm == "Different<br>Normal<br>Modules"):
-                    #r, g, b, a = t_color
-                    #colors.append(f"rgba({r},{g},{b},{a})")
-                    colors.append(tcolor)
-                elif (tum == "Different<br>Tumor<br>Modules"):
-                    #r, g, b, a = n_color
-                    #colors.append(f"rgba({r},{g},{b},{a})")
-                    colors.append(ncolor)
+                colors.append(graycolor2)	
+            elif (norm == "Different<br>Normal<br>Modules"):
+                #r, g, b, a = t_color
+                #colors.append(f"rgba({r},{g},{b},{a})")
+                colors.append(tcolor)
+            elif (tum == "Different<br>Tumor<br>Modules"):
+                #r, g, b, a = n_color
+                #colors.append(f"rgba({r},{g},{b},{a})")
+                colors.append(ncolor)
                    
-#r, g, b, a = t_color
-#tc = f"rgba({r},{g},{b},{a})"
-#r, g, b, a = n_color
-#nc = f"rgba({r},{g},{b},{a})"
-
 # Different modules are gray, the rest are normal or tumor colors
 node_colors = [graycolor2] + \
               [ncolor] * (module_changes.shape[0] - 1) + \
               [graycolor2] + \
               [tcolor] * (module_changes.shape[1] - 1)
 
+# Defining positions
+
+# Normal nodes on the left, tumor nodes on the right
+x = [0.01] * module_changes.shape[0] + [0.99] * module_changes.shape[1]
+
+# Order nodes vertically by rank
+y = list(np.linspace(0.01, 0.99, module_changes.shape[0])) + list(np.linspace(0.01, 0.99, module_changes.shape[1])) 
+
 print("Generating sankey plot")
+
+# print labels and positions
+print('x:', x)
+print([(posx, lab) for posx, lab in zip(x, labels)])
+print('y:', y)
+print([(posy, lab) for posy, lab in zip(y, labels)])
 
 INVERT = True
 
@@ -257,27 +271,35 @@ fig = go.Figure(
     go.Sankey(
         arrangement='snap',
         node = dict(
-            pad = 15,
+            pad = 20,
             thickness = 20,
-            #line = dict(color = "black", width = 0.5),
+            line = dict(color = "black", width = 1.5),
             label = labels,
             color = node_colors,
-            align="right",
+            x = x,
+            y = y,
+            #align="right",
         ),
         link = dict(
             source = source,
             target = target,
             value =  value,
-            color = colors 
-        )
+            color = colors, 
+            line=dict(color="black", width=0),
+        ),
     )
 )
 
-fig.update_layout(title_text=tumor_name, font_size=10)
+title=tumor_name.replace("_", " ").title()
+fig.update_layout(
+    title=dict(text=title),
+    font=dict(size=16, color='black')
+)
 
 print("Saving Sankey plot to " + os.path.join(tumor_fig_dir, "sankey.pdf"))
 # Save figure (overwriting the dummy plot)
 fig.write_image(os.path.join(tumor_fig_dir, "sankey.pdf"))
+fig.write_image(os.path.join(tumor_fig_dir, "sankey.svg"))
 fig.write_image(os.path.join(tumor_fig_dir, "sankey.png"))
 
 print("Done: sankey.py")
