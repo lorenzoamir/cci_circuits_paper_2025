@@ -52,7 +52,7 @@ for tumor_path in "${tumor_paths[@]}"; do
     id=$(fsub \
         -p "/home/lnemati/pathway_crosstalk/code/2_analysis/scripts/sankey_$tissue_name.sh" \
         -n "sankey_$tissue_name" \
-        -q q02anacreon \
+        -q q02gaia \
         -nc 1 \
         -m '8gb' \
         -e 'WGCNA' \

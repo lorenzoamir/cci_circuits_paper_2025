@@ -17,6 +17,7 @@ args = parser.parse_args()
 filename = args.input
 wgcna = PyWGCNA.readWGCNA(filename)
 wgcna.CalculateSignedKME()
+n_modules = wgcna.signedKME.shape[1]
 wgcna_genes = wgcna.datExpr.var
 
 # Get adjacency matrix and normalize it so that the maximum degree is 1
@@ -64,8 +65,12 @@ for name, interaction_path in interactions_resources.items():
     result['adj'] = None
     #result["min_adj"] = None
     #result["mean_adj"] = None
-    result['kme_corr'] = None
+    result['kme_corr'] = None # correlation
     result['kme_cos'] = None # cosine similarity
+    result['kme_dot'] = None # dot product
+    result['kme_dot_norm'] = None # dot product / n_modules
+    result['kme_euclidean_similarity'] = None # sqrt(n_modules) - euclidean distance
+    result['kme_manhattan_similarity'] = None # n_modules - manhattan distance
     #result["min_kme_corr"] = None
     #result["mean_kme_corr"] = None
     result["missing_genes"] = False
@@ -81,31 +86,22 @@ for name, interaction_path in interactions_resources.items():
         else: 
             # If all genes are present, calculate the scores
             # Aggregate multiple values by taking the minimum
-            result.loc[i, 'corr'] = corr.loc[all_genes[0], all_genes[1]].min()
-            result.loc[i, 'adj'] = adj.loc[all_genes[0], all_genes[1]].min()
+            result.loc[i, 'corr'] = corr.loc[all_genes[0], all_genes[1]]
+            result.loc[i, 'adj'] = adj.loc[all_genes[0], all_genes[1]]
             kme1 = wgcna.signedKME.loc[all_genes[0]]
             kme2 = wgcna.signedKME.loc[all_genes[1]]
-            result.loc[i, 'kme_corr'] = kme1.corr(kme2).min()
-            result.loc[i, 'kme_cos'] = cosine_similarity(kme1.values.reshape(1, -1), kme2.values.reshape(1, -1)).min()
+            result.loc[i, 'kme_corr'] = kme1.corr(kme2)
+            result.loc[i, 'kme_cos'] = cosine_similarity(kme1.values.reshape(1, -1), kme2.values.reshape(1, -1))
+            result.loc[i, 'kme_dot'] = np.dot(kme1, kme2)
+            result.loc[i, 'kme_dot_norm'] = result.loc[i, 'kme_dot'] / n_modules
+            # Normalize by maximum possible euclidian distance on n-dimensional cube of side 2
+            result.loc[i, 'kme_euclidean_similarity'] = 1 - (np.linalg.norm(kme1 - kme2) / 2*np.sqrt(n_modules))
+            # Normalize by maximum possible manhattan distance on n-dimensional cube of side 2
+            result.loc[i, 'kme_manhattan_similarity'] = 1 - (np.linalg.norm(kme1 - kme2, ord=1) / 2*n_modules)
             if wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
                 # If all genes are present and in the same module add module
                 result.loc[i, "same_module"] = 1
                 result.loc[i, "module"] = wgcna_genes.loc[all_genes[0], "moduleLabels"]
-        
-        # This made sense when considering interactions, now that we use pairs, we don't need it
-
-        # Add adjacency to interactions, use 0 value to fill for genes not in the WGCNA object
-        #adj = wgcna.adjacency.reindex(index=all_genes, columns=all_genes, fill_value=0)
-        #idxs_x, idxs_y = np.triu_indices(adj.shape[0], 1)
-        #result.loc[i, "mean_adj"] = np.mean(adj.values[idxs_x, idxs_y])
-        #result.loc[i, "min_adj"] = np.min(adj.values[idxs_x, idxs_y])
-        
-        # Add KME correlation to interactions, use 0 value to fill for genes not in the WGCNA object
-        #kme = wgcna.signedKME.loc[genes_in_wgcna]
-        #corr = kme.T.corr().reindex(index=all_genes, columns=all_genes, fill_value=0)
-        #idxs_x, idxs_y = np.triu_indices(corr.shape[0], 1)
-        #result.loc[i, "mean_kme_corr"] = np.mean(corr.values[idxs_x, idxs_y])
-        #result.loc[i, "min_kme_corr"] = np.min(corr.values[idxs_x, idxs_y])
     
     # Show results
     print("Showing the first 10 interactions")

@@ -15,8 +15,8 @@ SURV_NCPUS=1
 AGGR_NCPUS=2
 PLOT_NCPUS=1
 
-SURV_MEMORY=8gb
-AGGR_MEMORY=8gb
+SURV_MEMORY=15gb
+AGGR_MEMORY=20gb
 
 cd /home/lnemati/pathway_crosstalk/code/7_survival
 script_dir="/home/lnemati/pathway_crosstalk/code/7_survival/scripts"

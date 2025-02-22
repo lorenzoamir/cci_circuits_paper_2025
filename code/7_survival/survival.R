@@ -34,8 +34,6 @@ cat('Number of patients:', nrow(df), '\n')
 motifs <- read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv', col_types = cols())
 motifs <- motifs %>% pull(Interaction)
 
-cat('Number of cliques (subset):', length(motifs), '\n')
-
 # Extract ccc interactions from motifs by splitting and flattening the list
 ccc <- unique(unlist(str_split(motifs, '&')))  # Split interactions by '&' and flatten the list
 cat('Number of ccc interactions:', length(ccc), '\n')
@@ -66,7 +64,8 @@ survival_analysis <- function(interaction, df) {
   print('Splitting')
   if (multiple) {
     for (condition in unique(df$condition)) {
-      tissue_df <- df %>% filter(condition == condition)
+      tissue_df <- df %>% filter(.data$condition == condition)
+
       medians <- sapply(genes, function(gene) median(tissue_df[[gene]], na.rm = TRUE))
       
       # Create binary flags for above/below median for each gene
@@ -97,12 +96,12 @@ survival_analysis <- function(interaction, df) {
     high_expression_group <- df[above_all_genes, ]
     low_expression_group <- df[below_all_genes, ]
   }
-  
-  # If patients appears in both groups, remove them
+
+  # Split into all high vs all low
   patients_in_both_groups <- intersect(high_expression_group$patient, low_expression_group$patient)
   high_expression_group <- high_expression_group %>% filter(!patient %in% patients_in_both_groups)
   low_expression_group <- low_expression_group %>% filter(!patient %in% patients_in_both_groups)
-  
+
   # Add a 'group' column to indicate high (1) or low (0) expression groups
   high_expression_group <- high_expression_group %>% mutate(group = 1)
   low_expression_group <- low_expression_group %>% mutate(group = 0)
@@ -116,12 +115,12 @@ survival_analysis <- function(interaction, df) {
   # Save the ids (rownames) in each group
   high_expression_ids <- rownames(high_expression_group)
   low_expression_ids <- rownames(low_expression_group)
+
   # Convert to a ; delimited string of ids
   high_expression_ids <- paste(high_expression_ids, collapse = ";")
   low_expression_ids <- paste(low_expression_ids, collapse = ";")
 
   # Remove any rows that are not part of the high or low expression groups
-  print('Subsetting')
   df <- df %>% filter(group %in% c(0, 1))
 
   # Count the number of patients in each group
@@ -130,7 +129,6 @@ survival_analysis <- function(interaction, df) {
 
   # If there are too few patients in either group, list of NA values
   if (n_above_all < MIN_PATIENTS || n_below_all < MIN_PATIENTS) {
-    print('Too few patients')
     return(list(
       hr = NA,
       n_patients_low = n_below_all,
@@ -139,14 +137,13 @@ survival_analysis <- function(interaction, df) {
       concordance_index = NA,
       ci_low = NA,
       ci_high = NA,
-      se = NA,
-      high_expression_ids = high_expression_ids,
-      low_expression_ids = low_expression_ids
+      se = NA
+      #high_expression_ids = high_expression_ids,
+      #low_expression_ids = low_expression_ids
     ))
   }
 
   # Make sure the group and condition columns are factors
-  print('Converting')
   df$group <- as.factor(df$group)
   if (multiple) {
     df$condition <- as.factor(df$condition)
@@ -170,17 +167,12 @@ survival_analysis <- function(interaction, df) {
     hr <- exp(coef(model)["group1"])
     logrank_pval <- summary(model)$sctest["pvalue"]
     concordance <- summary(model)$concordance[1]
-    print('Getting confidence intervals')
     ci_low <- exp(confint(model)["group1", 1])
     ci_high <- exp(confint(model)["group1", 2])
     se <- summary(model)$coefficients["group1", "se(coef)"]
-    print(summary(model)$coefficients)
     # Propagate error:
     # hr = exp(coef) => err_hr = exp(coef) * se(coef) = hr * se(coef)
     se <- hr * se
-
-    print('Model summary')
-    print(summary(model))
 
     return(list(
       hr = hr,
@@ -190,12 +182,13 @@ survival_analysis <- function(interaction, df) {
       concordance_index = concordance,
       ci_low = ci_low,
       ci_high = ci_high,
-      se = se,
-      high_expression_ids = high_expression_ids,
-      low_expression_ids = low_expression_ids
+      se = se
+      #high_expression_ids = high_expression_ids,
+      #low_expression_ids = low_expression_ids
     ))
   }, warning = function(w) {
     print("Warning occurred during Cox model fitting. Returning NAs.")
+    print(w)
     return(list(
       hr = NA,
       n_patients_low = n_below_all,
@@ -204,14 +197,14 @@ survival_analysis <- function(interaction, df) {
       concordance_index = NA,
       ci_low = NA,
       ci_high = NA,
-      se = NA,
-      high_expression_ids = high_expression_ids,
-      low_expression_ids = low_expression_ids
+      se = NA
+      #high_expression_ids = high_expression_ids,
+      #low_expression_ids = low_expression_ids
     ))
   })
 
   return(result)
-}
+}   
 
 # Test all ccc interactions
 ccc_results <- data.frame()
@@ -228,9 +221,9 @@ for (interaction in ccc) {
     concordance_index = result$concordance_index,
     ci_low = result$ci_low,
     ci_high = result$ci_high,
-    se=result$se,
-    high_expression_ids = result$high_expression_ids,
-    low_expression_ids = result$low_expression_ids,
+    se = result$se,
+    #high_expression_ids = result$high_expression_ids,
+    #low_expression_ids = result$low_expression_ids,
     type = "ccc"
   )
   
@@ -254,8 +247,8 @@ for (interaction in motifs) {
     ci_low = result$ci_low,
     ci_high = result$ci_high,
     se=result$se,
-    high_expression_ids = result$high_expression_ids,
-    low_expression_ids = result$low_expression_ids,
+    #high_expression_ids = result$high_expression_ids,
+    #low_expression_ids = result$low_expression_ids,
     type = "crosstalk"
   )
   

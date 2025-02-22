@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N surv_kidney
-#PBS -l select=1:ncpus=1:ngpus=0:mem=8gb
+#PBS -l select=1:ncpus=1:ngpus=0:mem=15gb
 #PBS -q q02anacreon
 mkdir -p /home/lnemati/pathway_crosstalk/code/7_survival
 cd /home/lnemati/pathway_crosstalk/code/7_survival

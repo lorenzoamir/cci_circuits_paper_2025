@@ -105,6 +105,10 @@ rawdf.loc[rawdf.type == 'ccc', 'motif'] = 'ccc'
 rawdf.loc[rawdf.index.intersection(motifs.index), 'motif'] = motifs.loc[rawdf.index.intersection(motifs.index), 'Type']
 pairdf['motif'] = motifs.loc[pairdf.index, 'Type']
 
+# Clean high and low expression ids columns from ...1,...2 etc. and convert to list
+#rawdf['high_expression_ids'] = rawdf.high_expression_ids.astype(str).apply(lambda x: [string.split('...')[0] for string in x.split(';') if '...' in string])
+#rawdf['low_expression_ids'] = rawdf.low_expression_ids.astype(str).apply(lambda x: [string.split('...')[0] for string in x.split(';') if '...' in string])
+
 print('Saving')
 outdir = args.outputdir
 os.makedirs(outdir, exist_ok=True)

@@ -3,6 +3,8 @@ import os
 import numpy as np
 import PyWGCNA
 import gseapy as gp
+import re
+import ast
 import argparse
 import plotly.graph_objects as go
 
@@ -135,14 +137,60 @@ t_same_n_diff = consensus_df[
 ]
 
 print('Saving interactions to file: ' + os.path.join(tumor_dir, "t_same_n_diff.csv"))
+t_same_n_diff = t_same_n_diff[['interaction', 'module_tumor']]
+t_same_n_diff['module_tumor'] = 'T' + t_same_n_diff['module_tumor'].astype(str)
 t_same_n_diff.to_csv(os.path.join(tumor_dir, "t_same_n_diff.csv"), index=False)
+# Get all t_same_n_diff genes by splitting the interaction strings by + and -
+t_same_n_diff_genes = list(set(t_same_n_diff['interaction'].apply(lambda x: re.split(r'[+_]', x)).sum()))
+print('Number of unique genes in t_same_n_diff:', len(t_same_n_diff_genes))
+
 
 # Get pairs that have different modules in tumor but the same in normal
 n_same_t_diff = consensus_df[
     (consensus_df["module_normal"] != "Different<br>Normal<br>Modules") & (consensus_df["module_tumor"] == "Different<br>Tumor<br>Modules")
 ]
+n_same_t_diff = n_same_t_diff[['interaction', 'module_normal']]
+n_same_t_diff['module_normal'] = 'N' + n_same_t_diff['module_normal'].astype(str)
 print('Saving interactions to file: ' + os.path.join(tumor_dir, "n_same_t_diff.csv"))
 n_same_t_diff.to_csv(os.path.join(tumor_dir, "n_same_t_diff.csv"), index=False)
+# Get all n_same_t_diff genes by splitting the interaction strings by + and -
+n_same_t_diff_genes = list(set(n_same_t_diff['interaction'].apply(lambda x: re.split(r'[+_]', x)).sum()))
+print('Number of unique genes in n_same_t_diff:', len(n_same_t_diff_genes))
+
+# Enrichment analysis
+print("Performing enrichment analysis")
+
+reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+
+for BACKGROUND in [0, 1]:
+    ccc_genes = '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv'
+    ccc_genes = pd.read_csv(ccc_genes)
+    ccc_genes['all_genes'] = ccc_genes['all_genes'].apply(ast.literal_eval) # read as list
+    ccc_genes = list(set(ccc_genes['all_genes'].sum()))
+    print(f'Using {len(ccc_genes)} background genes')
+    
+    background = ccc_genes if BACKGROUND == 1 else None
+    suffix = '_with_background' if BACKGROUND == 1 else '_without_background'
+
+    print("t_same_n_diff enrichment")
+    enr = gp.enrichr(
+        gene_list=t_same_n_diff_genes,
+        gene_sets=reactome,
+        background=background,
+        outdir=os.path.join(tumor_fig_dir, 't_same_n_diff_enrichr'+suffix),
+    )
+    enr = enr.results
+    enr.to_csv(os.path.join(tumor_dir, 't_same_n_diff_enrichr'+suffix+'.csv'), index=False)
+
+    print("n_same_t_diff enrichment")
+    enr = gp.enrichr(
+        gene_list=n_same_t_diff_genes,
+        gene_sets=reactome,
+        background=background,
+        outdir=os.path.join(tumor_fig_dir, 'n_same_t_diff_enrichr'+suffix),
+    )
+    enr = enr.results
+    enr.to_csv(os.path.join(tumor_dir, 'n_same_t_diff_enrichr'+suffix+'.csv'), index=False)
 
 print("Getting module changes")
 module_changes = pd.DataFrame(

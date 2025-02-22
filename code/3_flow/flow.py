@@ -120,7 +120,14 @@ def format_string(string, newline=False):
     return string
 
 interactions_files = ['ccc_lr_pairs.csv', 'intact_direct.csv', 'intact_physical.csv', 'intact_association.csv']
-metrics = ['same_module', 'kme_cos'] #, 'min_adj', 'mean_adj', 'min_kme_corr', 'mean_kme_corr']
+metrics = [
+#'same_module', 
+#'kme_cos', 
+'kme_dot',
+#'kme_dot_norm', 
+#'kme_euclidean_similarity', 
+#'kme_manhattan_similarity',
+] #, 'min_adj', 'mean_adj', 'min_kme_corr', 'mean_kme_corr']
 
 for filename in interactions_files:
     print('filename:', filename)
