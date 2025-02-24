@@ -51,7 +51,7 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-#motifs_list=(4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path)
+#motifs_list=(whole_transcriptome 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path)
 motifs_list=(whole_transcriptome)
 
 # Loop over all motifs
@@ -70,6 +70,7 @@ if [ $CLASS -eq 1 ]; then
             -e "tabpfn" \
             -m "$CLASS_MEMORY" \
             -q "$CLASS_QUEUE" \
+            -w "$waiting_list" \
             -c "python classify.py --motif $motif"
             )
 

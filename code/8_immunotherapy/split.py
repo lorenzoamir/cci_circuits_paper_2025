@@ -42,12 +42,23 @@ data = data.rename(columns={'Therapy': 'therapy_type'})
 
 # Only keep RNA-Seq
 data = data[data.seq_type.isin(['RNA-seq', 'RNA-Seq'])]
-data['response_known'] = np.where(data.response_NR == 'UNK', 'unknown', 'known')
 
 # Divide treatment time into pre and all other options
 treatment_when_nans = data.Treatment.isna()
-data['treatment_when'] = np.where(data.Treatment == 'PRE', 'PRE', 'NOT_PRE')
-data['treatment_when'] = np.where(treatment_when_nans, np.nan, data['treatment_when'])
+
+mapping = {
+    'PRE': 'PRE',
+    'ON': 'ON',
+    'POST': 'POST',
+    'POST1': 'POST',
+    'POST2': 'POST',
+    'POST3': 'POST',
+    'POST4': 'POST',
+    'POST5': 'POST',
+}
+
+# Map values, the ones not in mapping will be NaN
+data['treatment_when'] = data['Treatment'].map(mapping)
 
 tumor_type_to_tissue = {
     'Melanoma' : 'Skin',
@@ -60,7 +71,7 @@ tumor_type_to_tissue = {
 data['tissue'] = data['tumor_type'].map(tumor_type_to_tissue)
 
 clinical_cols = list(data.columns[:16])
-clinical_cols += ['response_known', 'treatment_when', 'tissue']
+clinical_cols += ['treatment_when', 'tissue']
 
 # TCGA Data
 
@@ -95,9 +106,7 @@ patient_to_response = patient_to_response.drop_duplicates()
 patient_to_response = patient_to_response.set_index('patient_barcode')['response_NR']
 
 surv['response_NR'] = surv['patient_name'].replace(patient_to_response)
-surv['response_NR'] = np.where(~surv['response_NR'].isin(['N', 'R']), 'UNK', surv['response_NR'])
-
-surv['response_known'] = np.where(surv['response_NR'] == 'UNK', 'unknown', 'known')
+surv.loc[~surv['response_NR'].isin(['R', 'N']), 'response_NR'] = np.nan
 
 surv['therapy_type'] = np.nan
 surv.loc[surv['patient_name'].isin(ctla), 'therapy_type'] = 'anti-CTLA-4'
@@ -107,9 +116,12 @@ data = data[common_cols]
 surv = surv[common_cols]
 
 data = pd.concat([data, surv])
+data.loc[~data['response_NR'].isin(['R', 'N']), 'response_NR'] = np.nan
+
+print(data.response_NR.value_counts(dropna=False))
 
 # Discard patients with many missing values
-data = data[data.isna().sum(1) < 5000]
+#data = data[data.isna().sum(1) < 3000]
 
 # Make sure patient names are unique
 data.patient_name = data['dataset_id'].astype(str) + '-' + data.patient_name.astype(str)
@@ -126,32 +138,36 @@ genes = [col for col in data.columns if col not in clinical_cols]
 batch = list(data.dataset_id)
 
 expr = data[genes].T.fillna(0)
-corrected = pycombat.pycombat(expr, batch)
+corrected = pycombat.pycombat(data=expr, batch=batch)
 data[genes] = corrected.T
+
+# Remove patient missing response data
+print(data.response_NR.value_counts(dropna=False))
+data = data.dropna(subset=['response_NR'])
+print(data.response_NR.value_counts(dropna=False))
 
 # TRAIN TEST SPLIT
 
-for col in clinical_cols:
-    data[col] = data[col].astype("category").cat.remove_unused_categories()
-
 # Extract unique patients with known response
-strat_col = 'response_NR'
-patients = data[data['response_known'] == "known"][['patient_name', 'tissue', 'response_NR']].drop_duplicates()
+data = data[data['treatment_when'] != 'POST']
+
+patients = data.loc[
+    #data['treatment_when'] != 'POST',
+    :,
+    ['patient_name', 'tissue', 'response_NR']
+].drop_duplicates()
 
 # Split unique patients into train and test sets while stratifying by tissue
 print('Splitting patients')
 train_patients, test_patients = train_test_split(
     patients,
     test_size=0.1,
-    #stratify=patients[strat_col],
     random_state=seed
 )
 
 # Filter the original data based on the selected patients
 test = data[data['patient_name'].isin(test_patients['patient_name'])]
-test = test[test['response_known'] == 'known']
 train = data[~data['patient_name'].isin(test_patients['patient_name'])]
-train = train[train['response_known'] == 'known']
 
 assert set(train['patient_name']).isdisjoint(set(test['patient_name'])), "Error: Overlapping patients in train and test!"
 
@@ -159,8 +175,6 @@ train.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/train.csv')
 test.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/test.csv')
 
 print('Train:', train.shape)
-print(train.groupby('tissue')['response_NR'].value_counts())
 print('Test:', test.shape)
-print(test.groupby('tissue')['response_NR'].value_counts())
 
 print('Done: split.py')

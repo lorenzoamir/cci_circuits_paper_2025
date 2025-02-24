@@ -4,9 +4,13 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from tabpfn import TabPFNClassifier
+from torch import set_float32_matmul_precision
+import sys
 import re
 import os
 import argparse
+
+set_float32_matmul_precision('medium')
 
 seed = 42
 # Set seed for reproducibility
@@ -34,7 +38,8 @@ dtypes = {
 train = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/train.csv', dtype=dtypes, index_col=0)
 test = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/test.csv', dtype=dtypes, index_col=0) 
 
-train = train.drop(columns=['response_known'])
+#train = train.drop(columns=['dataset_id', 'patient_name'])
+#test = test.drop(columns=['dataset_id', 'patient_name'])
 
 # response_NR and the clinical cols must be categorical and have the same categories in train and test
 for col in clinical_cols:
@@ -47,14 +52,14 @@ pos_label = list(train['response_NR'].cat.categories).index('R')
 y_train = train['response_NR']
 y_test  = test['response_NR']
 
-# Read motif file
-all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
-# Get genes
-all_motifs['all_genes'] = all_motifs.Interaction.apply(lambda x: re.split(r'[+_&]', x))
+train = train.drop(columns=['response_NR'])
+test = test.drop(columns=['response_NR'])
 
-def scale_features(train, test, genes):
+def scale_features(train, test):
     # Always check that no patient is in both train and test
-    assert set(train['patient_name']).isdisjoint(set(test['patient_name'])), "Error: Overlapping patients in train and test!"
+
+    genes = set(train.columns)
+    genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
 
     # Scaling
     scaler = StandardScaler()
@@ -71,14 +76,12 @@ def scale_features(train, test, genes):
 
     return train, test
 
-def pca_dataset(train, test, genes, clinical_cols, n_pcs=0.9):
+def pca_dataset(train, test, genes, clinical_cols, n_pcs=30):
     # PCA
     pca = PCA(n_components=n_pcs, random_state=seed)
     X_train = pca.fit_transform(train[genes])
     X_test = pca.transform(test[genes])
     
-    print('Using {} principal components'.format(pca.n_components_))
-
     # Convert back to DataFrame
     X_train = pd.DataFrame(X_train, index=train.index)
     X_test = pd.DataFrame(X_test, index=test.index)
@@ -90,14 +93,26 @@ def pca_dataset(train, test, genes, clinical_cols, n_pcs=0.9):
 
     return X_train, X_test
 
-def train_test(train, test, genes, clinical_cols, n_pcs=0.9):
-    X_train, X_test = pca_dataset(train, test, genes, clinical_cols, n_pcs)
-
-    # Add back clinical columns
-    X_train = X_train.join(train[clinical_cols])
-    X_test = X_test.join(test[clinical_cols])
+def train_test(train, test, genes, clinical_cols, n_pcs=None):
+    if n_pcs is not None:
+        X_train, X_test = pca_dataset(train, test, genes, clinical_cols, n_pcs)
+        # Add back clinical columns
+        X_train = X_train.join(train[clinical_cols])
+        X_test = X_test.join(test[clinical_cols])
+    else:
+        X_train = train[genes + clinical_cols]
+        X_test = test[genes + clinical_cols]
 
     categorical_feature_indices = list(range(X_train.shape[1]-len(clinical_cols), X_train.shape[1]))
+
+    # DEBUG:
+    print('X_train:')
+    print(X_train.head())
+    print('X_test:')
+    print(X_test.head())
+    print('columns:', X_train.columns)
+    print('categorical_feature_indices:', categorical_feature_indices)
+    print('categorical_columns:', X_train.columns[categorical_feature_indices])
 
     clf = TabPFNClassifier(
         random_state=seed,
@@ -119,12 +134,25 @@ def train_test(train, test, genes, clinical_cols, n_pcs=0.9):
 
     return auroc, auprc
 
+train, test = scale_features(train, test)
+
 if motif == 'whole_transcriptome':
     genes = set(train.columns)
     genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
 
-    train, test = scale_features(train, test, genes)
-    auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=0.9)
+    # Perform data augmentation by randomly setting genes to 0 with a probability of 0.1
+    fake_train = train.copy()
+    fake_y_train = y_train.copy()
+    mask = np.random.choice([0, 1], size=(fake_train.shape[0], len(genes)), p=[0.1, 0.9])
+
+    # Set cells to 0
+    fake_train[genes] = fake_train[genes].values * mask
+    
+    # Train on both real and fake data
+    train = pd.concat([train, fake_train])
+    y_train = pd.Series(np.concatenate([y_train.values, fake_y_train.values]), index=train.index)
+
+    auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=30)
 
     print(f'AUROC: {auroc}')
     print(f'AUPRC: {auprc}')
@@ -134,37 +162,37 @@ if motif == 'whole_transcriptome':
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_transcriptome'])
     results.to_csv('/home/lnemati/pathway_crosstalk/results/immunotherapy/whole_transcriptome.csv')
 
-#if motif in all_motifs['Type'].unique():
-#    motifdf = all_motifs[all_motifs['Type'] == motif]
-#
-#aurocs = {}
-#
-#for idx, row in motifdf.iterrows():
-#    features = np.unique(row['Interaction'] + ['tumor_type'])
-#
-#    X_train = train[features]  
-#    X_test  = test[features]
-#
-#    # Initialize a classifier
-#    clf = TabPFNClassifier()
-#    clf.fit(X_train, y_train)
-#
-#    # Predict probabilities
-#    prediction_probabilities = clf.predict_proba(X_test)
-#    auroc = roc_auc_score(y_test, prediction_probabilities[:, 1])
-#
-#    aurocs[idx] = auroc
-#
-#aurocs = pd.Series(aurocs).sort_values(ascending=False)
-## make into a dataframe with two columns: interaction and auroc
-#aurocs = pd.DataFrame(aurocs, columns=['auroc'])
-#aurocs['interaction'] = aurocs.index
-#aurocs = aurocs.reset_index(drop=True)
-#aurocs = aurocs[['interaction', 'auroc']]
-#aurocs['motif'] = motif
-#
-#outdir = '/home/lnemati/pathway_crosstalk/results/immunotherapy/aurocs'
-#os.makedirs(outdir, exist_ok=True)
-#
-#aurocs.to_csv(os.path.join(outdir, f'{motif}_aurocs.csv'), index=False)
+else:
+    # Read motif file
+    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
+    # Get genes
+    all_motifs['all_genes'] = all_motifs.Interaction.apply(lambda x: re.split(r'[+_&]', x))
+
+    if motif not in all_motifs['Type'].unique():
+        raise ValueError(f'Motif {motif} not found in all_motifs')
+
+    motifdf = all_motifs[all_motifs['Type'] == motif]
+
+    aurocs = []
+    auprcs = []
+
+    # DEBUG!
+    SUBSET = 1000
+    SUBSET = min(SUBSET, motifdf.shape[0])
+    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
+    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
+
+    motifdf = motifdf.sample(n=SUBSET, random_state=seed)
+
+    for idx, row in motifdf.iterrows():
+        genes = row['all_genes']
+
+        auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=None)
+        
+        aurocs.append(auroc)
+        auprcs.append(auprc)
+
+    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=motifdf['Interaction'].values)
+    results.to_csv(f'/home/lnemati/pathway_crosstalk/results/immunotherapy/{motif}.csv')
+
 print('Done: classify.py')
