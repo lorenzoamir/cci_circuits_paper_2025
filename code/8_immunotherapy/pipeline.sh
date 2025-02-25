@@ -51,8 +51,9 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-#motifs_list=(whole_transcriptome 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path)
-motifs_list=(whole_transcriptome)
+motifs_list=(whole_transcriptome whole_interactome 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path cci)
+
+
 
 # Loop over all motifs
 if [ $CLASS -eq 1 ]; then
@@ -74,7 +75,7 @@ if [ $CLASS -eq 1 ]; then
             -c "python classify.py --motif $motif"
             )
 
-        waiting_list=$waiting_list:$class_id
+        #waiting_list=$waiting_list:$class_id
     done
 fi
 

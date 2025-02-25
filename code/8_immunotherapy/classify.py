@@ -5,6 +5,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from tabpfn import TabPFNClassifier
 from torch import set_float32_matmul_precision
+from ast import literal_eval
 import sys
 import re
 import os
@@ -54,6 +55,8 @@ y_test  = test['response_NR']
 
 train = train.drop(columns=['response_NR'])
 test = test.drop(columns=['response_NR'])
+
+n_pcs = 30
 
 def scale_features(train, test):
     # Always check that no patient is in both train and test
@@ -105,15 +108,6 @@ def train_test(train, test, genes, clinical_cols, n_pcs=None):
 
     categorical_feature_indices = list(range(X_train.shape[1]-len(clinical_cols), X_train.shape[1]))
 
-    # DEBUG:
-    print('X_train:')
-    print(X_train.head())
-    print('X_test:')
-    print(X_test.head())
-    print('columns:', X_train.columns)
-    print('categorical_feature_indices:', categorical_feature_indices)
-    print('categorical_columns:', X_train.columns[categorical_feature_indices])
-
     clf = TabPFNClassifier(
         random_state=seed,
         balance_probabilities='True',
@@ -140,19 +134,7 @@ if motif == 'whole_transcriptome':
     genes = set(train.columns)
     genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
 
-    # Perform data augmentation by randomly setting genes to 0 with a probability of 0.1
-    fake_train = train.copy()
-    fake_y_train = y_train.copy()
-    mask = np.random.choice([0, 1], size=(fake_train.shape[0], len(genes)), p=[0.1, 0.9])
-
-    # Set cells to 0
-    fake_train[genes] = fake_train[genes].values * mask
-    
-    # Train on both real and fake data
-    train = pd.concat([train, fake_train])
-    y_train = pd.Series(np.concatenate([y_train.values, fake_y_train.values]), index=train.index)
-
-    auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=30)
+    auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs)
 
     print(f'AUROC: {auroc}')
     print(f'AUPRC: {auprc}')
@@ -161,6 +143,45 @@ if motif == 'whole_transcriptome':
     # Save results
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_transcriptome'])
     results.to_csv('/home/lnemati/pathway_crosstalk/results/immunotherapy/whole_transcriptome.csv')
+
+elif motif == 'whole_interactome':
+    # Read cell-cell communication list
+    ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
+    ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
+    
+    genes = set(ccc['all_genes'].sum())
+    genes = list(genes.intersection(set(train.columns)))
+
+    auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs)
+
+    print(f'AUROC: {auroc}')
+    print(f'AUPRC: {auprc}')
+    print()
+
+elif motif == 'cci':
+    # Read cell-cell communication list
+    ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
+    ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
+    
+    aurocs = []
+    auprcs = []
+
+    for idx, row in ccc.iterrows():
+        genes = row['all_genes']
+        
+        if not set(genes).issubset(set(train.columns)):
+            aurocs.append(np.nan)
+            auprcs.append(np.nan)
+            continue
+
+        auroc, auprc = train_test(train, test, genes, clinical_cols, n_pcs=None)
+
+        aurocs.append(auroc)
+        auprcs.append(auprc)
+    
+    index = ccc['interaction'].str.replace('_', 'TEMP_REPLACE').str.replace('+', '_').str.replace('TEMP_REPLACE', '+').values
+    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
+    results.to_csv('/home/lnemati/pathway_crosstalk/results/immunotherapy/cci.csv')
 
 else:
     # Read motif file
@@ -177,12 +198,12 @@ else:
     auprcs = []
 
     # DEBUG!
-    SUBSET = 1000
-    SUBSET = min(SUBSET, motifdf.shape[0])
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
+    #SUBSET = 3000
+    #SUBSET = min(SUBSET, motifdf.shape[0])
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
 
-    motifdf = motifdf.sample(n=SUBSET, random_state=seed)
+    #motifdf = motifdf.sample(n=SUBSET, random_state=seed)
 
     for idx, row in motifdf.iterrows():
         genes = row['all_genes']
