@@ -7,7 +7,7 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=0 # Train / Test split
 CLASS=1 # classify immunotherapy response
-AGGR=0 # aggregate all the results
+AGGR=1 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
 CLASS_QUEUE='q02gaia'
@@ -53,8 +53,7 @@ fi
 
 motifs_list=(whole_transcriptome whole_interactome 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path cci)
 
-
-
+class_ids=""
 # Loop over all motifs
 if [ $CLASS -eq 1 ]; then
     for motif in "${motifs_list[@]}"; do
@@ -75,25 +74,29 @@ if [ $CLASS -eq 1 ]; then
             -c "python classify.py --motif $motif"
             )
 
-        #waiting_list=$waiting_list:$class_id
+        class_ids="$class_ids:$class_id"
     done
 fi
 
-#if [ $AGGR -eq 1 ]; then
-#    aggregate_dir="$result_dir/aggregate"
-#
-#    aggr_script="$script_dir/aggr.sh"
-#    aggr_id=$(fsub \
-#        -p "$aggr_script" \
-#        -n "aggr" \
-#        -nc "$AGGR_NCPUS" \
-#        -m "$AGGR_MEMORY" \
-#        -e "WGCNA" \
-#        -q "$AGGR_QUEUE" \
-#        -w "$waiting_list" \
-#        -c "python aggregate.py --inputdir $tissues_dir --outputdir $aggregate_dir"
-#    )
-#    waiting_list=$waiting_list:$aggr_id
-#fi
+# Add class_ids to waiting_list
+waiting_list=$waiting_list$class_ids
+
+if [ $AGGR -eq 1 ]; then
+    aggregate_dir="$result_dir/aggregate"
+
+    aggr_script="$script_dir/aggr.sh"
+    aggr_id=$(fsub \
+        -p "$aggr_script" \
+        -n "aggr" \
+        -nc "$AGGR_NCPUS" \
+        -m "$AGGR_MEMORY" \
+        -e "WGCNA" \
+        -q "$AGGR_QUEUE" \
+        -w "$waiting_list" \
+        -c "python aggregate.py"
+    )
+    waiting_list=$waiting_list:$aggr_id
+fi
 
 echo "Done: pipeline.sh"
+
