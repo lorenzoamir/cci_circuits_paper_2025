@@ -42,9 +42,18 @@ data = data.rename(columns={'Therapy': 'therapy_type'})
 
 # Only keep RNA-Seq
 data = data[data.seq_type.isin(['RNA-seq', 'RNA-Seq'])]
+clinical_cols = list(data.columns[:16])
 
-# Divide treatment time into pre and all other options
-treatment_when_nans = data.Treatment.isna()
+tumor_type_to_tissue = {
+    'Melanoma' : 'Skin',
+    'ccRCC' : 'Kidney',
+    'Metastatic_gastric_cancer' : 'Stomach',
+    'NSCLC' : 'Lung',
+    'GBM' : 'Brain',
+}
+
+data['tissue'] = data['tumor_type'].map(tumor_type_to_tissue)
+clinical_cols += ['tissue']
 
 mapping = {
     'PRE': 'PRE',
@@ -59,19 +68,7 @@ mapping = {
 
 # Map values, the ones not in mapping will be NaN
 data['treatment_when'] = data['Treatment'].map(mapping)
-
-tumor_type_to_tissue = {
-    'Melanoma' : 'Skin',
-    'ccRCC' : 'Kidney',
-    'Metastatic_gastric_cancer' : 'Stomach',
-    'NSCLC' : 'Lung',
-    'GBM' : 'Brain',
-}
-
-data['tissue'] = data['tumor_type'].map(tumor_type_to_tissue)
-
-clinical_cols = list(data.columns[:16])
-clinical_cols += ['treatment_when', 'tissue']
+clinical_cols += ['treatment_when']
 
 # TCGA Data
 
@@ -146,18 +143,22 @@ print(data.response_NR.value_counts(dropna=False))
 data = data.dropna(subset=['response_NR'])
 print(data.response_NR.value_counts(dropna=False))
 
-# TRAIN TEST SPLIT
+# How many samples are post-treatment?
+print('Total samples before filtering:', data.shape[0])
+print('Total patients before filtering:', data['patient_name'].nunique())
+print('Post-treatment samples:', data[data['treatment_when'] == 'POST'].shape[0])
+print('Post-treatment patients:', data[data['treatment_when'] == 'POST']['patient_name'].nunique())
 
-# Extract unique patients with known response
+# Remove post-treatment samples
 data = data[data['treatment_when'] != 'POST']
 
+# Extract unique patients with known response
 patients = data.loc[
-    #data['treatment_when'] != 'POST',
     :,
     ['patient_name', 'tissue', 'response_NR']
 ].drop_duplicates()
 
-# Split unique patients into train and test sets while stratifying by tissue
+# TRAIN TEST SPLIT
 print('Splitting patients')
 train_patients, test_patients = train_test_split(
     patients,

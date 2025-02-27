@@ -31,6 +31,7 @@ motif = args.motif
 print(motif)
 
 clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
+#clinical_cols = ['tissue', 'therapy_type']
 
 dtypes = {
     'tissue': 'category',
@@ -153,7 +154,7 @@ if motif == 'whole_transcriptome':
     prediction_probabilities = pd.DataFrame(probs, index=test.index, columns=['whole_transcriptome']).T
     prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'whole_transcriptome.csv'))
 
-elif motif == 'whole_interactome':
+elif motif == 'all_ccis':
     # Read cell-cell communication list
     ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
     ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
@@ -169,14 +170,14 @@ elif motif == 'whole_interactome':
     print()
     
     # Save results
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_interactome'])
-    results.to_csv(os.path.join(results_dir, 'whole_interactome.csv'))
+    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_ccis'])
+    results.to_csv(os.path.join(results_dir, 'all_ccis.csv'))
     
     # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=test.index, columns=['whole_interactome']).T
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'whole_interactome.csv'))
+    prediction_probabilities = pd.DataFrame(probs, index=test.index, columns=['all_ccis']).T
+    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_ccis.csv'))
 
-elif motif == 'cci':
+elif motif == 'individual_ccis':
     # Individual interactions 
     # Read cell-cell communication list
     ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
@@ -205,11 +206,11 @@ elif motif == 'cci':
     
     #Save results
     results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
-    results.to_csv(os.path.join(results_dir, 'cci.csv'))
+    results.to_csv(os.path.join(results_dir, 'individual_ccis.csv'))
     
     # Save prediction probabilities
     prediction_probabilities = pd.DataFrame(probs, index=index, columns=test.index)
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'cci.csv'))
+    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'individual_ccis.csv'))
 
 else:
     # Read motif file
@@ -227,12 +228,12 @@ else:
     probs = []
 
     # DEBUG!
-    SUBSET = 100
-    SUBSET = min(SUBSET, motifdf.shape[0])
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
+    #SUBSET = 100
+    #SUBSET = min(SUBSET, motifdf.shape[0])
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
 
-    motifdf = motifdf.sample(n=SUBSET, random_state=seed)
+    #motifdf = motifdf.sample(n=SUBSET, random_state=seed)
 
     for idx, row in motifdf.iterrows():
         genes = row['all_genes']

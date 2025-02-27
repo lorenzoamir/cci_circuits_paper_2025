@@ -51,7 +51,7 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-motifs_list=(whole_transcriptome whole_interactome 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path cci)
+motifs_list=(whole_transcriptome all_ccis 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path individual_ccis)
 
 class_ids=""
 # Loop over all motifs
