@@ -12,9 +12,9 @@ for file in os.listdir(parentdir):
         continue
     if file == 'whole_transcriptome.csv':
         continue
-    if file == 'whole_interactome.csv':
+    if file == 'all_ccis.csv':  
         continue
-    motif = file.rstrip('.csv')
+    motif = file.replace('.csv', '')
     print(motif)
     df = pd.read_csv(os.path.join(parentdir, file), index_col=0)
     df['motif'] = motif
@@ -27,10 +27,12 @@ df = pd.concat(dfs)
 print('Getting genes')
 df['all_genes'] = pd.Series(df.index).apply(lambda x: tuple(sorted(set(re.split('[&_+]', x))))).values
 
+print(df.motif.value_counts())
+
 print(df.head())
-ccc = df.query('motif == "cci"')
+ccc = df.query('motif == "individual_ccis"')
 print(ccc.head())
-pairs = df.query('motif != "cci"')
+pairs = df.query('motif != "individual_ccis"')
 print(pairs.head())
 
 print('Splitting interactions')
