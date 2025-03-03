@@ -18,7 +18,7 @@ CLASS_NCPUS=1
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
-CLASS_MEMORY=12gb
+CLASS_MEMORY=8gb
 AGGR_MEMORY=20gb
 
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
@@ -52,7 +52,7 @@ if [ $SPLIT -eq 1 ]; then
 fi
 
 #motifs_list=(whole_transcriptome all_ccis 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path individual_ccis)
-motifs_list=(whole_transcriptome)
+motifs_list=(individual_ccis)
 
 class_ids=""
 # Loop over all motifs

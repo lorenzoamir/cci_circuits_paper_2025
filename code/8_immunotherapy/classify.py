@@ -13,9 +13,9 @@ import argparse
 
 set_float32_matmul_precision('medium')
 
-seed = 42
 # Set seed for reproducibility
-np.random.seed(seed)
+seed = 42
+#np.random.seed(seed)
 
 parser = argparse.ArgumentParser()
 
@@ -34,6 +34,7 @@ print(motif)
 
 clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
 #clinical_cols = ['tissue', 'therapy_type']
+cols_to_remove = ['patient_name', 'dataset_id', 'response_NR']
 
 dtypes = {
     'tissue': 'category',
@@ -60,8 +61,9 @@ n_pcs = 30
 def get_train_test(data, splits, split_column):
     # splits has the same index as data and columns 'split0', 'split1', ...,
     # with values 'train' or 'test', assign samples to train or test set
-    train = data.loc[splits[splits[split_column] == 'train'].index]
-    test = data.loc[splits[splits[split_column] == 'test'].index]
+
+    train = data.loc[splits.index[splits[split_column] == 'train']]
+    test = data.loc[splits.index[splits[split_column] == 'test']]
 
     y_train = train['response_NR']
     y_test = test['response_NR']
@@ -75,7 +77,7 @@ def scale_features(train, test):
     # Always check that no patient is in both train and test
 
     genes = set(train.columns)
-    genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
+    genes = list(genes - set(clinical_cols).union(cols_to_remove))
 
     # Scaling
     scaler = StandardScaler()
@@ -144,90 +146,89 @@ def train_test(train, test, genes, clinical_cols, n_pcs=None):
 if motif == 'whole_transcriptome':
     aurocs = pd.DataFrame(index=['whole_transcriptome'], columns=splits.columns)
     auprcs = pd.DataFrame(index=['whole_transcriptome'], columns=splits.columns)
+    
+    genes = set(data.columns)
+    genes = list(genes - set(clinical_cols).union(cols_to_remove))
 
     for splitn in splits.columns:
+        print(f'Split {splitn}')
         train, test, y_train, y_test = get_train_test(data, splits, splitn)
         train, test = scale_features(train, test)
 
-        genes = set(train.columns)
-        genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
-
         auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs)
-        #probs = prediction_probabilities[:, 1]
         
         # Add auroc and auprc to the dataframes
         aurocs.at['whole_transcriptome', splitn] = auroc
         auprcs.at['whole_transcriptome', splitn] = auprc
 
-        # Save results
-        #results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_transcriptome'])
-        #results.to_csv(os.path.join(results_dir, f'whole_transcriptome_{splitn}.csv'))
-
-        # Save prediction probabilities
-        #prediction_probabilities = pd.DataFrame(probs, index=test.index
-        #prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'whole_transcriptome.csv'))
-    
     # Save results
     aurocs.to_csv(os.path.join(results_dir, 'aurocs', 'whole_transcriptome.csv'))
     auprcs.to_csv(os.path.join(results_dir, 'auprcs', 'whole_transcriptome.csv'))
 
 elif motif == 'all_ccis':
+    aurocs = pd.DataFrame(index=['all_ccis'], columns=splits.columns) 
+    auprcs = pd.DataFrame(index=['all_ccis'], columns=splits.columns)
+
     # Read cell-cell communication list
     ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
     ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
     
     genes = set(ccc['all_genes'].sum())
-    genes = list(genes.intersection(set(train.columns)))
+    genes = list(genes.intersection(set(data.columns)))
 
-    auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs) 
-    probs = prediction_probabilities[:, 1]
+    for splitn in splits.columns:
+        train, test, y_train, y_test = get_train_test(data, splits, splitn)
+        train, test = scale_features(train, test)
 
-    print(f'AUROC: {auroc}')
-    print(f'AUPRC: {auprc}')
-    print()
-    
+        auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs)
+
+        # Add auroc and auprc to the dataframes
+        aurocs.at['all_ccis', splitn] = auroc
+        auprcs.at['all_ccis', splitn] = auprc
+
     # Save results
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_ccis'])
-    results.to_csv(os.path.join(results_dir, 'all_ccis.csv'))
-    
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=test.index, columns=['all_ccis']).T
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_ccis.csv'))
+    aurocs.to_csv(os.path.join(results_dir, 'aurocs', 'all_ccis.csv'))
+    auprcs.to_csv(os.path.join(results_dir, 'auprcs', 'all_ccis.csv'))
 
 elif motif == 'individual_ccis':
     # Individual interactions 
-    # Read cell-cell communication list
     ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
     ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
     
-    aurocs = []
-    auprcs = []
-    probs = []
+    # DEBUG
+    SUBSET = 20
+    SUBSET = min(SUBSET, ccc.shape[0])
+    print('Subsetting to ', SUBSET ,'random interactions', file=sys.stdout)
+    ccc = ccc.sample(n=SUBSET, random_state=seed)
 
-    for idx, row in ccc.iterrows():
-        genes = row['all_genes']
-        
-        if not set(genes).issubset(set(train.columns)):
-            aurocs.append(np.nan)
-            auprcs.append(np.nan)
-            probs.append([np.nan] * test.shape[0])
-            continue
+    aurocs = pd.DataFrame(index=ccc['interaction'], columns=splits.columns)
+    auprcs = pd.DataFrame(index=ccc['interaction'], columns=splits.columns)
 
-        auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
+    for splitn in splits.columns:
+        train, test, y_train, y_test = get_train_test(data, splits, splitn)
+        train, test = scale_features(train, test)
 
-        aurocs.append(auroc)
-        auprcs.append(auprc)
-        probs.append(prediction_probabilities[:, 1])
-    
+        for idx, row in ccc.iterrows():
+            genes = row['all_genes']
+            
+            if not set(genes).issubset(set(train.columns)):
+                aurocs.at[row['interaction'], splitn] = np.nan
+                auprcs.at[row['interaction'], splitn] = np.nan
+                continue
+
+            auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
+
+            aurocs.at[row['interaction'], splitn] = auroc
+            auprcs.at[row['interaction'], splitn] = auprc
+
+    # Replace '+' and '_' in the index
     index = ccc['interaction'].str.replace('_', 'TEMP_REPLACE').str.replace('+', '_').str.replace('TEMP_REPLACE', '+').values
-    
-    #Save results
-    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
-    results.to_csv(os.path.join(results_dir, 'individual_ccis.csv'))
-    
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=index, columns=test.index)
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'individual_ccis.csv'))
+    aurocs.index = index
+    auprcs.index = index
+
+    # Save results
+    aurocs.to_csv(os.path.join(results_dir, 'aurocs', 'individual_ccis.csv'))
+    auprcs.to_csv(os.path.join(results_dir, 'auprcs', 'individual_ccis.csv'))
 
 else:
     # Read motif file

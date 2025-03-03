@@ -6,7 +6,7 @@ import os
 import re
 import sys
 
-REPEAT_PREPROCESSING = False
+REPEAT_PREPROCESSING = True
 
 seed = 42
 
@@ -142,32 +142,29 @@ if REPEAT_PREPROCESSING:
     corrected = pycombat.pycombat(data=expr, batch=batch)
     data[genes] = corrected.T
     
+    # Remove patient missing response data
+    print(data.response_NR.value_counts(dropna=False))
+    data = data.dropna(subset=['response_NR'])
+    print(data.response_NR.value_counts(dropna=False))
+
+    # How many samples are post-treatment?
+    print('Total samples before filtering:', data.shape[0])
+    print('Total patients before filtering:', data['patient_name'].nunique())
+    print('Post-treatment samples:', data[data['treatment_when'] == 'POST'].shape[0])
+    print('Post-treatment patients:', data[data['treatment_when'] == 'POST']['patient_name'].nunique())
+
+    # Remove post-treatment samples
+    data = data[data['treatment_when'] != 'POST']
+
     # Save the data
     data.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv')
 
+
 data = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv', index_col=0)
 
-# Remove patient missing response data
-print(data.response_NR.value_counts(dropna=False))
-data = data.dropna(subset=['response_NR'])
-print(data.response_NR.value_counts(dropna=False))
-
-# How many samples are post-treatment?
-print('Total samples before filtering:', data.shape[0])
-print('Total patients before filtering:', data['patient_name'].nunique())
-print('Post-treatment samples:', data[data['treatment_when'] == 'POST'].shape[0])
-print('Post-treatment patients:', data[data['treatment_when'] == 'POST']['patient_name'].nunique())
-
-# Remove post-treatment samples
-data = data[data['treatment_when'] != 'POST']
-
 # Extract unique patients with known response
-patients = data.loc[
-    :,
-    ['patient_name']
-].drop_duplicates()
-
-splits = pd.DataFrame(index=patients.index, columns=['split'+str(i) for i in range(10)])
+patients = data.loc[: , ['patient_name']].drop_duplicates()
+splits = pd.DataFrame(index=data.index, columns=['split'+str(i) for i in range(10)])
 
 # Generate multiple random splits
 for n in range(10):
@@ -186,7 +183,7 @@ for n in range(10):
     # Check if the split is correct 
     assert set(train['patient_name']).isdisjoint(set(test['patient_name'])), "Error: Overlapping patients in train and test!"
     
-    splits['split'+str(n)] = np.where(patients['patient_name'].isin(test_patients['patient_name']), 'test', 'train')
+    splits['split'+str(n)] = np.where(data['patient_name'].isin(test_patients['patient_name']), 'test', 'train')
 
 # Save the splits
 splits.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/splits.csv')
