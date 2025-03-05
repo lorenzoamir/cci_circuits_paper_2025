@@ -7,6 +7,7 @@ import re
 import sys
 
 REPEAT_PREPROCESSING = True
+BATCH_CORRECTION = True
 
 seed = 42
 
@@ -122,57 +123,61 @@ if REPEAT_PREPROCESSING:
     print(data.response_NR.value_counts(dropna=False))
     
     # Discard patients with many missing values
-    #data = data[data.isna().sum(1) < 3000]
+    data = data[data.isna().sum(1) < 3000]
     
     # Make sure patient names are unique
     data.patient_name = data['dataset_id'].astype(str) + '-' + data.patient_name.astype(str)
     
     clinical_cols = list(set(clinical_cols).intersection(common_cols)) 
     
-    # BATCH CORRECTION
-    
-    # Remove batches with too few patients
-    small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
-    data = data[~data.dataset_id.isin(small_batch)]
-    
-    genes = [col for col in data.columns if col not in clinical_cols]
-    batch = list(data.dataset_id)
-    
-    expr = data[genes].T.fillna(0)
-    corrected = pycombat.pycombat(data=expr, batch=batch)
-    data[genes] = corrected.T
-    
-    # Remove patient missing response data
-    print(data.response_NR.value_counts(dropna=False))
-    data = data.dropna(subset=['response_NR'])
-    print(data.response_NR.value_counts(dropna=False))
+    # Only keep tissues where we have at least 30 patients with response data
+    tissue_counts = data.groupby('tissue').response_NR.count()
+    tissues = tissue_counts[tissue_counts >= 30].index
+    data = data[data.tissue.isin(tissues)]
 
-    # How many samples are post-treatment?
-    print('Total samples before filtering:', data.shape[0])
-    print('Total patients before filtering:', data['patient_name'].nunique())
-    print('Post-treatment samples:', data[data['treatment_when'] == 'POST'].shape[0])
-    print('Post-treatment patients:', data[data['treatment_when'] == 'POST']['patient_name'].nunique())
+    # Remove patient missing response data
+    data = data.dropna(subset=['response_NR'])
+
+    # BATCH CORRECTION
+    if BATCH_CORRECTION:
+        # Remove batches with too few patients
+        small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
+        data = data[~data.dataset_id.isin(small_batch)]
+        
+        genes = [col for col in data.columns if col not in clinical_cols]
+        batch = list(data.dataset_id)
+
+        responses = list(data['response_NR'])
+        
+        expr = data[genes].T.fillna(0)
+        corrected = pycombat.pycombat(data=expr, batch=batch, mod=responses)
+        data[genes] = corrected.T
+        
+        name = 'batch_corrected'
+    else:
+        name = 'not_corrected'
 
     # Remove post-treatment samples
     data = data[data['treatment_when'] != 'POST']
 
     # Save the data
-    data.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv')
-
-
-data = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv', index_col=0)
+    data.to_csv(os.path.join('/home/lnemati/pathway_crosstalk/data/immunotherapy', name + '.csv'))
 
 # Extract unique patients with known response
-patients = data.loc[: , ['patient_name']].drop_duplicates()
-splits = pd.DataFrame(index=data.index, columns=['split'+str(i) for i in range(10)])
+patients = data.loc[: , ['patient_name', 'response_NR']].drop_duplicates()
+
+N_splits = 20
+
+splits = pd.DataFrame(index=data.index, columns=['split'+str(i) for i in range(N_splits)])
 
 # Generate multiple random splits
-for n in range(10):
+for n in range(N_splits):
     # TRAIN TEST SPLIT
     print('Splitting patients')
     train_patients, test_patients = train_test_split(
         patients,
-        test_size=0.1,
+        test_size=0.2,
+        stratify=patients['response_NR'],
         random_state=n,
     )
 

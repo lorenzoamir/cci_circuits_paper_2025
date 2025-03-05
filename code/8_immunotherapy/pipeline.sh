@@ -5,12 +5,12 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-SPLIT=0 # Train / Test split
+SPLIT=1 # Train / Test split
 CLASS=1 # classify immunotherapy response
 AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
-CLASS_QUEUE='q02gaia'
+CLASS_QUEUE='q07gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
@@ -52,7 +52,7 @@ if [ $SPLIT -eq 1 ]; then
 fi
 
 #motifs_list=(whole_transcriptome all_ccis 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path individual_ccis)
-motifs_list=(individual_ccis)
+motifs_list=(whole_transcriptome all_ccis)
 
 class_ids=""
 # Loop over all motifs

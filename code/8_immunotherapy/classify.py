@@ -4,23 +4,26 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from tabpfn import TabPFNClassifier
-from torch import set_float32_matmul_precision
+from torch import set_float32_matmul_precision, manual_seed
 from ast import literal_eval
+from scipy.stats import sem
 import sys
 import re
 import os
+import random
 import argparse
 
-set_float32_matmul_precision('medium')
+#set_float32_matmul_precision('medium')
 
 # Set seed for reproducibility
 seed = 42
-#np.random.seed(seed)
+random.seed(seed)
+np.random.seed(seed)
+manual_seed(seed)
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--motif', type=str, required=True)
-
 args = parser.parse_args()
 
 results_dir = '/home/lnemati/pathway_crosstalk/results/immunotherapy'
@@ -32,38 +35,40 @@ os.makedirs(os.path.join(results_dir, 'auprcs'), exist_ok=True)
 motif = args.motif
 print(motif)
 
-clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
-#clinical_cols = ['tissue', 'therapy_type']
-cols_to_remove = ['patient_name', 'dataset_id', 'response_NR']
+#clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
+categorical_cols = ['patient_name', 'dataset_id', 'response_NR', 'tissue', 'therapy_type', 'treatment_when']
 
-dtypes = {
-    'tissue': 'category',
-    'therapy_type': 'category',
-    'treatment_when': 'category',
-    'response_NR': 'category',
-}
+clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
+cols_to_remove = list(set(categorical_cols) - set(clinical_cols))
+
+dtypes = {col: 'category' for col in categorical_cols}
 
 # Load train and test set
-data = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv', dtype=dtypes, index_col=0)
+#data = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv', dtype=dtypes, index_col=0)
+data = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/batch_corrected.csv', index_col=0, dtype=dtypes)
 splits = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/splits.csv', index_col=0)
+
+# Make sure data index is made of strings
+data.index = data.index.astype(str)
 
 # response_NR and the clinical cols must be categorical and have the same categories in train and test
 for col in clinical_cols:
     data[col] = data[col].astype('category')
-    #train[col] = train[col].astype('category')
-    #test[col] = test[col].astype('category').cat.set_categories(train[col].cat.categories)
 
 # Find category number of 'R'
 pos_label = list(data['response_NR'].cat.categories).index('R')
-
-n_pcs = 30
+#n_pcs = 30
+n_pcs = 0.9
 
 def get_train_test(data, splits, split_column):
     # splits has the same index as data and columns 'split0', 'split1', ...,
     # with values 'train' or 'test', assign samples to train or test set
-
-    train = data.loc[splits.index[splits[split_column] == 'train']]
-    test = data.loc[splits.index[splits[split_column] == 'test']]
+  
+    train_idx = list(splits.index[splits[split_column] == 'train'])
+    test_idx = list(splits.index[splits[split_column] == 'test'])
+    
+    train = data.loc[train_idx]
+    test = data.loc[test_idx]
 
     y_train = train['response_NR']
     y_test = test['response_NR']
@@ -95,11 +100,15 @@ def scale_features(train, test):
     return train, test
 
 def pca_dataset(train, test, genes, clinical_cols, n_pcs=30):
+    # Fill nans with 0
+    train[genes] = train[genes].fillna(0)
+    test[genes] = test[genes].fillna(0)
+
     # PCA
     pca = PCA(n_components=n_pcs, random_state=seed)
     X_train = pca.fit_transform(train[genes])
     X_test = pca.transform(test[genes])
-    
+   
     # Convert back to DataFrame
     X_train = pd.DataFrame(X_train, index=train.index)
     X_test = pd.DataFrame(X_test, index=test.index)
@@ -151,7 +160,6 @@ if motif == 'whole_transcriptome':
     genes = list(genes - set(clinical_cols).union(cols_to_remove))
 
     for splitn in splits.columns:
-        print(f'Split {splitn}')
         train, test, y_train, y_test = get_train_test(data, splits, splitn)
         train, test = scale_features(train, test)
 
@@ -160,10 +168,6 @@ if motif == 'whole_transcriptome':
         # Add auroc and auprc to the dataframes
         aurocs.at['whole_transcriptome', splitn] = auroc
         auprcs.at['whole_transcriptome', splitn] = auprc
-
-    # Save results
-    aurocs.to_csv(os.path.join(results_dir, 'aurocs', 'whole_transcriptome.csv'))
-    auprcs.to_csv(os.path.join(results_dir, 'auprcs', 'whole_transcriptome.csv'))
 
 elif motif == 'all_ccis':
     aurocs = pd.DataFrame(index=['all_ccis'], columns=splits.columns) 
@@ -186,20 +190,17 @@ elif motif == 'all_ccis':
         aurocs.at['all_ccis', splitn] = auroc
         auprcs.at['all_ccis', splitn] = auprc
 
-    # Save results
-    aurocs.to_csv(os.path.join(results_dir, 'aurocs', 'all_ccis.csv'))
-    auprcs.to_csv(os.path.join(results_dir, 'auprcs', 'all_ccis.csv'))
-
 elif motif == 'individual_ccis':
     # Individual interactions 
     ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
     ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
-    
-    # DEBUG
-    SUBSET = 20
-    SUBSET = min(SUBSET, ccc.shape[0])
-    print('Subsetting to ', SUBSET ,'random interactions', file=sys.stdout)
-    ccc = ccc.sample(n=SUBSET, random_state=seed)
+
+    ## DEBUG
+    #SUBSET = 20
+    #SUBSET = min(SUBSET, ccc.shape[0])
+    #print('Subsetting to ', SUBSET ,'random interactions', file=sys.stdout)
+    #print('Subsetting to ', SUBSET ,'random interactions', file=sys.stderr)
+    #ccc = ccc.sample(n=SUBSET, random_state=seed)
 
     aurocs = pd.DataFrame(index=ccc['interaction'], columns=splits.columns)
     auprcs = pd.DataFrame(index=ccc['interaction'], columns=splits.columns)
@@ -226,10 +227,6 @@ elif motif == 'individual_ccis':
     aurocs.index = index
     auprcs.index = index
 
-    # Save results
-    aurocs.to_csv(os.path.join(results_dir, 'aurocs', 'individual_ccis.csv'))
-    auprcs.to_csv(os.path.join(results_dir, 'auprcs', 'individual_ccis.csv'))
-
 else:
     # Read motif file
     all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
@@ -241,33 +238,44 @@ else:
 
     motifdf = all_motifs[all_motifs['Type'] == motif]
 
-    aurocs = []
-    auprcs = []
-    probs = []
+    ## DEBUG!
+    #SUBSET = 20
+    #SUBSET = min(SUBSET, motifdf.shape[0])
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
+    #motifdf = motifdf.sample(n=SUBSET, random_state=seed)
 
-    # DEBUG!
-    SUBSET = 20
-    SUBSET = min(SUBSET, motifdf.shape[0])
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
-
-    motifdf = motifdf.sample(n=SUBSET, random_state=seed)
-
-    for idx, row in motifdf.iterrows():
-        genes = row['all_genes']
-
-        auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
-       
-        aurocs.append(auroc)
-        auprcs.append(auprc)
-        probs.append(prediction_probabilities[:, 1])
-
-    # Save results
-    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=motifdf['Interaction'].values)
-    results.to_csv(os.path.join(results_dir, f'{motif}.csv'))
+    aurocs = pd.DataFrame(index=motifdf['Interaction'].values, columns=splits.columns)
+    auprcs = pd.DataFrame(index=motifdf['Interaction'].values, columns=splits.columns)
     
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=motifdf['Interaction'].values, columns=test.index)
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', f'{motif}.csv'))
+    for splitn in splits.columns:
+        train, test, y_train, y_test = get_train_test(data, splits, splitn)
+        train, test = scale_features(train, test)
+
+        for idx, row in motifdf.iterrows():
+            genes = row['all_genes']
+
+            auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
+           
+            aurocs.at[row['Interaction'], splitn] = auroc
+            auprcs.at[row['Interaction'], splitn] = auprc
+
+# Get mean, std and standard error of the mean
+splits_cols = [col for col in splits.columns if col.startswith('split')]
+aurocs['mean'] = aurocs[splits_cols].mean(axis=1)
+aurocs['std'] = aurocs[splits_cols].std(axis=1)
+aurocs['sem'] = aurocs[splits_cols].apply(sem, axis=1)
+
+auprcs['mean'] = auprcs[splits_cols].mean(axis=1)
+auprcs['std'] = auprcs[splits_cols].std(axis=1)
+auprcs['sem'] = auprcs[splits_cols].apply(sem, axis=1)
+
+# Sort by mean auroc, reorder columns
+aurocs = aurocs.sort_values(by='mean', ascending=False)[['mean', 'std', 'sem'] + splits_cols] # sort
+auprcs = auprcs.loc[aurocs.index, ['mean', 'std', 'sem'] + splits_cols] # match order of aurocs
+
+# Save results
+aurocs.to_csv(os.path.join(results_dir, 'aurocs', f'{motif}.csv'))
+auprcs.to_csv(os.path.join(results_dir, 'auprcs', f'{motif}.csv'))
 
 print('Done: classify.py')
