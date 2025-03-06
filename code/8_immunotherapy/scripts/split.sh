@@ -5,6 +5,6 @@
 mkdir -p /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
-conda activate tabpfn-extensions
+conda activate tabpfn
 python split.py
 exit 0

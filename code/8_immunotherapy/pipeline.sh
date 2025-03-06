@@ -7,10 +7,10 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=1 # Train / Test split
 CLASS=1 # classify immunotherapy response
-AGGR=0 # aggregate all the results
+AGGR=1 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
-CLASS_QUEUE='q07gaia'
+CLASS_QUEUE='q02gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
@@ -18,7 +18,7 @@ CLASS_NCPUS=1
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
-CLASS_MEMORY=8gb
+CLASS_MEMORY=4gb
 AGGR_MEMORY=20gb
 
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
@@ -44,7 +44,7 @@ if [ $SPLIT -eq 1 ]; then
         -n "split" \
         -nc "$SPLIT_NCPUS" \
         -m "$SPLIT_MEMORY" \
-        -e "tabpfn-extensions" \
+        -e "tabpfn" \
         -q "$SPLIT_QUEUE" \
         -c "python split.py"
     )
@@ -52,7 +52,7 @@ if [ $SPLIT -eq 1 ]; then
 fi
 
 #motifs_list=(whole_transcriptome all_ccis 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path individual_ccis)
-motifs_list=(whole_transcriptome all_ccis)
+motifs_list=(individual_ccis 4_triangle_extra 4_path 4_no_crosstalk 4_one_missing 4_clique 4_cycle 3_clique 3_path)
 
 class_ids=""
 # Loop over all motifs
