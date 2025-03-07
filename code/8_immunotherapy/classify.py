@@ -228,12 +228,12 @@ else:
     probs = []
 
     # DEBUG!
-    SUBSET = 1000
-    SUBSET = min(SUBSET, motifdf.shape[0])
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
-    print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
+    #SUBSET = 1000
+    #SUBSET = min(SUBSET, motifdf.shape[0])
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stdout)
+    #print('Subsetting to ', SUBSET ,'random motifs', file=sys.stderr)
 
-    motifdf = motifdf.sample(n=SUBSET, random_state=seed)
+    #motifdf = motifdf.sample(n=SUBSET, random_state=seed)
 
     for idx, row in motifdf.iterrows():
         genes = row['all_genes']

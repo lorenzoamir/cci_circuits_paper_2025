@@ -135,13 +135,13 @@ genes = [col for col in data.columns if col not in clinical_cols]
 # BATCH CORRECTION
 
 # Remove batches with too few patients
-#small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
-#data = data[~data.dataset_id.isin(small_batch)]
-#batch = list(data.dataset_id)
-#
-#expr = data[genes].T.fillna(0)
-#corrected = pycombat.pycombat(data=expr, batch=batch)
-#data[genes] = corrected.T
+small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
+data = data[~data.dataset_id.isin(small_batch)]
+batch = list(data.dataset_id)
+
+expr = data[genes].T.fillna(0)
+corrected = pycombat.pycombat(data=expr, batch=batch)
+data[genes] = corrected.T
 
 # Remove patient missing response data
 print(data.response_NR.value_counts(dropna=False))
@@ -167,7 +167,7 @@ patients = data.loc[
 print('Splitting patients')
 train_patients, test_patients = train_test_split(
     patients,
-    test_size=0.1,
+    test_size=0.11,
     random_state=seed
 )
 
