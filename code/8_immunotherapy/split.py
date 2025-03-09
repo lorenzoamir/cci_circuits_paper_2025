@@ -118,7 +118,20 @@ common_cols = surv.columns.intersection(data.columns)
 data = data[common_cols]
 surv = surv[common_cols]
 
+print('Merging TIGER and TCGA data')
 data = pd.concat([data, surv])
+
+# IMVigor210 Data
+im = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/imvigor210/merged_log_fpkm.csv', index_col=0)
+
+common_cols = im.columns.intersection(data.columns)
+data = data[common_cols]
+im = im[common_cols]
+
+print('Merging TIGER, TCGA and IMVigor210 data')
+data = pd.concat([data, im])
+print(data.shape)
+
 data.loc[~data['response_NR'].isin(['R', 'N']), 'response_NR'] = np.nan
 
 print(data.response_NR.value_counts(dropna=False))
@@ -132,16 +145,16 @@ data.patient_name = data['dataset_id'].astype(str) + '-' + data.patient_name.ast
 clinical_cols = list(set(clinical_cols).intersection(common_cols)) 
 genes = [col for col in data.columns if col not in clinical_cols]
 
-# BATCH CORRECTION
-
-# Remove batches with too few patients
-small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
-data = data[~data.dataset_id.isin(small_batch)]
-batch = list(data.dataset_id)
-
-expr = data[genes].T.fillna(0)
-corrected = pycombat.pycombat(data=expr, batch=batch)
-data[genes] = corrected.T
+## BATCH CORRECTION
+#
+## Remove batches with too few patients
+#small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
+#data = data[~data.dataset_id.isin(small_batch)]
+#batch = list(data.dataset_id)
+#
+#expr = data[genes].T.fillna(0)
+#corrected = pycombat.pycombat(data=expr, batch=batch)
+#data[genes] = corrected.T
 
 # Remove patient missing response data
 print(data.response_NR.value_counts(dropna=False))
@@ -167,7 +180,7 @@ patients = data.loc[
 print('Splitting patients')
 train_patients, test_patients = train_test_split(
     patients,
-    test_size=0.11,
+    test_size=0.1,
     random_state=seed
 )
 

@@ -30,8 +30,9 @@ os.makedirs(os.path.join(results_dir, 'prediction_probabilities'), exist_ok=True
 motif = args.motif
 print(motif)
 
+all_categorical_cols = ['tissue', 'therapy_type', 'treatment_when', 'response_NR', 'dataset_id', 'patient_name']
 clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
-#clinical_cols = ['tissue', 'therapy_type']
+cols_to_drop = list(set(all_categorical_cols) - set(clinical_cols))
 
 dtypes = {
     'tissue': 'category',
@@ -61,7 +62,7 @@ y_test  = test['response_NR']
 train = train.drop(columns=['response_NR'])
 test = test.drop(columns=['response_NR'])
 
-n_pcs = 30
+n_pcs = 0.9
 
 def scale_features(train, test):
     # Always check that no patient is in both train and test
@@ -87,8 +88,8 @@ def scale_features(train, test):
 def pca_dataset(train, test, genes, clinical_cols, n_pcs=30):
     # PCA
     pca = PCA(n_components=n_pcs, random_state=seed)
-    X_train = pca.fit_transform(train[genes])
-    X_test = pca.transform(test[genes])
+    X_train = pca.fit_transform(train[genes].fillna(np.log2(0.001)))
+    X_test = pca.transform(test[genes].fillna(np.log2(0.001)))
     
     # Convert back to DataFrame
     X_train = pd.DataFrame(X_train, index=train.index)
@@ -133,7 +134,7 @@ def train_test(train, test, genes, clinical_cols, n_pcs=None):
 
     return auroc, auprc, prediction_probabilities
 
-train, test = scale_features(train, test)
+#train, test = scale_features(train, test)
 
 if motif == 'whole_transcriptome':
     genes = set(train.columns)
@@ -237,6 +238,12 @@ else:
 
     for idx, row in motifdf.iterrows():
         genes = row['all_genes']
+
+        if not set(genes).issubset(set(train.columns)):
+            aurocs.append(np.nan)
+            auprcs.append(np.nan)
+            probs.append([np.nan] * test.shape[0])
+            continue
 
         auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
        
