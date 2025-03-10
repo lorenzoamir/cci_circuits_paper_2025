@@ -1,12 +1,14 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from combat import pycombat
+#from combat import pycombat
+from pycombat import Combat
 import os
 import re
 import sys
 
 seed = 42
+BATCH_CORRECTION = True
 
 # TIGER Data
 data = pd.read_csv('/projects/bioinformatics/DB/tiger_immunotherapy/full_merged_dataset.csv', index_col=0)
@@ -55,7 +57,8 @@ tumor_type_to_tissue = {
 }
 
 data['tissue'] = data['tumor_type'].map(tumor_type_to_tissue)
-clinical_cols += ['tissue']
+data['batch'] = 1
+clinical_cols += ['tissue', 'batch']
 
 mapping = {
     'PRE': 'PRE',
@@ -113,6 +116,7 @@ surv.loc[~surv['response_NR'].isin(['R', 'N']), 'response_NR'] = np.nan
 
 surv['therapy_type'] = np.nan
 surv.loc[surv['patient_name'].isin(ctla), 'therapy_type'] = 'anti-CTLA-4'
+surv['batch'] = 2
 
 common_cols = surv.columns.intersection(data.columns)
 data = data[common_cols]
@@ -123,6 +127,7 @@ data = pd.concat([data, surv])
 
 # IMVigor210 Data
 im = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/imvigor210/merged_log_fpkm.csv', index_col=0)
+im['batch'] = 3
 
 common_cols = im.columns.intersection(data.columns)
 data = data[common_cols]
@@ -145,7 +150,7 @@ data.patient_name = data['dataset_id'].astype(str) + '-' + data.patient_name.ast
 clinical_cols = list(set(clinical_cols).intersection(common_cols)) 
 genes = [col for col in data.columns if col not in clinical_cols]
 
-## BATCH CORRECTION
+## BATCH CORRECTION (OLD)
 #
 ## Remove batches with too few patients
 #small_batch = data.dataset_id.value_counts()[data.dataset_id.value_counts() <= 5].index
@@ -161,12 +166,6 @@ print(data.response_NR.value_counts(dropna=False))
 data = data.dropna(subset=['response_NR'])
 print(data.response_NR.value_counts(dropna=False))
 
-# How many samples are post-treatment?
-print('Total samples before filtering:', data.shape[0])
-print('Total patients before filtering:', data['patient_name'].nunique())
-print('Post-treatment samples:', data[data['treatment_when'] == 'POST'].shape[0])
-print('Post-treatment patients:', data[data['treatment_when'] == 'POST']['patient_name'].nunique())
-
 # Remove post-treatment samples
 data = data[data['treatment_when'] != 'POST']
 
@@ -180,7 +179,7 @@ patients = data.loc[
 print('Splitting patients')
 train_patients, test_patients = train_test_split(
     patients,
-    test_size=0.1,
+    test_size=0.2,
     random_state=seed
 )
 
@@ -189,6 +188,47 @@ test = data[data['patient_name'].isin(test_patients['patient_name'])]
 train = data[~data['patient_name'].isin(test_patients['patient_name'])]
 
 assert set(train['patient_name']).isdisjoint(set(test['patient_name'])), "Error: Overlapping patients in train and test!"
+
+# BATCH CORRECTION (NEW)
+if BATCH_CORRECTION:
+    print('Batches:')
+    print(train.batch.value_counts())
+    print(test.batch.value_counts())
+
+    def preprocess_data(data, genes):
+        """Extract gene expression matrix and phenotype data."""
+        X = data[genes].fillna(np.log2(0.001))
+        obs = data.drop(columns=genes)
+        return X.values, obs
+
+    def encode_response(pheno):
+        """Encode response variable as a binary matrix."""
+        return pd.get_dummies(pheno.response_NR, drop_first=True).values
+
+    def apply_combat(train_Y, train_b, train_X, test_Y, test_b, test_X, train_C=None, test_C=None):
+        """Apply Combat batch effect correction."""
+        combat = Combat()
+        combat.fit(Y=train_Y, b=train_b, X=train_X, C=train_C)
+        return combat.transform(Y=train_Y, b=train_b, X=train_X, C=train_C), combat.transform(Y=test_Y, b=test_b, X=test_X, C=test_C)
+
+    # Preprocess train and test data
+    train_Y, train_pheno = preprocess_data(train, genes)
+    test_Y, test_pheno = preprocess_data(test, genes)
+
+    # Encode response
+    train_X = encode_response(train_pheno)
+    test_X = encode_response(test_pheno)
+
+    # Extract batch values
+    train_b = train_pheno['batch'].values
+    test_b = test_pheno['batch'].values
+
+    # Apply Combat correction
+    train_combat, test_combat = apply_combat(train_Y, train_b, train_X, test_Y, test_b, test_X)
+
+    # Update dataframes
+    train[genes] = train_combat
+    test[genes] = test_combat
 
 train.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/train.csv')
 test.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/test.csv')

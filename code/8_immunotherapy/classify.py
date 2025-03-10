@@ -30,8 +30,8 @@ os.makedirs(os.path.join(results_dir, 'prediction_probabilities'), exist_ok=True
 motif = args.motif
 print(motif)
 
-all_categorical_cols = ['tissue', 'therapy_type', 'treatment_when', 'response_NR', 'dataset_id', 'patient_name']
-clinical_cols = ['tissue', 'therapy_type', 'treatment_when']
+all_categorical_cols = ['tissue', 'therapy_type', 'treatment_when', 'response_NR', 'dataset_id', 'patient_name', 'response_NR', 'batch']
+clinical_cols = ['tissue', 'therapy_type']
 cols_to_drop = list(set(all_categorical_cols) - set(clinical_cols))
 
 dtypes = {
@@ -49,7 +49,7 @@ test = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/test.csv'
 #test = test.drop(columns=['dataset_id', 'patient_name'])
 
 # response_NR and the clinical cols must be categorical and have the same categories in train and test
-for col in clinical_cols:
+for col in clinical_cols + ['response_NR']:
     train[col] = train[col].astype('category')
     test[col] = test[col].astype('category').cat.set_categories(train[col].cat.categories)
 
@@ -68,7 +68,7 @@ def scale_features(train, test):
     # Always check that no patient is in both train and test
 
     genes = set(train.columns)
-    genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
+    genes = list(genes - set(all_categorical_cols))
 
     # Scaling
     scaler = StandardScaler()
@@ -111,8 +111,11 @@ def train_test(train, test, genes, clinical_cols, n_pcs=None):
     else:
         X_train = train[genes + clinical_cols]
         X_test = test[genes + clinical_cols]
-
-    categorical_feature_indices = list(range(X_train.shape[1]-len(clinical_cols), X_train.shape[1]))
+    
+    if len(clinical_cols) > 0:
+        categorical_feature_indices = list(range(X_train.shape[1]-len(clinical_cols), X_train.shape[1]))
+    else:
+        categorical_feature_indices = None
 
     clf = TabPFNClassifier(
         random_state=seed,
@@ -138,7 +141,7 @@ def train_test(train, test, genes, clinical_cols, n_pcs=None):
 
 if motif == 'whole_transcriptome':
     genes = set(train.columns)
-    genes = list(genes - set(clinical_cols).union({'response_NR', 'patient_name', 'dataset_id'}))
+    genes = list(genes - set(all_categorical_cols))
 
     auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs)
     probs = prediction_probabilities[:, 1]
