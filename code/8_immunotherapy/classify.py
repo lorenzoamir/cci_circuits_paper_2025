@@ -32,7 +32,7 @@ print(motif)
 
 all_categorical_cols = ['tissue', 'therapy_type', 'treatment_when', 'response_NR', 'dataset_id', 'patient_name', 'response_NR', 'batch']
 clinical_cols = ['tissue', 'therapy_type']
-cols_to_drop = list(set(all_categorical_cols) - set(clinical_cols))
+cols_to_drop = set(all_categorical_cols) - set(clinical_cols) - set(['response_NR'])
 
 dtypes = {
     'tissue': 'category',
@@ -45,8 +45,9 @@ dtypes = {
 train = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/train.csv', dtype=dtypes, index_col=0)
 test = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/test.csv', dtype=dtypes, index_col=0) 
 
-#train = train.drop(columns=['dataset_id', 'patient_name'])
-#test = test.drop(columns=['dataset_id', 'patient_name'])
+cols_to_drop = list(cols_to_drop.intersection(set(train.columns)))
+train = train.drop(columns=cols_to_drop)
+test = test.drop(columns=cols_to_drop)
 
 # response_NR and the clinical cols must be categorical and have the same categories in train and test
 for col in clinical_cols + ['response_NR']:
@@ -65,7 +66,6 @@ test = test.drop(columns=['response_NR'])
 n_pcs = 0.9
 
 def scale_features(train, test):
-    # Always check that no patient is in both train and test
 
     genes = set(train.columns)
     genes = list(genes - set(all_categorical_cols))
@@ -102,15 +102,15 @@ def pca_dataset(train, test, genes, clinical_cols, n_pcs=30):
 
     return X_train, X_test
 
-def train_test(train, test, genes, clinical_cols, n_pcs=None):
-    if n_pcs is not None:
-        X_train, X_test = pca_dataset(train, test, genes, clinical_cols, n_pcs)
-        # Add back clinical columns
-        X_train = X_train.join(train[clinical_cols])
-        X_test = X_test.join(test[clinical_cols])
-    else:
-        X_train = train[genes + clinical_cols]
-        X_test = test[genes + clinical_cols]
+def train_test(X_train, X_test, genes, clinical_cols, n_pcs=None):
+    #if n_pcs is not None:
+    #    X_train, X_test = pca_dataset(train, test, genes, clinical_cols, n_pcs)
+    #    # Add back clinical columns
+    #    X_train = X_train.join(train[clinical_cols])
+    #    X_test = X_test.join(test[clinical_cols])
+    #else:
+    #    X_train = train[genes + clinical_cols]
+    #    X_test = test[genes + clinical_cols]
     
     if len(clinical_cols) > 0:
         categorical_feature_indices = list(range(X_train.shape[1]-len(clinical_cols), X_train.shape[1]))
@@ -135,15 +135,20 @@ def train_test(train, test, genes, clinical_cols, n_pcs=None):
     # Compute AUPRC
     auprc = average_precision_score(y_test, prediction_probabilities[:, 1], pos_label='R') 
 
-    return auroc, auprc, prediction_probabilities
+    return auroc, auprc, prediction_probabilities, clf
 
 #train, test = scale_features(train, test)
 
 if motif == 'whole_transcriptome':
     genes = set(train.columns)
     genes = list(genes - set(all_categorical_cols))
-
-    auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs)
+    
+    X_train, X_test = pca_dataset(train, test, genes, clinical_cols, n_pcs=n_pcs)
+    # Add back clinical columns
+    X_train = X_train.join(train[clinical_cols])
+    X_test = X_test.join(test[clinical_cols])
+    
+    auroc, auprc, prediction_probabilities, clf = train_test(X_train, X_test, genes, clinical_cols, n_pcs=n_pcs)
     probs = prediction_probabilities[:, 1]
 
     print(f'AUROC: {auroc}')
@@ -151,7 +156,15 @@ if motif == 'whole_transcriptome':
     print()
     
     # Save results
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_transcriptome'])
+    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_transcriptome_test']) 
+
+    # Also predict on the training set
+    prediction_probabilities_train = clf.predict_proba(X_train)
+    auroc_train = roc_auc_score(y_train, prediction_probabilities_train[:, 1])
+    auprc_train = average_precision_score(y_train, prediction_probabilities_train[:, 1], pos_label='R')
+    train_results = pd.DataFrame({'auroc': [auroc_train], 'auprc': [auprc_train]}, index=['whole_transcriptome_train'])
+    results = pd.concat([results, train_results])
+
     results.to_csv(os.path.join(results_dir, 'whole_transcriptome.csv'))
 
     # Save prediction probabilities
@@ -165,8 +178,13 @@ elif motif == 'all_ccis':
     
     genes = set(ccc['all_genes'].sum())
     genes = list(genes.intersection(set(train.columns)))
+    
+    X_train, X_test = pca_dataset(train, test, genes, clinical_cols, n_pcs=n_pcs)
+    # Add back clinical columns
+    X_train = X_train.join(train[clinical_cols])
+    X_test = X_test.join(test[clinical_cols])
 
-    auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=n_pcs) 
+    auroc, auprc, prediction_probabilities, clf = train_test(X_train, X_test, genes, clinical_cols, n_pcs=n_pcs) 
     probs = prediction_probabilities[:, 1]
 
     print(f'AUROC: {auroc}')
@@ -174,7 +192,15 @@ elif motif == 'all_ccis':
     print()
     
     # Save results
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_ccis'])
+    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_ccis_test'])
+
+    # Also predict on the training set
+    prediction_probabilities_train = clf.predict_proba(X_train)
+    auroc_train = roc_auc_score(y_train, prediction_probabilities_train[:, 1])
+    auprc_train = average_precision_score(y_train, prediction_probabilities_train[:, 1], pos_label='R')
+    train_results = pd.DataFrame({'auroc': [auroc_train], 'auprc': [auprc_train]}, index=['all_ccis_train'])
+    results = pd.concat([results, train_results])
+
     results.to_csv(os.path.join(results_dir, 'all_ccis.csv'))
     
     # Save prediction probabilities
@@ -199,8 +225,10 @@ elif motif == 'individual_ccis':
             auprcs.append(np.nan)
             probs.append([np.nan] * test.shape[0])
             continue
-
-        auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
+        
+        X_train = train[genes + clinical_cols]
+        X_test = test[genes + clinical_cols]
+        auroc, auprc, prediction_probabilities, clf = train_test(X_train, X_test, genes, clinical_cols, n_pcs=None)
 
         aurocs.append(auroc)
         auprcs.append(auprc)
@@ -247,8 +275,10 @@ else:
             auprcs.append(np.nan)
             probs.append([np.nan] * test.shape[0])
             continue
-
-        auroc, auprc, prediction_probabilities = train_test(train, test, genes, clinical_cols, n_pcs=None)
+        
+        X_train = train[genes + clinical_cols]
+        X_test = test[genes + clinical_cols]
+        auroc, auprc, prediction_probabilities, clf = train_test(X_train, X_test, genes, clinical_cols, n_pcs=None)
        
         aurocs.append(auroc)
         auprcs.append(auprc)

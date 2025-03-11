@@ -5,20 +5,24 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-SPLIT=0 # Train / Test split
+SPLIT=1 # Train / Test split
+AUG=0 # Augment the data
 CLASS=1 # classify immunotherapy response
-AGGR=1 # aggregate all the results
+AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
+AUG_QUEUE='q02anacreon'
 CLASS_QUEUE='q02gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
+AUG_NCPUS=1
 CLASS_NCPUS=1
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
-CLASS_MEMORY=4gb
+AUG_MEMORY=12gb
+CLASS_MEMORY=8gb
 AGGR_MEMORY=20gb
 
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
@@ -51,8 +55,23 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
-#motifs_list=(whole_transcriptome all_ccis)
+if [ $AUG -eq 1 ]; then
+    aug_script="$script_dir/aug.sh"
+    aug_id=$(fsub \
+        -p "$aug_script" \
+        -n "aug" \
+        -nc "$AUG_NCPUS" \
+        -m "$AUG_MEMORY" \
+        -e "tabpfn" \
+        -q "$AUG_QUEUE" \
+        -w "$waiting_list" \
+        -c "python augment.py"
+    )
+    waiting_list=$waiting_list:$aug_id
+fi
+
+#motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
+motifs_list=(whole_transcriptome all_ccis)
 
 class_ids=""
 # Loop over all motifs

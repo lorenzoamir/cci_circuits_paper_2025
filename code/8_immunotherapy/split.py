@@ -9,6 +9,7 @@ import sys
 
 seed = 42
 BATCH_CORRECTION = True
+np.random.seed(seed)
 
 # TIGER Data
 data = pd.read_csv('/projects/bioinformatics/DB/tiger_immunotherapy/full_merged_dataset.csv', index_col=0)
@@ -97,7 +98,7 @@ ctla = harmo.dropna(subset='therapy_type').patient_barcode.unique()
 #surv = pd.read_csv('/home/lnemati/pathway_crosstalk/data/survival_data/tissues/pan_cancer.csv', index_col=0)
 
 # FPKMs
-surv = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/tcga_log_fpkms.csv', index_col=0)
+surv = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/tcga/tcga_log_fpkms.csv', index_col=0)
 
 surv['patient_name'] = [x.rsplit('-', 1)[0] for x in surv.index]
 surv['patient_name'] = surv['patient_name'].str.lower()
@@ -138,8 +139,6 @@ data = pd.concat([data, im])
 print(data.shape)
 
 data.loc[~data['response_NR'].isin(['R', 'N']), 'response_NR'] = np.nan
-
-print(data.response_NR.value_counts(dropna=False))
 
 # Discard patients with many missing values
 #data = data[data.isna().sum(1) < 3000]
@@ -208,7 +207,7 @@ if BATCH_CORRECTION:
     def apply_combat(train_Y, train_b, train_X, test_Y, test_b, test_X, train_C=None, test_C=None):
         """Apply Combat batch effect correction."""
         combat = Combat()
-        combat.fit(Y=train_Y, b=train_b, X=train_X, C=train_C)
+        combat.fit(Y=train_Y, b=train_b, X=train_X, C=None)
         return combat.transform(Y=train_Y, b=train_b, X=train_X, C=train_C), combat.transform(Y=test_Y, b=test_b, X=test_X, C=test_C)
 
     # Preprocess train and test data
@@ -224,7 +223,16 @@ if BATCH_CORRECTION:
     test_b = test_pheno['batch'].values
 
     # Apply Combat correction
-    train_combat, test_combat = apply_combat(train_Y, train_b, train_X, test_Y, test_b, test_X)
+    train_combat, test_combat = apply_combat(
+        train_Y=train_Y,
+        train_b=train_b,
+        train_X=None,
+        test_Y=test_Y,
+        test_b=test_b,
+        test_X=None,
+        train_C=None,
+        test_C=None
+    )
 
     # Update dataframes
     train[genes] = train_combat
