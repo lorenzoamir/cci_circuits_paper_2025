@@ -5,23 +5,19 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-SPLIT=1 # Train / Test split
-AUG=0 # Augment the data
+SPLIT=0 # Separate the different datasets
 CLASS=1 # classify immunotherapy response
 AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
-AUG_QUEUE='q02anacreon'
 CLASS_QUEUE='q02gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
-AUG_NCPUS=1
 CLASS_NCPUS=1
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
-AUG_MEMORY=12gb
 CLASS_MEMORY=8gb
 AGGR_MEMORY=20gb
 
@@ -55,46 +51,35 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-if [ $AUG -eq 1 ]; then
-    aug_script="$script_dir/aug.sh"
-    aug_id=$(fsub \
-        -p "$aug_script" \
-        -n "aug" \
-        -nc "$AUG_NCPUS" \
-        -m "$AUG_MEMORY" \
-        -e "tabpfn" \
-        -q "$AUG_QUEUE" \
-        -w "$waiting_list" \
-        -c "python augment.py"
-    )
-    waiting_list=$waiting_list:$aug_id
-fi
-
 #motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
 motifs_list=(whole_transcriptome all_ccis)
 
+# list of all .csv files in the cohorts directory
+cohorts_list=$(ls /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts/*.csv)
+
 class_ids=""
-# Loop over all motifs
+# Loop over all motifs and cohorts
 if [ $CLASS -eq 1 ]; then
-    for motif in "${motifs_list[@]}"; do
-        echo "Motif: $motif"
-        # create job script for each motif
-        class_name="class_$motif"
-        class_script="$script_dir/$class_name.sh"
+    for data in "${cohort_list[@]}"; do
+        for motif in "${motifs_list[@]}"; do
+            # create job script for each motif
+            class_name="cls_$motif"
+            class_script="$script_dir/$class_name.sh"
 
-        class_id=$(fsub \
-            -p "$class_script" \
-            -n "$class_name" \
-            -nc "$CLASS_NCPUS" \
-            -ng 1 \
-            -e "tabpfn" \
-            -m "$CLASS_MEMORY" \
-            -q "$CLASS_QUEUE" \
-            -w "$waiting_list" \
-            -c "python classify.py --motif $motif"
-            )
+            class_id=$(fsub \
+                -p "$class_script" \
+                -n "$class_name" \
+                -nc "$CLASS_NCPUS" \
+                -ng 1 \
+                -e "tabpfn" \
+                -m "$CLASS_MEMORY" \
+                -q "$CLASS_QUEUE" \
+                -w "$waiting_list" \
+                -c "python classify.py --motif $motif --data $data"
+                )
 
-        class_ids="$class_ids:$class_id"
+            class_ids="$class_ids:$class_id"
+        done
     done
 fi
 
