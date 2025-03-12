@@ -5,8 +5,8 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-SPLIT=0 # Separate the different datasets
-CLASS=1 # classify immunotherapy response
+SPLIT=1 # Separate the different datasets
+CLASS=0 # classify immunotherapy response
 AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
@@ -52,15 +52,18 @@ if [ $SPLIT -eq 1 ]; then
 fi
 
 #motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
+#motifs_list=(whole_transcriptome all_ccis)
 motifs_list=(whole_transcriptome all_ccis)
 
-# list of all .csv files in the cohorts directory
-cohorts_list=$(ls /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts/*.csv)
+# list of all .csv files in the cohorts directory, not just filenames but full path
+cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
+# Subset to only the first cohorts
+#cohorts_list=("${cohorts_list[@]:0:3}")
 
 class_ids=""
 # Loop over all motifs and cohorts
 if [ $CLASS -eq 1 ]; then
-    for data in "${cohort_list[@]}"; do
+    for data in "${cohorts_list[@]}"; do
         for motif in "${motifs_list[@]}"; do
             # create job script for each motif
             class_name="cls_$motif"
