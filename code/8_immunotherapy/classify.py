@@ -61,10 +61,10 @@ clf = TabPFNClassifier(
 cv = StratifiedKFold(n_splits=n_folds, shuffle=False)
 
 def pca_dataset(X, n_pcs=None):
-    # Default number of PCs is half the number of samples
+    # Default number of PCs is the number of samples
     # but if those explain more than 90% of the variance, use that number
     if n_pcs is None:
-        n_pcs = n_samples // 2
+        n_pcs = min(X.shape[0], X.shape[1])
 
     # PCA
     print('Trying wih n_pcs:', n_pcs)
@@ -140,6 +140,33 @@ elif motif == 'all_ccis':
     # Save metrics
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_ccis'])
     results.to_csv(os.path.join(results_dir, 'metrics', 'all_ccis.csv'))
+
+elif motif == 'all_motifs':
+    # Read motifs file
+    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
+    # Get all genes that appear in any motif
+    all_motifs['all_genes'] = all_motifs.Interaction.apply(lambda x: re.split(r'[+_&]', x))
+    genes = set(all_motifs['all_genes'].sum())
+    genes = list(genes.intersection(set(X.columns)))
+
+    X = pca_dataset(X[genes])
+
+    # Get prediction probabilities for each fold
+    probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
+    auroc = roc_auc_score(y, probs, multi_class='ovr')
+    auprc = average_precision_score(y, probs, pos_label=1)
+
+    print(f'AUROC: {auroc}')
+    print(f'AUPRC: {auprc}')
+
+    # Save prediction probabilities
+    prediction_probabilities = pd.DataFrame(probs, index=X.index, columns=['all_motifs']).T
+    prediction_probabilities = pd.concat([target, prediction_probabilities])
+    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_motifs.csv'))
+
+    # Save metrics
+    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_motifs'])
+    results.to_csv(os.path.join(results_dir, 'metrics', 'all_motifs.csv'))
 
 elif motif == 'individual_ccis':
     # Individual interactions 

@@ -132,13 +132,16 @@ print(data.head())
 data = data[data['response_NR'].isin(['R', 'N'])]
 
 # Discard patients with many missing values
-#data = data[data.isna().sum(1) < 3000]
+data = data[data.isna().sum(1) < 5000]
 
 # Make sure patient names are unique
 data.patient_name = data['dataset_id'].astype(str) + '-' + data.patient_name.astype(str)
 
 clinical_cols = list(set(clinical_cols).intersection(common_cols)) 
 genes = [col for col in data.columns if col not in clinical_cols]
+
+# Save data with also clinical cols and response
+data.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/full_dataset_with_clinical.csv')
 
 # Remove post-treatment samples
 # data = data[data['treatment_when'] != 'POST']

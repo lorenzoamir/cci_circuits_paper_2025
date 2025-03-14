@@ -53,7 +53,7 @@ fi
 
 #motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
 #motifs_list=(whole_transcriptome all_ccis)
-motifs_list=(whole_transcriptome all_ccis)
+motifs_list=(all_motifs)
 
 # list of all .csv files in the cohorts directory, not just filenames but full path
 cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
