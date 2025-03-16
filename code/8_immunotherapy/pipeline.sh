@@ -44,7 +44,7 @@ if [ $SPLIT -eq 1 ]; then
         -n "split" \
         -nc "$SPLIT_NCPUS" \
         -m "$SPLIT_MEMORY" \
-        -e "tabpfn" \
+        -e "WGCNA" \
         -q "$SPLIT_QUEUE" \
         -c "python split.py"
     )
@@ -52,11 +52,17 @@ if [ $SPLIT -eq 1 ]; then
 fi
 
 #motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
-#motifs_list=(whole_transcriptome all_ccis)
-motifs_list=(all_motifs)
+#motifs_list=(whole_transcriptome all_ccis all_motifs all_cliques)
+motifs_list=(all_motifs all_cliques)
 
-# list of all .csv files in the cohorts directory, not just filenames but full path
-cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
+# Cohorts
+#cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
+#outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/cohorts'
+
+# Tissues
+cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/tissues -name "*.csv"))
+outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/tissues'
+
 # Subset to only the first cohorts
 #cohorts_list=("${cohorts_list[@]:0:3}")
 
@@ -78,7 +84,7 @@ if [ $CLASS -eq 1 ]; then
                 -m "$CLASS_MEMORY" \
                 -q "$CLASS_QUEUE" \
                 -w "$waiting_list" \
-                -c "python classify.py --motif $motif --data $data"
+                -c "python classify.py --motif $motif --data $data --outdir $outdir"
                 )
 
             class_ids="$class_ids:$class_id"

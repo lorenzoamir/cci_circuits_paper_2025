@@ -6,5 +6,5 @@ mkdir -p /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
 conda activate tabpfn
-python classify.py --motif whole_transcriptome --data /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts/skin_gse115821.csv
+python classify.py --motif whole_transcriptome --data /home/lnemati/pathway_crosstalk/data/immunotherapy/tissues/skin.csv --outdir /home/lnemati/pathway_crosstalk/results/immunotherapy/tissues
 exit 0

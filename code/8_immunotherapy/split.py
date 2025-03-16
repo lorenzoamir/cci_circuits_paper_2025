@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
-#from combat import pycombat
-from pycombat import Combat
+from anndata import AnnData
+from scanpy.pp import combat
 import os
 import re
 import sys
@@ -15,7 +14,7 @@ np.random.seed(seed)
 data = pd.read_csv('/projects/bioinformatics/DB/tiger_immunotherapy/full_merged_dataset.csv', index_col=0)
 
 # ERR2498029 is a clear outlier in the PCA plot
-data = data.loc[data.index != 'ERR2498029']
+#data = data.loc[data.index != 'ERR2498029']
 
 # Match TCGA data log2(fpkm+0.001)
 data.iloc[:, 16:] = np.log2(data.iloc[:, 16:] + 0.001)
@@ -113,12 +112,14 @@ surv.loc[surv['patient_name'].isin(ctla), 'therapy_type'] = 'anti-CTLA-4'
 common_cols = surv.columns.intersection(data.columns)
 data = data[common_cols]
 surv = surv[common_cols]
-
 print('Merging TIGER and TCGA data')
+data['batch'] = 1
+surv['batch'] = 2
 data = pd.concat([data, surv])
 
 # IMVigor210 Data
 im = pd.read_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/imvigor210/merged_log_fpkm.csv', index_col=0)
+im['batch'] = 3
 
 common_cols = im.columns.intersection(data.columns)
 data = data[common_cols]
@@ -132,24 +133,26 @@ print(data.head())
 data = data[data['response_NR'].isin(['R', 'N'])]
 
 # Discard patients with many missing values
-data = data[data.isna().sum(1) < 5000]
+data = data[data.isna().sum(1) < 10000]
 
 # Make sure patient names are unique
 data.patient_name = data['dataset_id'].astype(str) + '-' + data.patient_name.astype(str)
 
 clinical_cols = list(set(clinical_cols).intersection(common_cols)) 
+clinical_cols.append('batch')
 genes = [col for col in data.columns if col not in clinical_cols]
 
 # Save data with also clinical cols and response
 data.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/full_dataset_with_clinical.csv')
 
 # Remove post-treatment samples
-# data = data[data['treatment_when'] != 'POST']
+data = data[data['treatment_when'] != 'POST']
 
 # Extract unique patients
 patients = data[['patient_name', 'tissue', 'dataset_id']].drop_duplicates()
 
 os.makedirs('/home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts', exist_ok=True)
+os.makedirs('/home/lnemati/pathway_crosstalk/data/immunotherapy/tissues', exist_ok=True)
 
 # Split patients based on tissue and dataset_id, cohorts have a minimum size
 min_size = 20
@@ -157,23 +160,68 @@ min_size = 20
 # Get combinations of tissue and dataset_id that are actually present in the data
 tissue_dataset_combinations = data[['tissue', 'dataset_id']].drop_duplicates()
 
-for tissue, dataset_id in tissue_dataset_combinations.itertuples(index=False):
-    print(tissue, dataset_id)
-    cohort_patients = patients.query('tissue == @tissue and dataset_id == @dataset_id')['patient_name']
+def batch_correct(df, batch_col='batch_col', genes=genes):
+    adata = AnnData(X = df[genes].fillna(np.log2(0.001)), obs = df[[batch_col]])
+    corrected = combat(adata, key=batch_col, inplace=False)
+    out = df.copy()
+    out[genes] = corrected
+    return out
+
+#for tissue, dataset_id in tissue_dataset_combinations.itertuples(index=False):
+#    print(tissue, dataset_id)
+#    cohort_patients = patients.query('tissue == @tissue and dataset_id == @dataset_id')['patient_name']
+#    # Check number of patients
+#    if len(cohort_patients) < min_size:
+#        print(f'Patients: {len(cohort_patients)}, skipping')
+#        continue
+#    # Check that both classes are present 
+#    if not set(data.loc[data.patient_name.isin(cohort_patients), 'response_NR']).issuperset({'R', 'N'}):
+#        print(f'Class not present, skipping')
+#        continue
+#   
+#    cohort = data[data.patient_name.isin(cohort_patients)].copy()
+#
+#    # Only keep genes and response
+#    cohort = cohort[genes + ['response_NR']]
+#    print(tissue, dataset_id, f'n={len(cohort)}')
+#    print('Nan values:', cohort.isna().sum().sum() / (len(cohort) * len(cohort.columns)))
+#    print('Response:', cohort['response_NR'].value_counts())
+#    print(cohort.head())
+#
+#    # Shuffle cohort
+#    cohort = cohort.sample(frac=1, random_state=seed, ignore_index=False)
+#
+#    # Save cohort
+#    filename = os.path.join('/home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts', f'{tissue}_{dataset_id}.csv'.lower().replace(' ', '_'))
+#    cohort.to_csv(filename, index=True)
+# Also save full dataset
+#full_dataset = data[genes + ['response_NR']]
+#full_dataset = full_dataset.sample(frac=1, random_state=seed)
+#full_dataset.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts/full_dataset.csv')
+
+# Also split based on tissue
+for tissue in data['tissue'].unique():
+    print(tissue)
+    cohort_patients = patients.query('tissue == @tissue')['patient_name']
     # Check number of patients
     if len(cohort_patients) < min_size:
         print(f'Patients: {len(cohort_patients)}, skipping')
         continue
     # Check that both classes are present 
     if not set(data.loc[data.patient_name.isin(cohort_patients), 'response_NR']).issuperset({'R', 'N'}):
-        print(f'Class not present, skipping')
+        print(f'Class not present')
         continue
-   
+
     cohort = data[data.patient_name.isin(cohort_patients)].copy()
+    
+    # If more than one batch is present, perform batch correction
+    if len(cohort['batch'].unique()) > 1 and BATCH_CORRECTION:
+        print('Batches:', cohort['batch'].unique())
+        cohort = batch_correct(cohort, batch_col='batch')
 
     # Only keep genes and response
     cohort = cohort[genes + ['response_NR']]
-    print(tissue, dataset_id, f'n={len(cohort)}')
+    print(tissue, f'n={len(cohort)}')
     print('Nan values:', cohort.isna().sum().sum() / (len(cohort) * len(cohort.columns)))
     print('Response:', cohort['response_NR'].value_counts())
     print(cohort.head())
@@ -182,12 +230,17 @@ for tissue, dataset_id in tissue_dataset_combinations.itertuples(index=False):
     cohort = cohort.sample(frac=1, random_state=seed, ignore_index=False)
 
     # Save cohort
-    filename = os.path.join('/home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts', f'{tissue}_{dataset_id}.csv'.lower().replace(' ', '_'))
+    filename = os.path.join('/home/lnemati/pathway_crosstalk/data/immunotherapy/tissues', f'{tissue}.csv'.lower().replace(' ', '_'))
     cohort.to_csv(filename, index=True)
 
 # Also save full dataset
+
+# batch correction
+if BATCH_CORRECTION:
+    full_dataset = batch_correct(data, batch_col='batch')
 full_dataset = data[genes + ['response_NR']]
 full_dataset = full_dataset.sample(frac=1, random_state=seed)
 full_dataset.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts/full_dataset.csv')
+full_dataset.to_csv('/home/lnemati/pathway_crosstalk/data/immunotherapy/tissues/full_dataset.csv')
 
 print('Done: split.py')

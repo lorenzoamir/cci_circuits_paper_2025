@@ -14,15 +14,17 @@ seed = 42
 np.random.seed(seed)
 
 n_folds = 10
+n_pcs = 0.95
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--data', type=str, required=True)
 parser.add_argument('--motif', type=str, required=True)
+parser.add_argument('--outdir', type=str, required=False)
 
 args = parser.parse_args()
 
-results_dir = '/home/lnemati/pathway_crosstalk/results/immunotherapy/cohorts/'
+results_dir = args.outdir
 cohort_name = args.data.split('/')[-1].split('.')[0]
 print(cohort_name)
 results_dir = os.path.join(results_dir, cohort_name)
@@ -61,33 +63,29 @@ clf = TabPFNClassifier(
 cv = StratifiedKFold(n_splits=n_folds, shuffle=False)
 
 def pca_dataset(X, n_pcs=None):
-    # Default number of PCs is the number of samples
-    # but if those explain more than 90% of the variance, use that number
-    if n_pcs is None:
-        n_pcs = min(X.shape[0], X.shape[1])
-
+    # Default is to keep all PCs, if n_pcs is a fraction, keep PCs that explain that fraction of the variance
     # PCA
-    print('Trying wih n_pcs:', n_pcs)
-    pca = PCA(n_components=n_pcs, random_state=seed)
+    pca = PCA(random_state=seed)
     X_pca = pca.fit_transform(X.fillna(np.log2(0.001)))
+    total_pcs = pca.n_components_ 
 
-    # If n_pcs explain more than 90% of the variance, only keep those that explain 90%
-    if n_pcs > 1:
-        explained_variance_ratio = pca.explained_variance_ratio_
-        explained_variance_ratio_cumsum = np.cumsum(explained_variance_ratio)
-        total_variance = explained_variance_ratio_cumsum[-1]
-        if total_variance > 0.9: 
-            # Set n_pcs to the number of PCs that explain 90% of the variance
-            n_pcs = np.argmax(explained_variance_ratio_cumsum > 0.9) + 1
-            pca = PCA(n_components=n_pcs, random_state=seed)
-            X_pca = pca.fit_transform(X.fillna(np.log2(0.001)))
+    # Convert back to DataFrame
+    X_pca = pd.DataFrame(X_pca, index=X.index)
+     
+    # If n_pcs is a fraction, keep PCs that explain that fraction of the variance
+    if n_pcs is None:
+        n_pcs = total_pcs
+    elif n_pcs < 1:
+        explained_variance_ratio_cumsum = np.cumsum(pca.explained_variance_ratio_)
+        n_pcs = np.argmax(explained_variance_ratio_cumsum > n_pcs) + 1
+
+    # TabPFN has a max of 500 features
+    n_pcs = min(n_pcs, 500)
+    X_pca = X_pca.iloc[:, :n_pcs]
             
     print('Number of PCs:', pca.n_components_)
     print('Explained variance:', np.sum(pca.explained_variance_ratio_))
 
-    # Convert back to DataFrame
-    X_pca = pd.DataFrame(X_pca, index=X.index)
-    
     # TabPFN needs column names to be strings
     # Rename columns to PC1, PC2, ..., PCn
     X_pca.columns = ['PC' + str(col) for col in X_pca.columns]
@@ -95,7 +93,7 @@ def pca_dataset(X, n_pcs=None):
     return X_pca
 
 if motif == 'whole_transcriptome':
-    X = pca_dataset(X)
+    X = pca_dataset(X, n_pcs=n_pcs)
     
     # Get prediction probabilities for each fold
     probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
@@ -122,7 +120,7 @@ elif motif == 'all_ccis':
     genes = set(ccc['all_genes'].sum())
     genes = list(genes.intersection(set(X.columns)))
     
-    X = pca_dataset(X[genes])
+    X = pca_dataset(X[genes], n_pcs=n_pcs)
 
     # Get prediction probabilities for each fold
     probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
@@ -149,7 +147,8 @@ elif motif == 'all_motifs':
     genes = set(all_motifs['all_genes'].sum())
     genes = list(genes.intersection(set(X.columns)))
 
-    X = pca_dataset(X[genes])
+    #X = pca_dataset(X[genes], n_pcs=n_pcs)
+    X = X[genes]
 
     # Get prediction probabilities for each fold
     probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
@@ -167,6 +166,33 @@ elif motif == 'all_motifs':
     # Save metrics
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_motifs'])
     results.to_csv(os.path.join(results_dir, 'metrics', 'all_motifs.csv'))
+
+elif motif == 'all_cliques':
+    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
+    cliques = all_motifs[all_motifs['Type'].isin(['3_clique', '4_clique'])]
+    cliques['all_genes'] = cliques.Interaction.apply(lambda x: re.split(r'[+_&]', x))
+    genes = set(cliques['all_genes'].sum())
+    genes = list(genes.intersection(set(X.columns)))
+
+    #X = pca_dataset(X[genes], n_pcs=n_pcs)
+    X = X[genes]
+
+    # Get prediction probabilities for each fold
+    probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
+    auroc = roc_auc_score(y, probs, multi_class='ovr')
+    auprc = average_precision_score(y, probs, pos_label=1)
+
+    print(f'AUROC: {auroc}')
+    print(f'AUPRC: {auprc}')
+
+    # Save prediction probabilities
+    prediction_probabilities = pd.DataFrame(probs, index=X.index, columns=['all_cliques']).T
+    prediction_probabilities = pd.concat([target, prediction_probabilities])
+    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_cliques.csv'))
+
+    # Save metrics
+    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_cliques'])
+    results.to_csv(os.path.join(results_dir, 'metrics', 'all_cliques.csv'))
 
 elif motif == 'individual_ccis':
     # Individual interactions 
