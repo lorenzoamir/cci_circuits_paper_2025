@@ -5,20 +5,24 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-SPLIT=1 # Separate the different datasets
-CLASS=0 # classify immunotherapy response
+SPLIT=0 # Separate the different datasets
+FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
+INDIVIDUAL=1 # classify immunotherapy response with individual interactions/motifs
 AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
-CLASS_QUEUE='q02gaia'
+FEATURES_QUEUE='q02gaia'
+INDIVIDUAL_QUEUE='q07gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
-CLASS_NCPUS=1
+FEATURES_NCPUS=1
+INDIVIDUAL_NCPUS=1
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
-CLASS_MEMORY=8gb
+FEATURES_MEMORY=8gb
+INDIVIDUAL_MEMORY=8gb
 AGGR_MEMORY=20gb
 
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
@@ -51,9 +55,8 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-#motifs_list=(whole_transcriptome all_ccis individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
-#motifs_list=(whole_transcriptome all_ccis all_motifs all_cliques)
-motifs_list=(all_motifs all_cliques)
+#features_list=(whole_transcriptome all_signatures all_ccis all_motifs all_cliques signatures)
+features_list=(signatures)
 
 # Cohorts
 #cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
@@ -61,39 +64,75 @@ motifs_list=(all_motifs all_cliques)
 
 # Tissues
 cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/tissues -name "*.csv"))
+
 outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/tissues'
 
 # Subset to only the first cohorts
 #cohorts_list=("${cohorts_list[@]:0:3}")
 
-class_ids=""
-# Loop over all motifs and cohorts
-if [ $CLASS -eq 1 ]; then
+feat_ids=""
+# Loop over all features and cohorts
+if [ $FEATURES -eq 1 ]; then
     for data in "${cohorts_list[@]}"; do
-        for motif in "${motifs_list[@]}"; do
-            # create job script for each motif
-            class_name="cls_$motif"
-            class_script="$script_dir/$class_name.sh"
+        for features in "${features_list[@]}"; do
+            # create job script for each feature and cohort
+            feat_name="ftr_${features}_$(basename $data .csv)"
+            feat_script="$script_dir/$feat_name.sh"
 
-            class_id=$(fsub \
-                -p "$class_script" \
-                -n "$class_name" \
-                -nc "$CLASS_NCPUS" \
+            feat_id=$(fsub \
+                -p "$feat_script" \
+                -n "$feat_name" \
+                -nc "$FEATURES_NCPUS" \
                 -ng 1 \
                 -e "tabpfn" \
-                -m "$CLASS_MEMORY" \
-                -q "$CLASS_QUEUE" \
+                -m "$FEATURES_MEMORY" \
+                -q "$FEATURES_QUEUE" \
                 -w "$waiting_list" \
-                -c "python classify.py --motif $motif --data $data --outdir $outdir"
+                -c "python features.py --features $features --data $data --outdir $outdir"
                 )
 
-            class_ids="$class_ids:$class_id"
+            feat_ids=$feat_ids:$feat_id 
         done
     done
+
+    # Add feat_ids to waiting_list
+    waiting_list=$waiting_list$feat_ids
+
 fi
 
-# Add class_ids to waiting_list
-waiting_list=$waiting_list$class_ids
+motifs_list=(individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
+
+outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/individual_interactions_and_motifs/'
+
+# Loop over all motifs and cohorts
+mtf_ids=""
+if [ $INDIVIDUAL -eq 1 ]; then
+    for data in "${cohorts_list[@]}"; do
+        for motifs in "${motifs_list[@]}"; do
+            # create job script for each motif and cohort
+            motif_name="mtf_${motifs}_$(basename $data .csv)"
+            motif_script="$script_dir/$motif_name.sh"
+
+            motif_id=$(fsub \
+                -p "$motif_script" \
+                -n "$motif_name" \
+                -nc "$INDIVIDUAL_NCPUS" \
+                -ng 1 \
+                -e "tabpfn" \
+                -m "$INDIVIDUAL_MEMORY" \
+                -q "$INDIVIDUAL_QUEUE" \
+                -w "$waiting_list" \
+                -c "python individual.py --motif $motifs --data $data --outdir $outdir"
+                )
+
+            mtf_ids=$mtf_ids:$motif_id
+        done
+    done
+
+    # Add mtf_ids to waiting_list
+    waiting_list=$waiting_list$mtf_ids
+
+fi
 
 if [ $AGGR -eq 1 ]; then
     aggregate_dir="$result_dir/aggregate"
