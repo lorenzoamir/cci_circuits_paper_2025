@@ -45,6 +45,10 @@ target = X['response_NR']
 y = np.where(target == 'R', 1, 0)
 X = X.drop(columns=['response_NR'])
 
+# Drop columns where all values are nans or the same
+X = X.dropna(axis=1, how='all')
+X = X.loc[:, X.nunique() != 1]
+
 # Make target a dataframe of a single row, with X.index as columns
 target.name = 'target'
 target = target.to_frame().T

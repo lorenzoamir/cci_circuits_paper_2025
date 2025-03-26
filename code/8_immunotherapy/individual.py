@@ -12,7 +12,7 @@ import argparse
 seed = 42
 np.random.seed(seed)
 
-n_folds = 10
+n_folds = 5
 
 parser = argparse.ArgumentParser()
 
@@ -43,6 +43,10 @@ target = X['response_NR']
 y = np.where(target == 'R', 1, 0)
 X = X.drop(columns=['response_NR'])
 
+# Drop columns where all values are nans or the same
+X = X.dropna(axis=1, how='all')
+X = X.loc[:, X.nunique() != 1]
+
 # Make target a dataframe of a single row, with X.index as columns
 target.name = 'target'
 target = target.to_frame().T
@@ -57,11 +61,10 @@ clf = TabPFNClassifier(
     device='cuda',
 )
 
-# One fold for each sample in the minority class
-n_folds = min(np.sum(y == 1), np.sum(y == 0)) 
-
 # Get folds
 cv = StratifiedKFold(n_splits=n_folds, shuffle=False)
+
+
 
 if motif == 'individual_ccis':
     # Individual interactions 
@@ -108,6 +111,53 @@ if motif == 'individual_ccis':
     #Save results
     results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
     results.to_csv(os.path.join(results_dir, 'metrics', 'individual_ccis.csv'))
+
+
+
+elif motif == 'random_pairs':
+    random_pairs = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/random_pairs_of_interactions.csv', index_col=0)
+    random_pairs['all_genes'] = random_pairs['all_genes'].apply(literal_eval)
+
+    aurocs = []
+    auprcs = []
+    probs = []
+
+    ## DEBUG!
+    #SUBSET = 3
+    #SUBSET = min(SUBSET, random_pairs.shape[0])
+    #print('Subsetting to ', SUBSET ,'random pairs')
+    #random_pairs = random_pairs.sample(n=SUBSET, random_state=seed)
+
+    for idx, row in random_pairs.iterrows():
+        genes = row['all_genes']
+
+        if not set(genes).issubset(set(X.columns)):
+            aurocs.append(np.nan)
+            auprcs.append(np.nan)
+            probs.append([np.nan] * X.shape[0])
+            continue
+
+        # Get prediction probabilities for each fold
+        prob = cross_val_predict(clf, X[genes], y, method='predict_proba', cv=cv)[:, 1]
+        auroc = roc_auc_score(y, prob, multi_class='ovr')
+        auprc = average_precision_score(y, prob, pos_label=1)
+
+        aurocs.append(auroc)
+        auprcs.append(auprc)
+        probs.append(prob)
+
+    index = random_pairs.index
+
+    # Save prediction probabilities (first row is target values)
+    prediction_probabilities = pd.DataFrame(probs, index=index, columns=X.index)
+    prediction_probabilities = pd.concat([target, prediction_probabilities])
+    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'random_pairs.csv'))
+
+    # Save results
+    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
+    results.to_csv(os.path.join(results_dir, 'metrics', 'random_pairs.csv'))
+
+
 
 else:
     # Read motif file

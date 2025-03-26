@@ -7,12 +7,12 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=0 # Separate the different datasets
 FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
-INDIVIDUAL=1 # classify immunotherapy response with individual interactions/motifs
-AGGR=0 # aggregate all the results
+INDIVIDUAL=0 # classify immunotherapy response with individual interactions/motifs
+AGGR=1 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
 FEATURES_QUEUE='q02gaia'
-INDIVIDUAL_QUEUE='q07gaia'
+INDIVIDUAL_QUEUE='q02gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
@@ -100,15 +100,16 @@ if [ $FEATURES -eq 1 ]; then
 
 fi
 
-motifs_list=(individual_ccis 4_triangle_extra 4_path 4_one_missing 4_no_crosstalk 4_clique 4_cycle 3_clique 3_path)
+#motifs_list=(4_clique 3_clique individual_ccis 4_no_crosstalk 4_triangle_extra 4_path 4_one_missing 4_cycle 3_path)
+motifs_list=(random_pairs)
 
 outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/individual_interactions_and_motifs/'
 
 # Loop over all motifs and cohorts
 mtf_ids=""
 if [ $INDIVIDUAL -eq 1 ]; then
-    for data in "${cohorts_list[@]}"; do
-        for motifs in "${motifs_list[@]}"; do
+    for motifs in "${motifs_list[@]}"; do
+        for data in "${cohorts_list[@]}"; do
             # create job script for each motif and cohort
             motif_name="mtf_${motifs}_$(basename $data .csv)"
             motif_script="$script_dir/$motif_name.sh"
@@ -134,21 +135,31 @@ if [ $INDIVIDUAL -eq 1 ]; then
 
 fi
 
-if [ $AGGR -eq 1 ]; then
-    aggregate_dir="$result_dir/aggregate"
+# Find directories with results in /home/lnemati/pathway_crosstalk/results/immunotherapy/tissues
+tissues_list=$(find /home/lnemati/pathway_crosstalk/results/immunotherapy/individual_interactions_and_motifs -maxdepth 1 -mindepth 1 -type d)
+echo "Tissues list: $tissues_list"
 
-    aggr_script="$script_dir/aggr.sh"
-    aggr_id=$(fsub \
-        -p "$aggr_script" \
-        -n "aggr" \
-        -nc "$AGGR_NCPUS" \
-        -m "$AGGR_MEMORY" \
-        -e "WGCNA" \
-        -q "$AGGR_QUEUE" \
-        -w "$waiting_list" \
-        -c "python aggregate.py"
-    )
-    waiting_list=$waiting_list:$aggr_id
+if [ $AGGR -eq 1 ]; then
+    for dir in $tissues_list; do
+        tissue_name=$(basename $dir)
+        echo "Aggregating results for $tissue_name"
+
+        aggregate_dir="$result_dir/aggregate"
+        aggr_name="aggr_${tissue_name}"
+        aggr_script="$script_dir/$aggr_name.sh"
+
+        aggr_id=$(fsub \
+            -p "$aggr_script" \
+            -n "$aggr_name" \
+            -nc "$AGGR_NCPUS" \
+            -m "$AGGR_MEMORY" \
+            -e "WGCNA" \
+            -q "$AGGR_QUEUE" \
+            -w "$waiting_list" \
+            -c "python aggregate.py --inputdir $dir" \
+        )
+        
+    done
 fi
 
 echo "Done: pipeline.sh"
