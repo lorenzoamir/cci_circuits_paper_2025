@@ -12,7 +12,7 @@ import argparse
 seed = 42
 np.random.seed(seed)
 
-n_folds = 5
+n_folds = 10
 
 parser = argparse.ArgumentParser()
 

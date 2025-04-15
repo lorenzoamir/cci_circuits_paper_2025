@@ -7,8 +7,8 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=0 # Separate the different datasets
 FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
-INDIVIDUAL=0 # classify immunotherapy response with individual interactions/motifs
-AGGR=1 # aggregate all the results
+INDIVIDUAL=1 # classify immunotherapy response with individual interactions/motifs
+AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
 FEATURES_QUEUE='q02gaia'
@@ -101,7 +101,7 @@ if [ $FEATURES -eq 1 ]; then
 fi
 
 #motifs_list=(4_clique 3_clique individual_ccis 4_no_crosstalk 4_triangle_extra 4_path 4_one_missing 4_cycle 3_path)
-motifs_list=(random_pairs)
+motifs_list=(random_pairs 4_clique 3_clique individual_ccis)
 
 outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/individual_interactions_and_motifs/'
 
