@@ -5,6 +5,7 @@ from sklearn.model_selection import cross_val_predict, StratifiedKFold
 from sklearn.decomposition import PCA
 from tabpfn import TabPFNClassifier
 import re
+import pickle
 from ast import literal_eval
 import os
 import argparse
@@ -13,7 +14,7 @@ seed = 42
 # Set seed for reproducibility
 np.random.seed(seed)
 
-n_folds = 15 # Default number of folds
+# n_folds = 15 # Default number of folds
 n_pcs = 0.95
 
 parser = argparse.ArgumentParser()
@@ -31,6 +32,7 @@ results_dir = os.path.join(results_dir, cohort_name)
 os.makedirs(results_dir, exist_ok=True)
 os.makedirs(os.path.join(results_dir, 'prediction_probabilities'), exist_ok=True)
 os.makedirs(os.path.join(results_dir, 'metrics'), exist_ok=True)
+os.makedirs(os.path.join(results_dir, 'models'), exist_ok=True)
 
 features = args.features
 print(features)
@@ -119,6 +121,10 @@ if features == 'whole_transcriptome':
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['whole_transcriptome'])
     results.to_csv(os.path.join(results_dir, 'metrics', 'whole_transcriptome.csv'))
 
+    # Save model
+    with open(os.path.join(results_dir, 'models', 'whole_transcriptome.pkl'), 'wb') as f:
+        pickle.dump(clf, f)
+
 elif features == 'all_ccis':
     # Read cell-cell communication list
     ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
@@ -146,61 +152,12 @@ elif features == 'all_ccis':
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_ccis'])
     results.to_csv(os.path.join(results_dir, 'metrics', 'all_ccis.csv'))
 
-elif features == 'all_motifs':
-    # Read motifs file
-    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
-    # Get all genes that appear in any motif
-    all_motifs['all_genes'] = all_motifs.Interaction.apply(lambda x: re.split(r'[+_&]', x))
-    genes = set(all_motifs['all_genes'].sum())
-    genes = list(genes.intersection(set(X.columns)))
-
-    #X = pca_dataset(X[genes], n_pcs=n_pcs)
-    X = X[genes]
-
-    # Get prediction probabilities for each fold
-    probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
-    auroc = roc_auc_score(y, probs, multi_class='ovr')
-    auprc = average_precision_score(y, probs, pos_label=1)
-
-    print(f'AUROC: {auroc}')
-    print(f'AUPRC: {auprc}')
-
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=X.index, columns=['all_motifs']).T
-    prediction_probabilities = pd.concat([target, prediction_probabilities])
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_motifs.csv'))
-
-    # Save metrics
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_motifs'])
-    results.to_csv(os.path.join(results_dir, 'metrics', 'all_motifs.csv'))
-
-elif features == 'all_motifs_pca':
-    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
-    all_motifs['all_genes'] = all_motifs.Interaction.apply(lambda x: re.split(r'[+_&]', x))
-    genes = set(all_motifs['all_genes'].sum())
-    genes = list(genes.intersection(set(X.columns)))
-
-    X = pca_dataset(X[genes], n_pcs=n_pcs)
-
-    # Get prediction probabilities for each fold
-    probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
-    auroc = roc_auc_score(y, probs, multi_class='ovr')
-    auprc = average_precision_score(y, probs, pos_label=1)
-
-    print(f'AUROC: {auroc}')
-    print(f'AUPRC: {auprc}')
-    
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=X.index, columns=['all_motifs_pca']).T
-    prediction_probabilities = pd.concat([target, prediction_probabilities])
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_motifs_pca.csv'))
-
-    # Save metrics
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_motifs_pca'])
-    results.to_csv(os.path.join(results_dir, 'metrics', 'all_motifs_pca.csv'))
+    # Save model
+    with open(os.path.join(results_dir, 'models', 'all_ccis.pkl'), 'wb') as f:
+        pickle.dump(clf, f)
 
 elif features == 'all_cliques':
-    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
+    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/both/motifs.csv')
     cliques = all_motifs[all_motifs['Type'].isin(['3_clique', '4_clique'])]
     cliques['all_genes'] = cliques.Interaction.apply(lambda x: re.split(r'[+_&]', x))
     genes = set(cliques['all_genes'].sum())
@@ -225,32 +182,10 @@ elif features == 'all_cliques':
     # Save metrics
     results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_cliques'])
     results.to_csv(os.path.join(results_dir, 'metrics', 'all_cliques.csv'))
-
-elif features == 'all_cliques_pca':
-    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
-    cliques = all_motifs[all_motifs['Type'].isin(['3_clique', '4_clique'])]
-    cliques['all_genes'] = cliques.Interaction.apply(lambda x: re.split(r'[+_&]', x))
-    genes = set(cliques['all_genes'].sum())
-    genes = list(genes.intersection(set(X.columns)))
-
-    X = pca_dataset(X[genes], n_pcs=n_pcs)
-
-    # Get prediction probabilities for each fold
-    probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
-    auroc = roc_auc_score(y, probs, multi_class='ovr')
-    auprc = average_precision_score(y, probs, pos_label=1)
-
-    print(f'AUROC: {auroc}')
-    print(f'AUPRC: {auprc}')
-
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=X.index, columns=['all_cliques_pca']).T
-    prediction_probabilities = pd.concat([target, prediction_probabilities])
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_cliques_pca.csv'))
-
-    # Save metrics
-    results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_cliques_pca'])
-    results.to_csv(os.path.join(results_dir, 'metrics', 'all_cliques_pca.csv'))
+    
+    # Save model
+    with open(os.path.join(results_dir, 'models', 'all_cliques.pkl'), 'wb') as f:
+        pickle.dump(clf, f)
 
 elif features == 'signatures':
     # Use genes from TIGER signatures
@@ -285,117 +220,9 @@ elif features == 'signatures':
         # Save metrics
         results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=[signature])
         results.to_csv(os.path.join(results_dir, 'metrics', f'{signature}.csv'))
-
-    #X = pca_dataset(X[genes], n_pcs=n_pcs)
-
-    ## Get prediction probabilities for each fold
-    #probs = cross_val_predict(clf, X, y, method='predict_proba', cv=cv)[:, 1]
-    #auroc = roc_auc_score(y, probs, multi_class='ovr')
-    #auprc = average_precision_score(y, probs, pos_label=1)
-
-    #print(f'AUROC: {auroc}')
-    #print(f'AUPRC: {auprc}')
-
-    ## Save prediction probabilities
-    #prediction_probabilities = pd.DataFrame(probs, index=X.index, columns=['all_signatures']).T
-    #prediction_probabilities = pd.concat([target, prediction_probabilities])
-    #prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'all_signatures.csv'))
-
-    ## Save metrics
-    #results = pd.DataFrame({'auroc': [auroc], 'auprc': [auprc]}, index=['all_signatures'])
-    #results.to_csv(os.path.join(results_dir, 'metrics', 'all_signatures.csv'))
-
-elif features == 'individual_ccis':
-    # Individual interactions 
-    # Read cell-cell communication list
-    ccc = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv')
-    ccc['all_genes'] = ccc['all_genes'].apply(literal_eval)
-    
-    ## DEBUG!
-    #SUBSET = 20
-    #SUBSET = min(SUBSET, ccc.shape[0])
-    #print('Subsetting to ', SUBSET ,'random interactions')
-    #ccc = ccc.sample(n=SUBSET, random_state=seed)
-
-    aurocs = []
-    auprcs = []
-    probs = []
-
-    for idx, row in ccc.iterrows():
-        genes = row['all_genes']
         
-        if not set(genes).issubset(set(X.columns)):
-            # skip if missing genes
-            aurocs.append(np.nan)
-            auprcs.append(np.nan)
-            probs.append([np.nan] * X.shape[0])
-            continue
-
-        # Get prediction probabilities for each fold
-        prob = cross_val_predict(clf, X[genes], y, method='predict_proba', cv=cv)[:, 1]
-        auroc = roc_auc_score(y, prob, multi_class='ovr')
-        auprc = average_precision_score(y, prob, pos_label=1)
-
-        aurocs.append(auroc)
-        auprcs.append(auprc)
-        probs.append(prob)
-    
-    index = ccc['interaction'].str.replace('_', 'TEMP_REPLACE').str.replace('+', '_').str.replace('TEMP_REPLACE', '+').values
-    
-    # Save prediction probabilities (first row is target values)
-    prediction_probabilities = pd.DataFrame(probs, index=index, columns=X.index)
-    prediction_probabilities = pd.concat([target, prediction_probabilities])
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', 'individual_ccis.csv'))
-
-    #Save results
-    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
-    results.to_csv(os.path.join(results_dir, 'metrics', 'individual_ccis.csv'))
-    
-else:
-    # Read motif file
-    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
-    # Get genes
-    all_motifs['all_genes'] = all_motifs.Interaction.apply(lambda x: re.split(r'[+_&]', x))
-
-    if motif not in all_motifs['Type'].unique():
-        raise ValueError(f'Motif {motif} not found in all_motifs')
-
-    motifdf = all_motifs[all_motifs['Type'] == motif]
-
-    aurocs = []
-    auprcs = []
-    probs = []
-
-    # DEBUG!
-    #SUBSET = 1000
-    #SUBSET = min(SUBSET, motifdf.shape[0])
-    #print('Subsetting to ', SUBSET ,'random motifs')
-
-    #motifdf = motifdf.sample(n=SUBSET, random_state=seed)
-
-    for idx, row in motifdf.iterrows():
-        genes = row['all_genes']
-
-        if not set(genes).issubset(set(train.columns)):
-            aurocs.append(np.nan)
-            auprcs.append(np.nan)
-            probs.append([np.nan] * test.shape[0])
-            continue
-        
-        X_train = train[genes + clinical_cols]
-        X_test = test[genes + clinical_cols]
-        auroc, auprc, prediction_probabilities, clf = train_test(X_train, X_test, genes, clinical_cols)
-       
-        aurocs.append(auroc)
-        auprcs.append(auprc)
-        probs.append(prediction_probabilities[:, 1])
-
-    # Save results
-    results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=motifdf['Interaction'].values)
-    results.to_csv(os.path.join(results_dir, f'{motif}.csv'))
-    
-    # Save prediction probabilities
-    prediction_probabilities = pd.DataFrame(probs, index=motifdf['Interaction'].values, columns=test.index)
-    prediction_probabilities.to_csv(os.path.join(results_dir, 'prediction_probabilities', f'{motif}.csv'))
+        # Save model
+        with open(os.path.join(results_dir, 'models', f'{signature}.pkl'), 'wb') as f:
+            pickle.dump(clf, f)
 
 print('Done: features.py')

@@ -6,8 +6,8 @@
 source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=0 # Separate the different datasets
-FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
-INDIVIDUAL=1 # classify immunotherapy response with individual interactions/motifs
+FEATURES=1 # classify immunotherapy response with full feature sets e.g. all CCIs
+INDIVIDUAL=0 # classify immunotherapy response with individual interactions/motifs
 AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
@@ -21,9 +21,12 @@ INDIVIDUAL_NCPUS=1
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
-FEATURES_MEMORY=8gb
-INDIVIDUAL_MEMORY=8gb
+FEATURES_MEMORY=16gb
+INDIVIDUAL_MEMORY=16gb
 AGGR_MEMORY=20gb
+
+TISSUES=0
+COHORTS=1
 
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 script_dir="/home/lnemati/pathway_crosstalk/code/8_immunotherapy/scripts"
@@ -55,20 +58,42 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-#features_list=(whole_transcriptome all_signatures all_ccis all_motifs all_cliques signatures)
-features_list=(signatures)
+features_list=(whole_transcriptome all_signatures all_ccis all_motifs all_cliques signatures)
 
 # Cohorts
 #cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
 #outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/cohorts'
 
-# Tissues
-cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/tissues -name "*.csv"))
+# Exit if both TISSUES and COHORTS are set to 0 or 1
+if [ $TISSUES -eq 0 ] && [ $COHORTS -eq 0 ]; then
+    echo "Error: Both TISSUES and COHORTS are set to 0. Please set one of them to 1."
+    exit 1
+fi
+if [ $TISSUES -eq 1 ] && [ $COHORTS -eq 1 ]; then
+    echo "Error: Both TISSUES and COHORTS are set to 1. Please set one of them to 0."
+    exit 1
+fi
 
-outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/tissues'
+# Tissues
+if [ $TISSUES -eq 1 ] && [ $COHORTS -eq 0 ]; then
+    cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/tissues -name "*.csv"))
+    outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/features_sets/tissues'
+if [ ! -d "$outdir" ]; then
+        mkdir "$outdir"
+    fi
+fi
+
+# Cohorts
+if [ $COHORTS -eq 1 ] && [ $TISSUES -eq 0 ]; then
+    cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
+    outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/features_sets/cohorts'
+if [ ! -d "$outdir" ]; then
+        mkdir "$outdir"
+    fi
+fi
 
 # Subset to only the first cohorts
-#cohorts_list=("${cohorts_list[@]:0:3}")
+#cohorts_list=("${cohorts_list[@]:0:2}")
 
 feat_ids=""
 # Loop over all features and cohorts
@@ -79,13 +104,20 @@ if [ $FEATURES -eq 1 ]; then
             feat_name="ftr_${features}_$(basename $data .csv)"
             feat_script="$script_dir/$feat_name.sh"
 
+            # if dataset is full_dataset, use more memory
+            if [[ $data == *"full_dataset"* ]]; then
+                mem=32gb
+            else
+                mem=$FEATURES_MEMORY
+            fi
+
             feat_id=$(fsub \
                 -p "$feat_script" \
                 -n "$feat_name" \
                 -nc "$FEATURES_NCPUS" \
                 -ng 1 \
                 -e "tabpfn" \
-                -m "$FEATURES_MEMORY" \
+                -m "$mem" \
                 -q "$FEATURES_QUEUE" \
                 -w "$waiting_list" \
                 -c "python features.py --features $features --data $data --outdir $outdir"
@@ -113,6 +145,13 @@ if [ $INDIVIDUAL -eq 1 ]; then
             # create job script for each motif and cohort
             motif_name="mtf_${motifs}_$(basename $data .csv)"
             motif_script="$script_dir/$motif_name.sh"
+            
+            # if dataset is full_dataset, use more memory
+            if [[ $data == *"full_dataset"* ]]; then
+                mem=32gb
+            else
+                mem=$INDIVIDUAL_MEMORY
+            fi
 
             motif_id=$(fsub \
                 -p "$motif_script" \
@@ -120,7 +159,7 @@ if [ $INDIVIDUAL -eq 1 ]; then
                 -nc "$INDIVIDUAL_NCPUS" \
                 -ng 1 \
                 -e "tabpfn" \
-                -m "$INDIVIDUAL_MEMORY" \
+                -m "$mem" \
                 -q "$INDIVIDUAL_QUEUE" \
                 -w "$waiting_list" \
                 -c "python individual.py --motif $motifs --data $data --outdir $outdir"
