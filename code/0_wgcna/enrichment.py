@@ -20,7 +20,8 @@ print("Loading WGCNA object: ", args.input)
 WGCNA = PyWGCNA.readWGCNA(args.input)
 all_genes = WGCNA.datExpr.var.index.tolist()
 
-reactome = '/home/lnemati/pathway_crosstalk/results/reactome/reactome_connected_pathways.gmt'
+#reactome = '/home/lnemati/pathway_crosstalk/results/reactome/reactome_connected_pathways.gmt'
+reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
 
 # ----- Enrichment analysis ------
 
@@ -38,15 +39,17 @@ for module in WGCNA.datExpr.var["moduleLabels"].unique():
             background=all_genes,
             outdir=None,
             )
-    except:
+    except Exception as e:
         print("Error in enrichment analysis for module: ", module, file=sys.stderr)
         print("Error in enrichment analysis for module: ", module, file=sys.stdout)
         print("Module size: ", len(module_genes), file=sys.stderr)
         print("Module size: ", len(module_genes), file=sys.stdout)
+        print("Error: ", e, file=sys.stderr)
+        print("Error: ", e, file=sys.stdout)
         continue
     enr = enr.results
     # Only keep significant enrichments
-    enr = enr[enr["Adjusted P-value"] < 0.05]
+    # enr = enr[enr["Adjusted P-value"] < 0.05]
     # Add module column and concatenate
     enr["module"] = module
     enrichment = pd.concat([enrichment, enr])
@@ -54,34 +57,34 @@ for module in WGCNA.datExpr.var["moduleLabels"].unique():
 print("Saving enrichment results to: ", os.path.join(output_path, "module_enrichment.csv.gz"))
 enrichment.to_csv(os.path.join(output_path, "module_enrichment.csv.gz"), index=False)
 
-all_terms = enrichment["Term"].unique()
-# ----- Occurrences -----
-
-# Count occurrences of terms in modules
-terms_counts = pd.DataFrame(0, index=all_terms, columns=WGCNA.datExpr.var["moduleLabels"].unique())
-
-for module, df in enrichment.groupby("module"):
-    for term in df["Term"]:
-        terms_counts.loc[term, module] += 1
-
-print("Saving terms occurrences to: ", os.path.join(output_path, "pathways_occurrences.csv.gz"))
-terms_counts.to_csv(os.path.join(output_path, "pathways_occurrences.csv.gz"))
-
-# ---- Co-occurrences -----
-
-# Count co-occurrences of terms in the same module
-cooccurrences = pd.DataFrame(0, index=all_terms, columns=all_terms)
-
-for module in WGCNA.datExpr.var["moduleLabels"].unique():
-    oc = terms_counts[terms_counts[module] > 0]
-    pairs = list(combinations(oc.index, 2))
-    for pair in pairs:
-        cooccurrences.loc[pair[0], pair[1]] += 1
-        cooccurrences.loc[pair[1], pair[0]] += 1
-
-print("Saving terms co-occurrences to: ", os.path.join(output_path, "pathways_cooccurrences.csv.gz"))
-cooccurrences.to_csv(os.path.join(output_path, "pathways_cooccurrences.csv.gz"))
-
+#all_terms = enrichment["Term"].unique()
+## ----- Occurrences -----
+#
+## Count occurrences of terms in modules
+#terms_counts = pd.DataFrame(0, index=all_terms, columns=WGCNA.datExpr.var["moduleLabels"].unique())
+#
+#for module, df in enrichment.groupby("module"):
+#    for term in df["Term"]:
+#        terms_counts.loc[term, module] += 1
+#
+#print("Saving terms occurrences to: ", os.path.join(output_path, "pathways_occurrences.csv.gz"))
+#terms_counts.to_csv(os.path.join(output_path, "pathways_occurrences.csv.gz"))
+#
+## ---- Co-occurrences -----
+#
+## Count co-occurrences of terms in the same module
+#cooccurrences = pd.DataFrame(0, index=all_terms, columns=all_terms)
+#
+#for module in WGCNA.datExpr.var["moduleLabels"].unique():
+#    oc = terms_counts[terms_counts[module] > 0]
+#    pairs = list(combinations(oc.index, 2))
+#    for pair in pairs:
+#        cooccurrences.loc[pair[0], pair[1]] += 1
+#        cooccurrences.loc[pair[1], pair[0]] += 1
+#
+#print("Saving terms co-occurrences to: ", os.path.join(output_path, "pathways_cooccurrences.csv.gz"))
+#cooccurrences.to_csv(os.path.join(output_path, "pathways_cooccurrences.csv.gz"))
+#
 ## Count co-occurrences of terms in the same module
 #terms_counts = pd.DataFrame(0, index=all_terms, columns=all_terms)
 #

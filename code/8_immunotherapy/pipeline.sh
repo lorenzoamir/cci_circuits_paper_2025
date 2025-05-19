@@ -6,13 +6,13 @@
 source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=0 # Separate the different datasets
-FEATURES=1 # classify immunotherapy response with full feature sets e.g. all CCIs
+FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
 INDIVIDUAL=0 # classify immunotherapy response with individual interactions/motifs
-AGGR=0 # aggregate all the results
+AGGR=1 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
 FEATURES_QUEUE='q02gaia'
-INDIVIDUAL_QUEUE='q02gaia'
+INDIVIDUAL_QUEUE='q07gaia'
 AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
@@ -25,8 +25,8 @@ FEATURES_MEMORY=16gb
 INDIVIDUAL_MEMORY=16gb
 AGGR_MEMORY=20gb
 
-TISSUES=0
-COHORTS=1
+TISSUES=1
+COHORTS=0
 
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 script_dir="/home/lnemati/pathway_crosstalk/code/8_immunotherapy/scripts"
@@ -58,7 +58,7 @@ if [ $SPLIT -eq 1 ]; then
     waiting_list=$split_id
 fi
 
-features_list=(whole_transcriptome all_signatures all_ccis all_motifs all_cliques signatures)
+features_list=(whole_transcriptome all_ccis all_cliques signatures)
 
 # Cohorts
 #cohorts_list=($(find /home/lnemati/pathway_crosstalk/data/immunotherapy/cohorts -name "*.csv"))
@@ -132,8 +132,8 @@ if [ $FEATURES -eq 1 ]; then
 
 fi
 
-#motifs_list=(4_clique 3_clique individual_ccis 4_no_crosstalk 4_triangle_extra 4_path 4_one_missing 4_cycle 3_path)
-motifs_list=(random_pairs 4_clique 3_clique individual_ccis)
+#motifs_list=(random_pairs 4_clique 3_clique individual_ccis 4_no_crosstalk 4_triangle_extra 4_path 4_one_missing 4_cycle 3_path)
+motifs_list=(4_no_crosstalk 4_triangle_extra 4_path 4_one_missing 4_cycle 3_path)
 
 outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/individual_interactions_and_motifs/'
 
@@ -152,7 +152,7 @@ if [ $INDIVIDUAL -eq 1 ]; then
             else
                 mem=$INDIVIDUAL_MEMORY
             fi
-
+            
             motif_id=$(fsub \
                 -p "$motif_script" \
                 -n "$motif_name" \

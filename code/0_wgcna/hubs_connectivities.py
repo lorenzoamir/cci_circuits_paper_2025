@@ -70,4 +70,26 @@ for pw in all_pws:
 # save degree_df as csv
 results.to_csv(os.path.join(output_path, "hubs_connectivities_all.csv"))
 
+# Also do the same with MSigDB Hallmark genesets
+hallmarks = '/home/lnemati/resources/msigdb_hallmarks/h.all.v2024.1.Hs.symbols.gmt'
+hallmark_genes = {}
+
+with open(hallmarks, 'r') as f:
+    for line in f.readlines():
+        line = line.split('\t')
+        hallmark_genes[line[0]] = line[2:]
+
+# Init new results dataframe
+results = pd.DataFrame(index=list(hallmark_genes.keys()), columns=['connection_strength'])
+
+# Calculate connection strength with MSigDB Hallmark pathways
+for pw in hallmark_genes.keys():
+    print(pw)
+    genes = list(set(hallmark_genes[pw]).intersection(adj.columns))
+    tot = np.sum(adj.loc[hubs, genes].values)
+    results.loc[pw, 'connection_strength'] = tot
+
+# save degree_df as csv
+results.to_csv(os.path.join(output_path, "hubs_connectivities_hallmarks.csv"))
+
 print("Done: hubs_connectivities.py")

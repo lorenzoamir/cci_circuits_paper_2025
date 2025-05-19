@@ -4,6 +4,7 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.model_selection import cross_val_predict, StratifiedKFold
 from sklearn.decomposition import PCA
 from tabpfn import TabPFNClassifier
+import random
 import re
 import pickle
 from ast import literal_eval
@@ -12,7 +13,9 @@ import argparse
 
 seed = 42
 # Set seed for reproducibility
+random.seed(seed)
 np.random.seed(seed)
+os.environ['PYTHONHASHSEED'] = str(seed)
 
 # n_folds = 15 # Default number of folds
 n_pcs = 0.95
@@ -157,7 +160,7 @@ elif features == 'all_ccis':
         pickle.dump(clf, f)
 
 elif features == 'all_cliques':
-    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/both/motifs.csv')
+    all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
     cliques = all_motifs[all_motifs['Type'].isin(['3_clique', '4_clique'])]
     cliques['all_genes'] = cliques.Interaction.apply(lambda x: re.split(r'[+_&]', x))
     genes = set(cliques['all_genes'].sum())

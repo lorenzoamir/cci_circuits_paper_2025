@@ -4,13 +4,29 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.model_selection import cross_val_predict, StratifiedKFold
 from sklearn.decomposition import PCA
 from tabpfn import TabPFNClassifier
+import signal
+import random
 import re
 from ast import literal_eval
 import os
 import argparse
 
 seed = 42
+
+# Reproducibility
+random.seed(seed)
 np.random.seed(seed)
+os.environ['PYTHONHASHSEED'] = str(seed)
+
+# Timeout setup
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException("Operation timed out.")
+
+signal.signal(signal.SIGALRM, timeout_handler)
+timeout_seconds = 20
 
 n_folds = 10
 
@@ -64,8 +80,6 @@ clf = TabPFNClassifier(
 # Get folds
 cv = StratifiedKFold(n_splits=n_folds, shuffle=False)
 
-
-
 if motif == 'individual_ccis':
     # Individual interactions 
     # Read cell-cell communication list
@@ -83,6 +97,8 @@ if motif == 'individual_ccis':
     #ccc = ccc.sample(n=SUBSET, random_state=seed)
 
     for idx, row in ccc.iterrows():
+        print('Processing interaction ', idx)
+
         genes = row['all_genes']
         
         if not set(genes).issubset(set(X.columns)):
@@ -91,11 +107,21 @@ if motif == 'individual_ccis':
             auprcs.append(np.nan)
             probs.append([np.nan] * X.shape[0])
             continue
+        
+        try:
+            # Get prediction probabilities for each fold
+            signal.alarm(timeout_seconds)
+            prob = cross_val_predict(clf, X[genes], y, method='predict_proba', cv=cv)[:, 1]
+            signal.alarm(0) # Cancel the alarm if successful
 
-        # Get prediction probabilities for each fold
-        prob = cross_val_predict(clf, X[genes], y, method='predict_proba', cv=cv)[:, 1]
-        auroc = roc_auc_score(y, prob, multi_class='ovr')
-        auprc = average_precision_score(y, prob, pos_label=1)
+            auroc = roc_auc_score(y, prob, multi_class='ovr')
+            auprc = average_precision_score(y, prob, pos_label=1)
+        
+        except TimeoutException:
+            print('Timeout for interaction ', idx)
+            prob = [np.nan] * X.shape[0] 
+            auroc = np.nan
+            auprc = np.nan
 
         aurocs.append(auroc)
         auprcs.append(auprc)
@@ -112,12 +138,10 @@ if motif == 'individual_ccis':
     results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
     results.to_csv(os.path.join(results_dir, 'metrics', 'individual_ccis.csv'))
 
-
-
 elif motif == 'random_pairs':
     random_pairs = pd.read_csv('/home/lnemati/pathway_crosstalk/data/interactions/random_pairs_of_interactions.csv', index_col=0)
     random_pairs['all_genes'] = random_pairs['all_genes'].apply(literal_eval)
-
+    
     aurocs = []
     auprcs = []
     probs = []
@@ -157,8 +181,6 @@ elif motif == 'random_pairs':
     results = pd.DataFrame({'auroc': aurocs, 'auprc': auprcs}, index=index)
     results.to_csv(os.path.join(results_dir, 'metrics', 'random_pairs.csv'))
 
-
-
 else:
     # Read motif file
     all_motifs = pd.read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv')
@@ -169,6 +191,12 @@ else:
         raise ValueError(f'Motif {motif} not found in all_motifs')
 
     motifdf = all_motifs[all_motifs['Type'] == motif]
+
+    # If there are more too many motifs, sample 1000
+    if motifdf.shape[0] > 1000:
+        print('Found ', motifdf.shape[0], ' motifs')
+        print('Subsetting to 1000 random motifs')
+        motifdf = motifdf.sample(n=1000, random_state=seed)
 
     aurocs = []
     auprcs = []

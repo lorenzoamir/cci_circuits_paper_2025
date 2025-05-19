@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N mtf_4_no_crosstalk_full_dataset
-#PBS -l select=1:ncpus=1:ngpus=1:mem=8gb
+#PBS -l select=1:ncpus=1:ngpus=1:mem=32gb
 #PBS -q q07gaia
 mkdir -p /home/lnemati/pathway_crosstalk/code/8_immunotherapy
 cd /home/lnemati/pathway_crosstalk/code/8_immunotherapy

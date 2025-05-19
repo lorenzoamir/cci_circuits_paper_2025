@@ -25,12 +25,12 @@ dfs = []
 
 possible_motifs = [
     '4_clique',
-#    '4_no_crosstalk',
-#    '4_triangle_extra',
-#    '4_path',
-#    '4_one_missing',
-#    '4_cycle',
-#    '3_path'
+    '4_no_crosstalk',
+    '4_triangle_extra',
+    '4_path',
+    '4_one_missing',
+    '4_cycle',
+    '3_path',
     '3_clique',
     'individual_ccis',
     'random_pairs'
@@ -39,8 +39,11 @@ possible_motifs = [
 for file in os.listdir(os.path.join(parentdir, 'metrics')):
     print(file)
     if not file.endswith('.csv'):
+        print('File does not end with .csv')
         continue
     if file.replace('.csv', '') not in possible_motifs:
+        print('File not in possible motifs')
+        print('Possible motifs:', possible_motifs)
         continue
     motif = file.replace('.csv', '')
     print(motif)
@@ -51,6 +54,9 @@ for file in os.listdir(os.path.join(parentdir, 'metrics')):
     dfs.append(df)
    
 df = pd.concat(dfs)
+
+# Print number of motifs
+print(df['motif'].value_counts())
 
 # Get the genes in each motif
 print('Getting genes')

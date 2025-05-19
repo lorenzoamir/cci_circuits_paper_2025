@@ -13,11 +13,11 @@ DESEQ=0
 WGCNA=0
 NETWORK=0
 GPCR=0
-HUBS=0
+HUBS=1
 RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
-SCORE_INTS=1
+SCORE_INTS=0
 ENRICHMENT=0
 STATS=0
 
