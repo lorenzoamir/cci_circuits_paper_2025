@@ -13,12 +13,12 @@ DESEQ=0
 WGCNA=0
 NETWORK=0
 GPCR=0
-HUBS=1
+HUBS=0
 RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
 SCORE_INTS=0
-ENRICHMENT=0
+ENRICHMENT=1
 STATS=0
 
 SEPARATE_QUEUE="q02anacreon"

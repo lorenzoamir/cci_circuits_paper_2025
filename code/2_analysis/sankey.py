@@ -160,7 +160,8 @@ print('Number of unique genes in n_same_t_diff:', len(n_same_t_diff_genes))
 # Enrichment analysis
 print("Performing enrichment analysis")
 
-reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+#reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+genesets = '/home/lnemati/resources/msigdb_hallmarks/h.all.v2024.1.Hs.symbols.gmt' 
 
 for BACKGROUND in [0, 1]:
     ccc_genes = '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv'
@@ -175,7 +176,7 @@ for BACKGROUND in [0, 1]:
     print("t_same_n_diff enrichment")
     enr = gp.enrichr(
         gene_list=t_same_n_diff_genes,
-        gene_sets=reactome,
+        gene_sets=genesets,
         background=background,
         outdir=os.path.join(tumor_fig_dir, 't_same_n_diff_enrichr'+suffix),
     )
@@ -185,7 +186,7 @@ for BACKGROUND in [0, 1]:
     print("n_same_t_diff enrichment")
     enr = gp.enrichr(
         gene_list=n_same_t_diff_genes,
-        gene_sets=reactome,
+        gene_sets=genesets,
         background=background,
         outdir=os.path.join(tumor_fig_dir, 'n_same_t_diff_enrichr'+suffix),
     )
@@ -346,8 +347,8 @@ fig.update_layout(
 
 print("Saving Sankey plot to " + os.path.join(tumor_fig_dir, "sankey.pdf"))
 # Save figure (overwriting the dummy plot)
-fig.write_image(os.path.join(tumor_fig_dir, "sankey.pdf"))
-fig.write_image(os.path.join(tumor_fig_dir, "sankey.svg"))
-fig.write_image(os.path.join(tumor_fig_dir, "sankey.png"))
+fig.write_image(os.path.join(tumor_fig_dir, "sankey.pdf"), scale=3)
+fig.write_image(os.path.join(tumor_fig_dir, "sankey.svg"), scale=3)
+fig.write_image(os.path.join(tumor_fig_dir, "sankey.png"), scale=3)
 
 print("Done: sankey.py")

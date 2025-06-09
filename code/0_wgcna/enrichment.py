@@ -21,7 +21,8 @@ WGCNA = PyWGCNA.readWGCNA(args.input)
 all_genes = WGCNA.datExpr.var.index.tolist()
 
 #reactome = '/home/lnemati/pathway_crosstalk/results/reactome/reactome_connected_pathways.gmt'
-reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+#reactome = '/home/lnemati/resources/reactome/ReactomePathways.gmt'
+genesets = '/home/lnemati/resources/msigdb_hallmarks/h.all.v2024.1.Hs.symbols.gmt'
 
 # ----- Enrichment analysis ------
 
@@ -35,7 +36,7 @@ for module in WGCNA.datExpr.var["moduleLabels"].unique():
         enr = gp.enrichr(
             gene_list=module_genes,
             #gene_sets="Reactome_2022",
-            gene_sets=reactome,
+            gene_sets=genesets,
             background=all_genes,
             outdir=None,
             )
@@ -55,7 +56,7 @@ for module in WGCNA.datExpr.var["moduleLabels"].unique():
     enrichment = pd.concat([enrichment, enr])
 
 print("Saving enrichment results to: ", os.path.join(output_path, "module_enrichment.csv.gz"))
-enrichment.to_csv(os.path.join(output_path, "module_enrichment.csv.gz"), index=False)
+enrichment.to_csv(os.path.join(output_path, "module_enrichment_hallmarks.csv.gz"), index=False)
 
 #all_terms = enrichment["Term"].unique()
 ## ----- Occurrences -----
