@@ -108,8 +108,8 @@ nlr["module"] = nlr["module"].map(nmodule2rank)
 tlr["module"] = tlr["module"].map(tmodule2rank)
 
 # Write 'Different<br>Modules' if the modules are different (nans)
-nlr["module"] = np.where(n_nan, "Different<br>Normal<br>Modules", nlr["module"]).astype(str)
-tlr["module"] = np.where(t_nan, "Different<br>Tumor<br>Modules", tlr["module"]).astype(str)
+nlr["module"] = np.where(n_nan, "Not<br>Co-Expressed<br>in Normal", nlr["module"]).astype(str)
+tlr["module"] = np.where(t_nan, "Not<br>Co-Expressed<br>in Tumor", tlr["module"]).astype(str)
 # Strip .0 if ends with it
 nlr["module"] = nlr["module"].str.replace("\.0", "")
 tlr["module"] = tlr["module"].str.replace("\.0", "")
@@ -133,7 +133,7 @@ print("Number of interactions: " + str(consensus_df.shape[0]))
 
 # Get pairs that have different modules in normal but the same in tumor
 t_same_n_diff = consensus_df[
-    (consensus_df["module_normal"] == "Different<br>Normal<br>Modules") & (consensus_df["module_tumor"] != "Different<br>Tumor<br>Modules")
+    (consensus_df["module_normal"] == "Not<br>Co-Expressed<br>in Normal") & (consensus_df["module_tumor"] != "Not<br>Co-Expressed<br>in Tumor")
 ]
 
 print('Saving interactions to file: ' + os.path.join(tumor_dir, "t_same_n_diff.csv"))
@@ -147,7 +147,7 @@ print('Number of unique genes in t_same_n_diff:', len(t_same_n_diff_genes))
 
 # Get pairs that have different modules in tumor but the same in normal
 n_same_t_diff = consensus_df[
-    (consensus_df["module_normal"] != "Different<br>Normal<br>Modules") & (consensus_df["module_tumor"] == "Different<br>Tumor<br>Modules")
+    (consensus_df["module_normal"] != "Not<br>Co-Expressed<br>in Normal") & (consensus_df["module_tumor"] == "Not<br>Co-Expressed<br>in Tumor")
 ]
 n_same_t_diff = n_same_t_diff[['interaction', 'module_normal']]
 n_same_t_diff['module_normal'] = 'N' + n_same_t_diff['module_normal'].astype(str)
@@ -220,27 +220,27 @@ module_changes.columns = module_changes.columns.str.replace(".0", "")
 # NOT ALPHABETICALLY, so 1,2,3,4... not 10,11,12...
 print('Sorting modules')
 # Convert to float for sorting, but then go back to strings
-t_sorted = sorted([int(col) for col in module_changes.columns if col != "Different<br>Tumor<br>Modules"])
+t_sorted = sorted([int(col) for col in module_changes.columns if col != "Not<br>Co-Expressed<br>in Tumor"])
 t_sorted = [str(int(col)) for col in t_sorted]
 module_changes = module_changes[
-    ["Different<br>Tumor<br>Modules"] + t_sorted
+    ["Not<br>Co-Expressed<br>in Tumor"] + t_sorted
 ]
 
-n_sorted = sorted([float(idx) for idx in module_changes.index if idx != "Different<br>Normal<br>Modules"])
+n_sorted = sorted([float(idx) for idx in module_changes.index if idx != "Not<br>Co-Expressed<br>in Normal"])
 n_sorted = [str(int(idx)) for idx in n_sorted]
 module_changes = module_changes.loc[
-    ["Different<br>Normal<br>Modules"] + n_sorted
+    ["Not<br>Co-Expressed<br>in Normal"] + n_sorted
 ]
 # Add N and T to the index and columns (only if they are not "Different<br>Modules")
 module_changes.columns = np.where(
-    module_changes.columns == "Different<br>Tumor<br>Modules",
-    "Different<br>Tumor<br>Modules",
+    module_changes.columns == "Not<br>Co-Expressed<br>in Tumor",
+    "Not<br>Co-Expressed<br>in Tumor",
     "T" + module_changes.columns.astype(str)
 )
 
 module_changes.index = np.where(
-    module_changes.index == "Different<br>Normal<br>Modules",
-    "Different<br>Normal<br>Modules",
+    module_changes.index == "Not<br>Co-Expressed<br>in Normal",
+    "Not<br>Co-Expressed<br>in Normal",
     "N" + module_changes.index.astype(str)
 )
 
@@ -255,7 +255,7 @@ value = []
 
 # Set to 0 the cell corresponding to both in different modules
 print('Discardin different modules in both conditions')
-module_changes.loc["Different<br>Normal<br>Modules", "Different<br>Tumor<br>Modules"] = 0
+module_changes.loc["Not<br>Co-Expressed<br>in Normal", "Not<br>Co-Expressed<br>in Tumor"] = 0
 
 for i, row in module_changes.iterrows():
     for j, val in row.items():
@@ -268,20 +268,20 @@ colors = []
 
 for norm, row in module_changes.iterrows():
     for tum, val in row.items():
-        if (norm != "Different<br>Normal<br>Modules") & (tum != "Different<br>Tumor<br>Modules"):
+        if (norm != "Not<br>Co-Expressed<br>in Normal") & (tum != "Not<br>Co-Expressed<br>in Tumor"):
             #r, g, b, a = nan_color
             #colors.append(f"rgba({r},{g},{b},{a})")
             colors.append(graycolor2)
         else:
-            if (norm == "Different<br>Normal<br>Modules") & (tum == "Different<br>Tumor<br>Modules"):
+            if (norm == "Not<br>Co-Expressed<br>in Normal") & (tum == "Not<br>Co-Expressed<br>in Tumor"):
                 #r, g, b, a = nan_color
                 #colors.append(f"rgba({r},{g},{b},{a})")
                 colors.append(graycolor2)	
-            elif (norm == "Different<br>Normal<br>Modules"):
+            elif (norm == "Not<br>Co-Expressed<br>in Normal"):
                 #r, g, b, a = t_color
                 #colors.append(f"rgba({r},{g},{b},{a})")
                 colors.append(tcolor)
-            elif (tum == "Different<br>Tumor<br>Modules"):
+            elif (tum == "Not<br>Co-Expressed<br>in Tumor"):
                 #r, g, b, a = n_color
                 #colors.append(f"rgba({r},{g},{b},{a})")
                 colors.append(ncolor)
@@ -339,11 +339,11 @@ fig = go.Figure(
     )
 )
 
-title=tumor_name.replace("_", " ").title()
-fig.update_layout(
-    title=dict(text=title),
-    font=dict(size=16, color='black')
-)
+#title=tumor_name.replace("_", " ").title()
+#fig.update_layout(
+#    title=dict(text=title),
+#    font=dict(size=16, color='black')
+#)
 
 print("Saving Sankey plot to " + os.path.join(tumor_fig_dir, "sankey.pdf"))
 # Save figure (overwriting the dummy plot)
