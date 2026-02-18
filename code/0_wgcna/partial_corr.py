@@ -1,8 +1,8 @@
 import numpy as np
 import sys
 import scanpy as sc
-import PyWGCNA
 import pandas as pd
+import pingouin as pg
 import os
 import argparse
 
@@ -31,26 +31,14 @@ print("Starting WGCNA")
 # make expression dataframe 
 geneExp = pd.DataFrame(data=adata.X,  index=adata.obs_names, columns=adata.var_names)
 
-WGCNA = PyWGCNA.WGCNA(
-    name="wgcna_" + name, 
-    species='homo sapiens', 
-    #anndata=adata, 
-    geneExp=geneExp,
-    TPMcutoff=0,
-    RsquaredCut=0.9,
-    networkType="signed hybrid",
-    minModuleSize=50,
-    powers=list(range(1,11)) + list(range(12,31))[::2],
-    outputPath=output_path,
-    save=True
-)
+# calculate the regular correlation matrix
+corr_matrix = geneExp.corr()
+outfile = os.path.join(output_path, 'correlation.csv.gz')
+corr_matrix.to_csv(outfile, index=True, header=True, compression='gzip')
 
-# add sample and gene info
-WGCNA.updateSampleInfo(adata.obs)
-WGCNA.updateGeneInfo(adata.var)
+# calculate the partial correlation matrix using pingouin
+partial_corr_matrix = pg.pcorr(geneExp)
+outfile = os.path.join(output_path, 'partial_correlation.csv.gz')
+partial_corr_matrix.to_csv(outfile, index=True, header=True, compression='gzip')
 
-WGCNA.preprocess()
-WGCNA.findModules()
-WGCNA.saveWGCNA()
-
-print("Done: wgcna.py")
+print("Done: partial_corr.py")

@@ -11,6 +11,7 @@ SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5
 
 DESEQ=0
 WGCNA=0
+PCORR=1
 NETWORK=0
 GPCR=0
 HUBS=0
@@ -18,12 +19,13 @@ RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
 SCORE_INTS=0
-ENRICHMENT=1
+ENRICHMENT=0
 STATS=0
 
 SEPARATE_QUEUE="q02anacreon"
 DESEQ_QUEUE="q02anacreon"
 WGCNA_QUEUE="q02anacreon"
+PCORR_QUEUE="q02anacreon"
 NETWORK_QUEUE="q02gaia"
 GPCR_QUEUE="q02anacreon"
 HUBS_QUEUE="q02anacreon"
@@ -36,6 +38,7 @@ STATS_QUEUE="q02anacreon"
 SEP_NCPUS=16
 DESEQ_NCPUS=8
 WGCNA_NCPUS=4
+PCORR_NCPUS=4
 NETWORK_NCPUS=2
 GPCR_NCPUS=1
 HUBS_NCPUS=2
@@ -48,6 +51,7 @@ STATS_NCPUS=4
 SEP_MEMORY=64gb
 DESEQ_MEMORY=10gb
 WGCNA_MEMORY=16gb
+PCORR_MEMORY=16gb
 NETWORK_MEMORY=32gb
 GPCR_MEMORY=8gb
 HUBS_MEMORY=20gb
@@ -158,6 +162,34 @@ for file in "${files[@]}"; do
     fi
 
     wgcnafile=$(dirname "$file")/wgcna_"$job_name".p
+
+    # ----- PCORR -----
+    if [ $PCORR -eq 1 ]; then
+        echo "PCORR"
+       
+        # Create job script pcorr_name=pcorr_"$job_name"
+        pcorr_name=pcorr_"$job_name"
+        pcorr_script=$(dirname "$file")/scripts/$pcorr_name.sh
+        
+        # Wait for deseq job to finish
+        waiting_list=""
+        [ $DESEQ -eq 1 ] && waiting_list="$waiting_list:$deseq_id"
+        echo "Waiting list: $waiting_list"
+
+        pcorr_id=$(fsub \
+            -p "$pcorr_script" \
+            -n "$pcorr_name" \
+            -nc "$PCORR_NCPUS" \
+            -m "$PCORR_MEMORY" \
+            -q "$PCORR_QUEUE" \
+            -e "partialcorr" \
+            -w "$waiting_list" \
+            -c "python partial_corr.py --input ${file}")
+
+        echo ""
+    fi
+
+    pcorrfile=$(dirname "$file")/pcorr_"$job_name".p
 
     # ----- NETWORK -----
     if [ $NETWORK -eq 1 ]; then
