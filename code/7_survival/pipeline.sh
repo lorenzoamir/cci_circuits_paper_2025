@@ -5,22 +5,26 @@
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
-SURV=1 # run survial analysis for all ccc and crosstalk pairs
-AGGR=1 # aggregate all the results
+SURV=0 # run survial analysis for all ccc and crosstalk pairs
+AGGR=0 # aggregate all the results
+COV=1
 
 SURV_QUEUE='q02anacreon'
 AGGR_QUEUE='q02anacreon'
+COV_QUEUE='q02anacreon'
 
 SURV_NCPUS=1
 AGGR_NCPUS=2
-PLOT_NCPUS=1
+COV_NCPUS=1
 
 SURV_MEMORY=15gb
 AGGR_MEMORY=20gb
+COV_MEMORY=15gb
 
 cd /home/lnemati/pathway_crosstalk/code/7_survival
 script_dir="/home/lnemati/pathway_crosstalk/code/7_survival/scripts"
 result_dir="/home/lnemati/pathway_crosstalk/results/survival"
+
 if [ ! -d "$result_dir" ]; then
     mkdir "$result_dir"
 fi
@@ -89,19 +93,28 @@ if [ $AGGR -eq 1 ]; then
     waiting_list=$waiting_list:$aggr_id
 fi
 
-#if [ $PLOT -eq 1 ]; then
-#    plot_script="$script_dir/plot.sh"
-#    plot_id=$(fsub \
-#        -p "$plot_script" \
-#        -n "plot" \
-#        -nc "$PLOT_NCPUS" \
-#        -m "$PLOT_MEMORY" \
-#        -e "WGCNA" \
-#        -q "$PLOT_QUEUE" \
-#        -w "$waiting_list" \
-#        -c "python plot.py"
-#    )
-#    waiting_list=$waiting_list:$plot_id
-#fi
+if [ $COV -eq 1 ]; then
+    for tissue_file in $tissue_files; do
+        tissue=$(basename $tissue_file | sed 's/.csv//')
+        cov_name="cov_$tissue"
+        cov_script="$script_dir/$cov_name.sh"
+        
+        # wait for aggregate job 
+        [ $AGGR -eq 1 ] && waiting_list=$waiting_list:$aggr_id 
+
+        cov_id=$(fsub \
+            -p "$cov_script" \
+            -n "$cov_name" \
+            -nc "$COV_NCPUS" \
+            -m "$COV_MEMORY" \
+            -e "r_survival" \
+            -q "$COV_QUEUE" \
+            -w "$waiting_list" \
+            -c "Rscript covariates_survival.R $tissue_file"
+        )
+
+        waiting_list=$waiting_list
+    done
+fi
 
 echo "Done: pipeline.sh"

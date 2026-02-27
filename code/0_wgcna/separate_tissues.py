@@ -3,6 +3,7 @@ import os
 import numpy as np
 import scanpy as sc
 import argparse
+import sys
 
 parser = argparse.ArgumentParser(description='Read data and separate it according to tissue and condition')
 
@@ -219,43 +220,7 @@ def filter_genes(adata, min_counts=15, fraction=0.75):
     # Subset to only genes that have enough counts in a big enough fraction of samples
     return adata[:, fraction_per_gene > fraction]
 
-
-# Divide according to tissue and condition
-
-print("New data will be saved in {}".format(args.outputdir))
-parent_dir = args.outputdir 
-
-if not os.path.exists(parent_dir):
-        os.makedirs(parent_dir)
-
-## save a copy of the data without subsetting
-#bdata = adata.copy()
-#
-## filtering genes
-#bdata = filter_genes(bdata, min_counts=15, fraction=0.75)
-#
-## make All_Tissues directory
-#tissue_path = os.path.join(parent_dir, "all_tissues")
-#if not os.path.isdir(tissue_path):
-#    os.mkdir(tissue_path)
-#    print(f"Creating directory: {tissue_path}")
-#
-#filename = os.path.join(tissue_path, "all_tissues.h5ad")
-#print(f"Writing file: {filename}")
-#bdata.write(filename, compression="gzip")
-
-print("columns are {}".format(adata.obs.columns))
-
-print("Separating data according to tissue and condition")
-print()
-
-print("Tissues:")
-print(adata.obs.tissue.value_counts())
-
-print("Conditions:")
-print(adata.obs.condition.value_counts())
-
-def check_filter_write(adata, filename):
+def check_filter_write(adata, filename, filter_genes=True):
     """
     Filter genes, check if there are enough samples and genes left and write file 
     """
@@ -263,8 +228,10 @@ def check_filter_write(adata, filename):
     if adata.shape[0] < 15:
         print(f"Less than 15 samples left after filtering. Skipping file: {filename}")
         return
+    
+    if filter_genes:
+        adata = filter_genes(adata, min_counts=15, fraction=0.75)
 
-    adata = filter_genes(adata, min_counts=15, fraction=0.75)
     if adata.shape[1] < 8000:
         print(f"Less than 8000 genes left after filtering. Skipping file: {filename}") 
         return
@@ -286,6 +253,53 @@ def clean_string(s):
     # substitute __ with single _
     s = s.replace("__", "_")
     return s
+
+# Divide according to tissue and condition
+
+print("New data will be saved in {}".format(args.outputdir))
+parent_dir = args.outputdir 
+
+if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)
+
+# save a copy of the data without subsetting
+bdata = adata.copy()
+
+filter_all_tissues = False
+
+# make All_Tissues directory
+#tissue_path = os.path.join(parent_dir, "all_tissues")
+tissue_path = '/projects/bioinformatics/DB/Xena/TCGA_GTEX/all_merged_tcga_vs_gtex'
+os.makedirs(tissue_path, exist_ok=True)
+
+# Split into tumor and normal, create directories and save files
+for condition in ["normal", "tumor"]:
+    if condition == "normal":
+        cdata = bdata[bdata.obs.type == "Normal Tissue"]
+        filename = os.path.join(tissue_path, "gtex.h5ad")
+        print(f"Writing file: {filename}")
+        check_filter_write(cdata, filename, filter_genes=filter_all_tissues)
+
+    elif condition == "tumor":
+        cdata = bdata[bdata.obs.type == "Primary Tumor"]
+        filename = os.path.join(tissue_path, "tcga.h5ad")
+        print(f"Writing file: {filename}")
+        check_filter_write(cdata, filename, filter_genes=filter_all_tissues)
+
+print("!!! EXITING AFTER WRITING ALL_TISSUES FILES !!!")
+# Exit
+sys.exit()
+
+print("columns are {}".format(adata.obs.columns))
+
+print("Separating data according to tissue and condition")
+print()
+
+print("Tissues:")
+print(adata.obs.tissue.value_counts())
+
+print("Conditions:")
+print(adata.obs.condition.value_counts())
 
 for tissue in adata.obs.tissue.unique():
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N separate
-#PBS -l select=1:ncpus=16:ngpus=0:mem=64gb
+#PBS -l select=1:ncpus=16:ngpus=0:mem=85gb
 #PBS -q q02anacreon
 mkdir -p /home/lnemati/pathway_crosstalk/code/0_wgcna
 cd /home/lnemati/pathway_crosstalk/code/0_wgcna

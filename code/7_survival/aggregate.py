@@ -125,4 +125,18 @@ better = better.query('c_diff_best > 0.')
 
 better = better.sort_values(by='c_diff_best', ascending=False)
 better.to_csv(os.path.join(outdir, 'better_pairs.csv'))
+
+print('Separate tissues')
+covariates_dir = '/home/lnemati/pathway_crosstalk/results/survival/covariates'
+
+for tissue in better.tissue.unique():
+    
+    # Skip Pan_Cancer
+    if tissue == 'Pan_Cancer':
+        continue
+
+    print('Processing', tissue)
+    tissue_df = better.query('tissue == @tissue')
+    tissue_df.to_csv(os.path.join(covariates_dir, f'{tissue}.csv'))
+
 print('Done: aggregate.py')

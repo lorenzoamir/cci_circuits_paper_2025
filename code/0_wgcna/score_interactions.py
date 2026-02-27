@@ -20,6 +20,10 @@ wgcna.CalculateSignedKME()
 n_modules = wgcna.signedKME.shape[1]
 wgcna_genes = wgcna.datExpr.var
 
+#dirname = os.path.dirname(filename)
+#corr = pd.read_csv(os.path.join(dirname, "correlation.csv.gz"), index_col=0)
+#pcorr = pd.read_csv(os.path.join(dirname, "partial_correlation.csv.gz"), index_col=0)
+
 # Get adjacency matrix and normalize it so that the maximum degree is 1
 adj = wgcna.adjacency
 degree = adj.sum(axis=1)
@@ -62,15 +66,16 @@ for name, interaction_path in interactions_resources.items():
     result["module"] = None
     result["same_module"] = 0
     result['corr'] = None
+    #result['pcorr'] = None
     result['adj'] = None
+    result['kme_cos'] = None # cosine similarity
     #result["min_adj"] = None
     #result["mean_adj"] = None
-    result['kme_corr'] = None # correlation
-    result['kme_cos'] = None # cosine similarity
-    result['kme_dot'] = None # dot product
-    result['kme_dot_norm'] = None # dot product / n_modules
-    result['kme_euclidean_similarity'] = None # sqrt(n_modules) - euclidean distance
-    result['kme_manhattan_similarity'] = None # n_modules - manhattan distance
+    #result['kme_corr'] = None # correlation
+    #result['kme_dot'] = None # dot product
+    #result['kme_dot_norm'] = None # dot product / n_modules
+    #result['kme_euclidean_similarity'] = None # sqrt(n_modules) - euclidean distance
+    #result['kme_manhattan_similarity'] = None # n_modules - manhattan distance
     #result["min_kme_corr"] = None
     #result["mean_kme_corr"] = None
     result["missing_genes"] = False
@@ -87,17 +92,18 @@ for name, interaction_path in interactions_resources.items():
             # If all genes are present, calculate the scores
             # Aggregate multiple values by taking the minimum
             result.loc[i, 'corr'] = corr.loc[all_genes[0], all_genes[1]]
+            #result.loc[i, 'pcorr'] = pcorr.loc[all_genes[0], all_genes[1]]
             result.loc[i, 'adj'] = adj.loc[all_genes[0], all_genes[1]]
             kme1 = wgcna.signedKME.loc[all_genes[0]]
             kme2 = wgcna.signedKME.loc[all_genes[1]]
-            result.loc[i, 'kme_corr'] = kme1.corr(kme2)
             result.loc[i, 'kme_cos'] = cosine_similarity(kme1.values.reshape(1, -1), kme2.values.reshape(1, -1))
-            result.loc[i, 'kme_dot'] = np.dot(kme1, kme2)
-            result.loc[i, 'kme_dot_norm'] = result.loc[i, 'kme_dot'] / n_modules
+            #result.loc[i, 'kme_corr'] = kme1.corr(kme2)
+            #result.loc[i, 'kme_dot'] = np.dot(kme1, kme2)
+            #result.loc[i, 'kme_dot_norm'] = result.loc[i, 'kme_dot'] / n_modules
             # Normalize by maximum possible euclidian distance on n-dimensional cube of side 2
-            result.loc[i, 'kme_euclidean_similarity'] = 1 - (np.linalg.norm(kme1 - kme2) / 2*np.sqrt(n_modules))
+            #result.loc[i, 'kme_euclidean_similarity'] = 1 - (np.linalg.norm(kme1 - kme2) / 2*np.sqrt(n_modules))
             # Normalize by maximum possible manhattan distance on n-dimensional cube of side 2
-            result.loc[i, 'kme_manhattan_similarity'] = 1 - (np.linalg.norm(kme1 - kme2, ord=1) / 2*n_modules)
+            #result.loc[i, 'kme_manhattan_similarity'] = 1 - (np.linalg.norm(kme1 - kme2, ord=1) / 2*n_modules)
             if wgcna.datExpr.var.loc[genes_in_wgcna, "moduleLabels"].nunique() == 1:
                 # If all genes are present and in the same module add module
                 result.loc[i, "same_module"] = 1

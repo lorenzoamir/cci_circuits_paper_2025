@@ -181,12 +181,18 @@ for d in dir_list:
             value = line.strip().split(': ')[1:]
             if len(value) == 1:
                 value = value[0]
-            if key == 'auroc':
+            if key == 'interactions_auroc_corr':
                 df.loc[name, 'interactions_auroc'] = float(value)
-            elif key == 'mannwhitneyu_U_all':
+            if key == 'interactions_auroc_pcorr':
+                df.loc[name, 'interactions_auroc_pcorr'] = float(value)
+            elif key == 'mannwhitneyu_U_all_corr':
                 df.loc[name, 'interactions_mannwhitneyu_U'] = float(value)
-            elif key == 'mannwhitneyu_p_all':
+            elif key == 'mannwhitneyu_U_all_pcorr':
+                df.loc[name, 'interactions_mannwhitneyu_U_pcorr'] = float(value)
+            elif key == 'mannwhitneyu_p_all_corr':
                 df.loc[name, 'interactions_mannwhitneyu_p'] = float(value)
+            elif key == 'mannwhitneyu_p_all_pcorr':
+                df.loc[name, 'interactions_mannwhitneyu_p_pcorr'] = float(value)
     
 # Save results
 df.to_csv(os.path.join(output, 'compare_results.csv'), index=False)
