@@ -7,7 +7,7 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
 COEVOLUTION=0
-NODES=0
+NODES=1
 AVG=0
 INT_NETWORK=0
 INT_PAIRS=0

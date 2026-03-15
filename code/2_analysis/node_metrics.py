@@ -13,11 +13,20 @@ args = parser.parse_args()
 
 dir_list = args.dir_list
 
-output = '/home/lnemati/pathway_crosstalk/results/hubs'
-# Create output directory if it does not exist
-os.makedirs(output, exist_ok=True)
 
-perc = 0.05
+# !!!! TRYING 10%
+print("!!! WARNING: Using 10% instead of 5% for top genes !!!")
+#perc = 0.05
+perc = 0.1
+
+# Create output directory if it does not exist
+if perc == 0.05:
+    output = '/home/lnemati/pathway_crosstalk/results/hubs'
+    os.makedirs(output, exist_ok=True)
+else:
+    print("!!! WARNING: Using 10% instead of 5% for top genes, saving to different directory !!!")
+    output = f'/home/lnemati/pathway_crosstalk/results/hubs_{int(perc*100)}_percent'
+    os.makedirs(output, exist_ok=True)
 
 dir_list = dir_list.split(',')
 dir_list = [x.strip() for x in dir_list]

@@ -8,7 +8,7 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 SPLIT=0 # Separate the different datasets
 FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
 INDIVIDUAL=0 # classify immunotherapy response with individual interactions/motifs
-AGGR=1 # aggregate all the results
+AGGR=0 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
 FEATURES_QUEUE='q02gaia'
