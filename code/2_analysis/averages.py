@@ -24,9 +24,14 @@ dir_list = [os.path.join(d, 'interactions') for d in dir_list]
 
 check_files = [
     'ccc_lr_pairs.csv',
+    'mismatched_lr_pairs.csv',
     'intact_direct.csv',
     'intact_physical.csv',
     'intact_association.csv',
+    'same_regulon.csv',
+    'different_regulon.csv',
+    'same_cell_type.csv',
+    'different_cell_type.csv',
 ]
 
 # Sanity check

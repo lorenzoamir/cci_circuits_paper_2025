@@ -7,7 +7,7 @@ source "/projects/bioinformatics/snsutils/snsutils.sh"
 
 SUBSET=0
 
-SEPARATE=1 # Cant't run SEPARATE with other steps because it wont detect the .h5ad files
+SEPARATE=0 # Cant't run SEPARATE with other steps because it wont detect the .h5ad files
 
 DESEQ=0
 WGCNA=0
@@ -17,7 +17,7 @@ HUBS=0
 RANK_ADJ=0
 COEVOLUTION=0 # Check if this shuld be kept now that you have the new coev pipeline
 INTERACTIONS=0
-SCORE_INTS=0
+SCORE_INTS=1
 PCORR=0
 ENRICHMENT=0
 STATS=0
@@ -312,7 +312,7 @@ for file in "${files[@]}"; do
             -nc "$INTERACTIONS_NCPUS" \
             -m "$INTERACTIONS_MEMORY" \
             -q "$INTERACTIONS_QUEUE" \
-            -e "WGCNA" \
+            -e "wgcna_v2" \
             -w "$waiting_list" \
             -c "python score_interactions.py --input ${wgcnafile}")
 

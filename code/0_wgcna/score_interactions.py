@@ -1,12 +1,24 @@
 import numpy as np
-import sys
-import scanpy as sc
 import PyWGCNA
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 import ast
 import os
 import argparse
+
+# MONKEY PATCH FOR READING WGCNA PICKLES
+
+import anndata
+import weakref
+
+# Versions of some packages changed from when we generated pickles. We have to Monkey patch it to read it
+# we override anndata's __setstate__ at runtimeto inject the missing "_adata_ref". This is ugly, but works
+
+def fake_setstate(self, state):
+    self.__dict__ = state.copy()
+    self.__dict__["_adata_ref"] = weakref.ref(state.get("_adata_ref", self))
+
+anndata._core.file_backing.AnnDataFileManager.__setstate__ = fake_setstate
 
 parser = argparse.ArgumentParser(description='Score interactions in WGCNA results')
 
@@ -40,14 +52,15 @@ print("output_path", output_path)
 print("filename", filename)
 
 interactions_resources = {
-    #'ccc':'/home/lnemati/pathway_crosstalk/data/interactions/ccc.csv',
-    #'pairs_of_interactions':'/home/lnemati/pathway_crosstalk/data/interactions/pairs_of_interactions.csv',
-    #'all_ccc_gene_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_gene_pairs.csv',
-    'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
-    'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
-    'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
-    'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
-    #'all_ccc_complex_pairs':'/home/lnemati/pathway_crosstalk/data/interactions/all_ccc_complex_pairs.csv',
+    #'ccc_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/ccc_lr_pairs.csv',
+    #'intact_direct':'/home/lnemati/pathway_crosstalk/data/interactions/intact_direct.csv',
+    #'intact_physical':'/home/lnemati/pathway_crosstalk/data/interactions/intact_physical.csv',
+    #'intact_association':'/home/lnemati/pathway_crosstalk/data/interactions/intact_association.csv',
+    #'same_regulon': '/home/lnemati/pathway_crosstalk/data/interactions/same_regulon_dorotheaA.csv',
+    #'different_regulon': '/home/lnemati/pathway_crosstalk/data/interactions/different_regulon_dorotheaA.csv',
+    #'same_cell_type': '/home/lnemati/pathway_crosstalk/data/interactions/same_cell_type_same_organ_dedup.csv',
+    #'different_cell_type': '/home/lnemati/pathway_crosstalk/data/interactions/different_cell_type_same_organ_dedup.csv',
+    'mismatched_lr_pairs': '/home/lnemati/pathway_crosstalk/data/interactions/mismatched_lr_pairs.csv',
 }
 
 for name, interaction_path in interactions_resources.items():

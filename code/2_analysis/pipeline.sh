@@ -7,8 +7,8 @@ source /projects/bioinformatics/snsutils/snsutils.sh
 
 COMPARE=0
 COEVOLUTION=0
-NODES=1
-AVG=0
+NODES=0
+AVG=1
 INT_NETWORK=0
 INT_PAIRS=0
 RANK_INT=0
@@ -129,7 +129,7 @@ if [ $AVG -eq 1 ]; then
         -n "$avg_name" \
         -nc "$AVG_NCPUS" \
         -m "$AVG_MEMORY" \
-        -e "WGCNA" \
+        -e "wgcna_v2" \
         -q "$AVG_QUEUE" \
         -c "python averages.py --dir-list $all_directories")
 fi
