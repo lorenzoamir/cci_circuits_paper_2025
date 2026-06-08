@@ -1,0 +1,332 @@
+library(survival)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(stringr)
+library(tibble)
+
+MIN_PATIENTS <- 10
+
+# Parse arguments
+args <- commandArgs(trailingOnly = TRUE)
+tissuefile <- args[1]
+
+covariates_dir = '/home/lnemati/pathway_crosstalk/results/survival/covariates/'
+
+# List
+covariates_cols = c("gender", "age_at_diagnosis", "binary_tumor_stage")
+
+# Read the survival data
+cat('Reading survival data\n')
+df <- read_csv(tissuefile, col_types = cols())
+
+cat('Number of rows in the dataset:', nrow(df), '\n')
+
+# Check and fix column names if needed
+if (names(df)[1] == "") {
+  names(df)[1] <- "sample"  # Rename if the first column has no name
+}
+
+# Set the first column as row names
+df <- df %>% column_to_rownames(var = names(df)[1])
+
+# The ids are like this TCGA-3M-AB46-01, the last number after last - represents samples, remove it to get patient id if patient col is not already present
+if (!"patient" %in% colnames(df)) {
+  df$patient <- sapply(strsplit(rownames(df), '-'), function(x) paste(x[1:4], collapse = '-'))
+}
+
+# Print number of patients (rows) in the dataset
+cat('Number of patients:', nrow(df), '\n')
+
+# Read motifs file and filter for specific types
+#motifs <- read_csv('/home/lnemati/pathway_crosstalk/results/crosstalk/all_ccc_complex_pairs/adj/motifs/tumor/motifs.csv', col_types = cols())
+#motifs <- motifs %>% pull(Interaction)
+
+# Instead of reading the full motif file, search for a file in covariates_dir that has the same name as the tissuefile
+# the covariates file could have different capitalization and spaces can be replaced with underscores
+all_covariates_files <- list.files(covariates_dir, full.names = TRUE)
+tissue_name <- tools::file_path_sans_ext(basename(tissuefile))
+tissue_name_pattern <- gsub(" ", "_", tissue_name, fixed = TRUE)
+matching_file <- all_covariates_files[grepl(tissue_name_pattern, all_covariates_files, ignore.case = TRUE)]
+if (length(matching_file) == 0) {
+  stop(paste("No matching covariates file found for tissue:", tissue_name))
+  cat('Done: survival.R')
+  quit(save = "no", status = 1, runLast = FALSE) 
+} else if (length(matching_file) > 1) {
+  stop(paste("Multiple matching covariates files found for tissue:", tissue_name, "\n", paste(matching_file, collapse = "\n")))
+  cat('Done: survival.R')
+  quit(save = "no", status = 1, runLast = FALSE)
+}
+cat('Reading covariates from:', matching_file, '\n')
+covariates_df <- read_csv(matching_file, col_types = cols())
+motifs <- covariates_df %>% pull(interaction)
+
+# Gender column is Male Female, convert to 0 1
+binary_gender <- function(gender) {
+  if (gender == "Male") {
+    return(0)
+  } else if (gender == "Female") {
+    return(1)
+  } else {
+    return(NA)
+  }
+}
+df$gender <- sapply(df$gender, binary_gender)
+
+cat('Number of motifs:', length(motifs), '\n')
+
+# Extract ccc interactions from motifs by splitting and flattening the list
+ccc <- unique(unlist(str_split(motifs, '&')))  # Split interactions by '&' and flatten the list
+cat('Number of ccc interactions:', length(ccc), '\n')
+
+survival_analysis <- function(interaction, df) {
+  results_list <- list()
+  cat(interaction, '\n')
+
+  genes <- unique(unlist(str_split(interaction, '[+&_]')))
+  
+  # Check if multiple conditions are present
+  multiple <- length(unique(df$condition)) > 1
+
+  # Select relevant columns (OS.time, OS, condition, and the genes of interest), also covariates
+  cols <- c("patient", "OS.time", "OS", "condition", genes, covariates_cols)
+  if (!multiple) {
+    cols <- setdiff(cols, "condition")
+  }
+  df <- df %>% select(all_of(cols))
+
+  # Convert OS time to years
+  df <- df %>% mutate(OS.time = OS.time / 365)
+
+  # Create empty dataframes for high and low expression groups
+  high_expression_group <- data.frame()
+  low_expression_group <- data.frame()
+
+  # If multiple tumors are present, split by condition
+  print('Splitting')
+  if (multiple) {
+    for (condition in unique(df$condition)) {
+      tissue_df <- df %>% filter(.data$condition == condition)
+
+      medians <- sapply(genes, function(gene) median(tissue_df[[gene]], na.rm = TRUE))
+      
+      # Create binary flags for above/below median for each gene
+      above_median_flags <- sapply(genes, function(gene) tissue_df[[gene]] > medians[gene])
+      below_median_flags <- sapply(genes, function(gene) tissue_df[[gene]] <= medians[gene])
+      
+      # Identify patients that are above the median for all genes
+      above_all_genes <- rowSums(above_median_flags) == length(genes)
+      below_all_genes <- rowSums(below_median_flags) == length(genes)
+      
+      # Split patients into high and low expression groups based on all genes
+      high_expression_group <- bind_rows(high_expression_group, tissue_df[above_all_genes, ])
+      low_expression_group <- bind_rows(low_expression_group, tissue_df[below_all_genes, ])
+    }
+  } else {
+    # If only one tissue, split into high and low expression groups
+    medians <- sapply(genes, function(gene) median(df[[gene]], na.rm = TRUE))
+    
+    # Create binary flags for above/below median for all genes
+    above_median_flags <- sapply(genes, function(gene) df[[gene]] > medians[gene])
+    below_median_flags <- sapply(genes, function(gene) df[[gene]] <= medians[gene])
+    
+    # Identify patients that are above the median for all genes
+    above_all_genes <- rowSums(above_median_flags) == length(genes)
+    below_all_genes <- rowSums(below_median_flags) == length(genes)
+    
+    # Split patients into high and low expression groups based on all genes
+    high_expression_group <- df[above_all_genes, ]
+    low_expression_group <- df[below_all_genes, ]
+  }
+
+  # Split into all high vs all low
+  patients_in_both_groups <- intersect(high_expression_group$patient, low_expression_group$patient)
+  high_expression_group <- high_expression_group %>% filter(!patient %in% patients_in_both_groups)
+  low_expression_group <- low_expression_group %>% filter(!patient %in% patients_in_both_groups)
+
+  # Add a 'group' column to indicate high (1) or low (0) expression groups
+  high_expression_group <- high_expression_group %>% mutate(group = 1)
+  low_expression_group <- low_expression_group %>% mutate(group = 0)
+
+  # Combine the high and low expression groups into one dataframe
+  df <- bind_rows(high_expression_group, low_expression_group)
+ 
+  # Patient column is not needed anymore
+  df <- df %>% select(-patient)
+
+  # Save the ids (rownames) in each group
+  high_expression_ids <- rownames(high_expression_group)
+  low_expression_ids <- rownames(low_expression_group)
+
+  # Convert to a ; delimited string of ids
+  high_expression_ids <- paste(high_expression_ids, collapse = ";")
+  low_expression_ids <- paste(low_expression_ids, collapse = ";")
+
+  # Remove any rows that are not part of the high or low expression groups
+  df <- df %>% filter(group %in% c(0, 1))
+
+  # Count the number of patients in each group
+  n_above_all <- nrow(high_expression_group)
+  n_below_all <- nrow(low_expression_group)
+
+  # If there are too few patients in either group, list of NA values
+  if (n_above_all < MIN_PATIENTS || n_below_all < MIN_PATIENTS) {
+    # This should never happen since we are only using interactions that already 
+    # run without issues, so if it does, print an error message and quit the script
+    print(paste("Error: Not enough patients in one of the groups for interaction:", interaction))
+    print("This should never happen since we are only using interactions that already run without issues")
+    quit(save = "no", status = 1, runLast = FALSE)
+
+    return(list(
+      hr = NA,
+      n_patients_low = n_below_all,
+      n_patients_high = n_above_all,
+      logrank_pval = NA,
+      concordance_index = NA,
+      ci_low = NA,
+      ci_high = NA,
+      se = NA
+      #high_expression_ids = high_expression_ids,
+      #low_expression_ids = low_expression_ids
+    ))
+  }
+  cat('Done splitting.', '\n')
+
+  # Remove all columns that are not needed and run the Cox model
+  # Instead of using the group column, we rerun the model for each covariate
+  for (cov in covariates_cols) {
+    cat(cov, '\n')
+
+    df_cov <- df
+    
+    # Replace group with the covariate column and make sure it's a factor
+    df_cov$group <- as.factor(df_cov[[cov]])
+    
+    # Skip if fewer than 2 levels
+    if (nlevels(df_cov$group) < 2) {
+      cat("Skipping", cov, "- only one level present\n")
+      
+      result <- list(
+        hr = NA,
+        n_patients_low = n_below_all,
+        n_patients_high = n_above_all,
+        logrank_pval = NA,
+        concordance_index = NA,
+        ci_low = NA,
+        ci_high = NA,
+        se = NA
+      )
+      
+      names(result) <- paste0(names(result), "_", cov)
+      results_list[[cov]] <- result
+      next
+    }
+
+    # Make sure condition is a factor if multiple conditions are present
+    if (multiple) {
+      df_cov$condition <- as.factor(df_cov$condition)
+    }
+
+    # Select only the necessary columns for the Cox model, only include condition if multiple 
+    if (multiple) {
+      df_cov <- df_cov %>% select(OS.time, OS, group, condition)
+    } else {
+      df_cov <- df_cov %>% select(OS.time, OS, group)
+    }
+   
+    # Print what is in df_cov$group e.g. value_coutns
+    print("Group value counts:")
+    print(table(df_cov$group))
+
+    # Run the Cox model, catch warnings and errors, if any, and return NAs
+    result <- tryCatch({
+      if (multiple) {
+        model <- coxph(formula = Surv(OS.time, OS) ~ group + strata(condition), data = df_cov)
+      } else {
+        model <- coxph(formula = Surv(OS.time, OS) ~ group, data = df_cov)
+      }
+
+      # Extract the metrics
+      hr <- exp(coef(model)["group1"])
+      logrank_pval <- summary(model)$sctest["pvalue"]
+      concordance <- summary(model)$concordance[1]
+      ci_low <- exp(confint(model)["group1", 1])
+      ci_high <- exp(confint(model)["group1", 2])
+      se <- summary(model)$coefficients["group1", "se(coef)"]
+      # Propagate error:
+      # hr = exp(coef) => err_hr = exp(coef) * se(coef) = hr * se(coef)
+      se <- hr * se
+
+      return(list(
+        hr = hr,
+        n_patients_low = n_below_all,
+        n_patients_high = n_above_all,
+        logrank_pval = logrank_pval,
+        concordance_index = concordance,
+        ci_low = ci_low,
+        ci_high = ci_high,
+        se = se
+        #high_expression_ids = high_expression_ids,
+        #low_expression_ids = low_expression_ids
+      ))
+    }, warning = function(w) {
+      print("Warning occurred during Cox model fitting. Returning NAs.")
+      print(w)
+      return(list(
+        hr = NA,
+        n_patients_low = n_below_all,
+        n_patients_high = n_above_all,
+        logrank_pval = NA,
+        concordance_index = NA,
+        ci_low = NA,
+        ci_high = NA,
+        se = NA
+        #high_expression_ids = high_expression_ids,
+        #low_expression_ids = low_expression_ids
+      ))
+    })
+  
+    # Add cov name (e.g. age_at_diagnosis) to the keys of result
+    # e.g. hr becomes hr_age_at_diagnosis, logrank_pval becomes logrank_pval_age_at_diagnosis, etc.
+    names(result) <- paste0(names(result), "_", cov)
+    
+    # Save the result in a list instead of returning immediately
+    # Error: object 'results_list' not found 
+    results_list[[cov]] <- result
+  }
+  return(unlist(results_list))
+}
+
+# Instead of creating a new dataframe, keep original cols from the motifs dataframe and add the new columns to it
+original_cols <- c("interaction", "tissue", "hr", "concordance_index", "logrank_pval", "motif")
+# Only keep the original columns in the motifs dataframe, the rest can be discarded
+cat('Subsetting columns in the original dataframe\n')
+covariates_df <- covariates_df %>% select(all_of(original_cols))
+
+# Create a new dataframe with the results of the covatiate analysis and then join it on the left to the original motifs dataframe, keeping all original columns and adding the new ones
+cat('Initializing covariate results dataframe\n')
+cov_results <- data.frame()
+
+for (interaction in motifs) {
+  result <- survival_analysis(interaction, df)
+   
+  # Convert the result into a data frame, this time don't specify the columns names, take them automatically from result, just add the interaction as an index
+  result_df <- as.data.frame(result)
+  result_df$interaction <- interaction
+
+  cov_results <- bind_rows(cov_results, result_df)
+}
+
+# Join the cov_results with the original motifs dataframe, keeping all original columns and adding the new ones
+cat('Joining covariate results with original motifs dataframe\n')
+covariates_df <- left_join(covariates_df, cov_results, by = "interaction")
+
+print(head(covariates_df))
+print(colnames(covariates_df))
+
+# Save overwriting the original motifs file
+cat('Saving results to:', matching_file, '\n')
+cat('!!!! NOT ACTUALLY SAVING RESULTS!!!', '\n')
+#write_csv(covariates_df, matching_file)
+
+cat('Done: survival.R')

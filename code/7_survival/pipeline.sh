@@ -85,7 +85,7 @@ if [ $AGGR -eq 1 ]; then
         -n "aggr" \
         -nc "$AGGR_NCPUS" \
         -m "$AGGR_MEMORY" \
-        -e "WGCNA" \
+        -e "wgcna_v2" \
         -q "$AGGR_QUEUE" \
         -w "$waiting_list" \
         -c "python aggregate.py --inputdir $tissues_dir --outputdir $aggregate_dir"

@@ -5,6 +5,6 @@
 mkdir -p /home/lnemati/pathway_crosstalk/code/7_survival
 cd /home/lnemati/pathway_crosstalk/code/7_survival
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"
-conda activate WGCNA
+conda activate wgcna_v2
 python aggregate.py --inputdir /home/lnemati/pathway_crosstalk/results/survival/tissues --outputdir /home/lnemati/pathway_crosstalk/results/survival/aggregate
 exit 0
