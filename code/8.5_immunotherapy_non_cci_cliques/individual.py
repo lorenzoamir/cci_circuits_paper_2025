@@ -4,6 +4,7 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.model_selection import cross_val_predict, StratifiedKFold
 from sklearn.decomposition import PCA
 from tabpfn import TabPFNClassifier
+from torch.cuda import is_available
 import signal
 import random
 import re
@@ -26,7 +27,7 @@ def timeout_handler(signum, frame):
     raise TimeoutException("Operation timed out.")
 
 signal.signal(signal.SIGALRM, timeout_handler)
-timeout_seconds = 20
+timeout_seconds = 30
 
 n_folds = 10
 
@@ -70,11 +71,16 @@ target = target.to_frame().T
 # Find category number of 'R'
 n_samples = y.shape[0]
 
+device = None
+if is_available():
+    device = 'cuda'
+
 # Init classifier
 clf = TabPFNClassifier(
     random_state=seed,
     balance_probabilities='True',
-    #device='cuda',
+#    device=device,
+    device='cuda',
 )
 
 # Get folds
@@ -119,11 +125,15 @@ if motif == 'individual_ccis':
             auroc = roc_auc_score(y, prob, multi_class='ovr')
             auprc = average_precision_score(y, prob, pos_label=1)
         
-        except TimeoutException:
-            print('Timeout for interaction ', idx)
+        #except TimeoutException:
+        except Exception as e:
+            print('Exception for interaction ', idx)
             prob = [np.nan] * X.shape[0] 
             auroc = np.nan
             auprc = np.nan
+
+        finally:
+                signal.alarm(0)
 
         aurocs.append(auroc)
         auprcs.append(auprc)

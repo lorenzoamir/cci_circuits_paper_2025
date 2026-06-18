@@ -1,14 +1,14 @@
 #!/bin/bash
 #PBS -N wgcna_analysis
 #PBS -l select=1:ncpus=1:mem=1gb
-#PBS -q q02anacreon
+#PBS -q q02gaia
 
 source /projects/bioinformatics/snsutils/snsutils.sh
 
 SPLIT=0 # Separate the different datasets
 FEATURES=0 # classify immunotherapy response with full feature sets e.g. all CCIs
-INDIVIDUAL=1 # classify immunotherapy response with individual interactions/motifs
-AGGR=0 # aggregate all the results
+INDIVIDUAL=0 # classify immunotherapy response with individual interactions/motifs
+AGGR=1 # aggregate all the results
 
 SPLIT_QUEUE='q02anacreon'
 FEATURES_QUEUE='q02gaia'
@@ -17,7 +17,7 @@ AGGR_QUEUE='q02anacreon'
 
 SPLIT_NCPUS=1
 FEATURES_NCPUS=1
-INDIVIDUAL_NCPUS=1
+INDIVIDUAL_NCPUS=2
 AGGR_NCPUS=2
 
 SPLIT_MEMORY=24gb
@@ -133,7 +133,9 @@ if [ $FEATURES -eq 1 ]; then
 fi
 
 #motifs_list=(random_pairs 4_clique 3_clique individual_ccis 4_no_crosstalk 4_triangle_extra 4_path 4_one_missing 4_cycle 3_path)
-motifs_list=(4_non_cci_clique 3_non_cci_clique individual_ccis)
+#motifs_list=(4_non_cci_clique 3_non_cci_clique individual_ccis)
+#motifs_list=(4_non_cci_clique 3_non_cci_clique)
+#motifs_list=(individual_ccis)
 
 outdir='/home/lnemati/pathway_crosstalk/results/immunotherapy/non_cci_cliques/individual_interactions_and_motifs/'
 

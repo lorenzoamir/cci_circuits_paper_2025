@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N mtf_4_non_cci_clique_full_dataset
-#PBS -l select=1:ncpus=1:ngpus=0:mem=32gb
-#PBS -q q02gaia
+#PBS -l select=1:ncpus=2:ngpus=1:mem=32gb
+#PBS -q q07gaia
 mkdir -p /home/lnemati/pathway_crosstalk/code/8.5_immunotherapy_non_cci_cliques
 cd /home/lnemati/pathway_crosstalk/code/8.5_immunotherapy_non_cci_cliques
 eval "$(/cluster/shared/software/miniconda3/bin/conda shell.bash hook)"

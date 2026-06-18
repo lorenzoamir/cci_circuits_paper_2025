@@ -24,16 +24,18 @@ os.makedirs(outdir, exist_ok=True)
 dfs = []
 
 possible_motifs = [
-    '4_clique',
-    '4_no_crosstalk',
-    '4_triangle_extra',
-    '4_path',
-    '4_one_missing',
-    '4_cycle',
-    '3_path',
-    '3_clique',
+    '4_non_cci_clique',
+    '3_non_cci_clique',
+    #'4_clique',
+    #'4_no_crosstalk',
+    #'4_triangle_extra',
+    #'4_path',
+    #'4_one_missing',
+    #'4_cycle',
+    #'3_path',
+    #'3_clique',
     'individual_ccis',
-    'random_pairs'
+    #'random_pairs'
 ]
 
 for file in os.listdir(os.path.join(parentdir, 'metrics')):
